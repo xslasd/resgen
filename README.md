@@ -81,6 +81,7 @@ group /api/v1 [wrap=ResData] {  # 组级应用默认响应包装器
      package: "resolver"
      enable_api_docs: true  # 开启全自动 API 文档生成
    ```
+   > 💡 **提示**：`resgen` 默认从当前目录加载 `resgen.yaml`。如果文件不存在，将使用内置默认配置。你也可以通过 `-c` 或 `--config` 参数指定配置文件路径。
 4. **一键生成**：`resgen generate -f ./schema -o ./resolver`
 5. **注入业务**：实现生成的 `Resolver` 接口即可。
 
@@ -96,11 +97,11 @@ group /api/v1 [wrap=ResData] {  # 组级应用默认响应包装器
 
 ```go
 // 示例：在 Gin 中集成
-en := resolver.NewEngine[*gin.Context, resolver.Context[*gin.Context]]().
-    BindRegister(func(e *resolver.Engine[*gin.Context, resolver.Context[*gin.Context]], method, path string, handler resolver.HandlerFunc[resolver.Context[*gin.Context]]) {
+en := resolver.NewEngine[*GinContext]().
+    BindRegister(func(e *resolver.Engine[*GinContext], info resolver.MethodInfo, handler resolver.HandlerFunc[*GinContext]) {
         // 文档路由 (/docs) 也会通过此回调自动注册到 Gin
-        r.Handle(method, path, func(ctx *gin.Context) {
-            handler(&GinContext{GC: ctx})
+        r.Handle(info.Method, info.Path, func(ctx *gin.Context) {
+            handler(&GinContext{GC: ctx}, info)
         })
     })
 ```
