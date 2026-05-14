@@ -1,0 +1,1082 @@
+{
+  "package": "resolver",
+  "info": {
+    "title": "Resgen Generated API",
+    "version": "1.0.0",
+    "baseUrl": "http://localhost:8080"
+  },
+  "validators": [
+    {
+      "name": "Required"
+    },
+    {
+      "name": "Email",
+      "doc": "装饰器与校验器定义\n验证邮箱",
+      "stage": "request",
+      "scope": "global"
+    },
+    {
+      "name": "Mobile",
+      "doc": "验证手机号",
+      "stage": "request",
+      "scope": "global"
+    },
+    {
+      "name": "Min",
+      "doc": "验证最小长度",
+      "stage": "request",
+      "scope": "global",
+      "args": [
+        {
+          "name": "Len",
+          "type": "int",
+          "jsonName": "",
+          "originalType": ""
+        }
+      ]
+    },
+    {
+      "name": "Max",
+      "doc": "验证最大长度",
+      "stage": "request",
+      "scope": "global",
+      "args": [
+        {
+          "name": "Len",
+          "type": "int",
+          "jsonName": "",
+          "originalType": ""
+        }
+      ]
+    },
+    {
+      "name": "FileRule",
+      "doc": "限制文件规则：大小、类型、自定义消息",
+      "stage": "request",
+      "scope": "global",
+      "args": [
+        {
+          "name": "MaxSize",
+          "type": "int",
+          "jsonName": "",
+          "originalType": ""
+        },
+        {
+          "name": "Types",
+          "type": "[]string",
+          "jsonName": "",
+          "originalType": ""
+        },
+        {
+          "name": "Msg",
+          "type": "string",
+          "jsonName": "",
+          "originalType": ""
+        }
+      ]
+    }
+  ],
+  "modules": [
+    {
+      "name": "UserCenter",
+      "groups": [
+        {
+          "name": "Users",
+          "doc": "接口定义 - 组级配置: wrap=ResData 对组内所有接口生效",
+          "path": "/users",
+          "endpoints": [
+            {
+              "name": "GetProfile",
+              "method": "GET",
+              "path": "/profile",
+              "fullPath": "/users/profile",
+              "returnType": "*ResData",
+              "returnTypeDSL": "ResData\u003cUser\u003e",
+              "innerReturnType": "*User",
+              "isReturnWrapped": true,
+              "returnTypeBase": "ResData",
+              "errorType": "ResData",
+              "isErrorWrapped": true,
+              "errorTypeBase": "ResData",
+              "successStatus": 200,
+              "isArgsWrapped": true,
+              "contentType": "application/json",
+              "responseContentType": "application/json",
+              "errorContentType": "application/json"
+            },
+            {
+              "name": "UserCopy",
+              "doc": "复制用户",
+              "method": "GET",
+              "path": "/user/copy",
+              "fullPath": "/users/user/copy",
+              "inputName": "UserCopyArgs",
+              "returnType": "*ResData",
+              "returnTypeDSL": "ResData\u003cUser\u003e",
+              "innerReturnType": "*User",
+              "isReturnWrapped": true,
+              "returnTypeBase": "ResData",
+              "errorType": "ResData",
+              "isErrorWrapped": true,
+              "errorTypeBase": "ResData",
+              "successStatus": 200,
+              "args": [
+                {
+                  "name": "id",
+                  "doc": "复制用户",
+                  "type": "String",
+                  "source": "Body",
+                  "validators": [
+                    {
+                      "name": "Required"
+                    }
+                  ]
+                }
+              ],
+              "isArgsWrapped": true,
+              "contentType": "application/json",
+              "responseContentType": "application/json",
+              "errorContentType": "application/json"
+            },
+            {
+              "name": "CreateUser",
+              "method": "POST",
+              "path": "/register",
+              "fullPath": "/users/register",
+              "inputName": "CreateUserInput",
+              "returnType": "*ResData",
+              "returnTypeDSL": "ResData\u003cUser\u003e",
+              "innerReturnType": "*User",
+              "isReturnWrapped": true,
+              "returnTypeBase": "ResData",
+              "errorType": "ResData",
+              "isErrorWrapped": true,
+              "errorTypeBase": "ResData",
+              "successStatus": 200,
+              "args": [
+                {
+                  "name": "input",
+                  "type": "CreateUserInput",
+                  "source": "Body"
+                }
+              ],
+              "isArgsWrapped": false,
+              "contentType": "application/x-www-form-urlencoded",
+              "responseContentType": "application/json",
+              "errorContentType": "application/json"
+            },
+            {
+              "name": "Login",
+              "method": "POST",
+              "path": "/login",
+              "fullPath": "/users/login",
+              "inputName": "LoginArgs",
+              "returnType": "*ResData",
+              "returnTypeDSL": "ResData\u003cToken\u003e",
+              "innerReturnType": "*Token",
+              "isReturnWrapped": true,
+              "returnTypeBase": "ResData",
+              "errorType": "ResData",
+              "isErrorWrapped": true,
+              "errorTypeBase": "ResData",
+              "successStatus": 201,
+              "args": [
+                {
+                  "name": "username",
+                  "type": "String",
+                  "source": "Body"
+                },
+                {
+                  "name": "password",
+                  "type": "String",
+                  "source": "Body"
+                }
+              ],
+              "isArgsWrapped": true,
+              "contentType": "application/json",
+              "responseContentType": "application/json",
+              "errorContentType": "application/json"
+            },
+            {
+              "name": "UpdateUser",
+              "doc": "测试多阶段装饰器",
+              "method": "POST",
+              "path": "/update",
+              "fullPath": "/users/update",
+              "inputName": "UpdateUserArgs",
+              "returnType": "*ResData",
+              "returnTypeDSL": "ResData\u003cUser\u003e",
+              "innerReturnType": "*User",
+              "isReturnWrapped": true,
+              "returnTypeBase": "ResData",
+              "errorType": "ResData",
+              "isErrorWrapped": true,
+              "errorTypeBase": "ResData",
+              "successStatus": 200,
+              "args": [
+                {
+                  "name": "id",
+                  "type": "Int",
+                  "source": "Body",
+                  "validators": [
+                    {
+                      "name": "Required"
+                    }
+                  ]
+                },
+                {
+                  "name": "email",
+                  "type": "String",
+                  "source": "Body"
+                }
+              ],
+              "isArgsWrapped": true,
+              "contentType": "application/json",
+              "responseContentType": "application/json",
+              "errorContentType": "application/json"
+            },
+            {
+              "name": "UploadAvatar",
+              "method": "POST",
+              "path": "/avatar",
+              "fullPath": "/users/avatar",
+              "inputName": "UploadAvatarInput",
+              "returnType": "*ResData",
+              "returnTypeDSL": "ResData\u003cString\u003e",
+              "innerReturnType": "*string",
+              "isReturnWrapped": true,
+              "returnTypeBase": "ResData",
+              "errorType": "ResData",
+              "isErrorWrapped": true,
+              "errorTypeBase": "ResData",
+              "successStatus": 200,
+              "args": [
+                {
+                  "name": "input",
+                  "type": "UploadAvatarInput",
+                  "source": "Body"
+                }
+              ],
+              "isArgsWrapped": false,
+              "contentType": "multipart/form-data",
+              "responseContentType": "application/json",
+              "errorContentType": "application/json"
+            },
+            {
+              "name": "GetUsers",
+              "method": "GET",
+              "path": "/users",
+              "fullPath": "/users/users",
+              "inputName": "GetUsersArgs",
+              "returnType": "*ResData",
+              "returnTypeDSL": "ResData\u003c[User]\u003e",
+              "innerReturnType": "*[]*User",
+              "isReturnWrapped": true,
+              "returnTypeBase": "ResData",
+              "errorType": "ResData",
+              "isErrorWrapped": true,
+              "errorTypeBase": "ResData",
+              "successStatus": 200,
+              "args": [
+                {
+                  "name": "page",
+                  "type": "Int",
+                  "source": "Query",
+                  "validators": [
+                    {
+                      "name": "Required"
+                    }
+                  ]
+                },
+                {
+                  "name": "size",
+                  "type": "Int",
+                  "source": "Query",
+                  "validators": [
+                    {
+                      "name": "Max",
+                      "doc": "验证最大长度",
+                      "args": [
+                        {
+                          "name": "Len",
+                          "type": "",
+                          "jsonName": "",
+                          "originalType": "",
+                          "value": "100"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "isArgsWrapped": true,
+              "contentType": "application/json",
+              "responseContentType": "application/json",
+              "errorContentType": "application/json"
+            },
+            {
+              "name": "GetUser",
+              "method": "GET",
+              "path": "/users/:id",
+              "fullPath": "/users/users/:id",
+              "inputName": "GetUserArgs",
+              "returnType": "*User",
+              "returnTypeDSL": "User",
+              "innerReturnType": "*User",
+              "isReturnWrapped": false,
+              "errorType": "ResData",
+              "isErrorWrapped": true,
+              "errorTypeBase": "ResData",
+              "successStatus": 200,
+              "args": [
+                {
+                  "name": "id",
+                  "type": "Int",
+                  "source": "Path"
+                }
+              ],
+              "isArgsWrapped": true,
+              "contentType": "application/json",
+              "responseContentType": "application/json",
+              "errorContentType": "application/json"
+            },
+            {
+              "name": "DeleteUser",
+              "method": "DELETE",
+              "path": "/users/:id",
+              "fullPath": "/users/users/:id",
+              "inputName": "DeleteUserArgs",
+              "returnType": "*ResData",
+              "returnTypeDSL": "ResData\u003cString\u003e",
+              "innerReturnType": "*string",
+              "isReturnWrapped": true,
+              "returnTypeBase": "ResData",
+              "errorType": "ResData",
+              "isErrorWrapped": true,
+              "errorTypeBase": "ResData",
+              "successStatus": 200,
+              "args": [
+                {
+                  "name": "id",
+                  "type": "Int",
+                  "source": "Path"
+                }
+              ],
+              "isArgsWrapped": true,
+              "contentType": "application/json",
+              "responseContentType": "application/json",
+              "errorContentType": "application/json"
+            },
+            {
+              "name": "UpdateProfile",
+              "method": "POST",
+              "path": "/update_profile",
+              "fullPath": "/users/update_profile",
+              "inputName": "ProfileUpdateInput",
+              "returnType": "*ResData",
+              "returnTypeDSL": "ResData\u003cString\u003e",
+              "innerReturnType": "*string",
+              "isReturnWrapped": true,
+              "returnTypeBase": "ResData",
+              "errorType": "ResData",
+              "isErrorWrapped": true,
+              "errorTypeBase": "ResData",
+              "successStatus": 200,
+              "args": [
+                {
+                  "name": "input",
+                  "type": "ProfileUpdateInput",
+                  "source": "Body"
+                }
+              ],
+              "isArgsWrapped": false,
+              "contentType": "application/json",
+              "responseContentType": "application/json",
+              "errorContentType": "application/json"
+            },
+            {
+              "name": "ExportUsers",
+              "doc": "导出用户数据, 响应 text/plain, 错误时用 JSON 包装",
+              "method": "GET",
+              "path": "/export",
+              "fullPath": "/users/export",
+              "returnType": "*string",
+              "returnTypeDSL": "String",
+              "innerReturnType": "*string",
+              "isReturnWrapped": false,
+              "errorType": "ResData",
+              "isErrorWrapped": true,
+              "errorTypeBase": "ResData",
+              "successStatus": 200,
+              "isArgsWrapped": true,
+              "contentType": "application/json",
+              "responseContentType": "text/plain",
+              "errorContentType": "application/json"
+            },
+            {
+              "name": "TestValid",
+              "method": "GET",
+              "path": "/test_valid",
+              "fullPath": "/users/test_valid",
+              "inputName": "ValidGET",
+              "returnType": "any",
+              "returnTypeDSL": "Any",
+              "innerReturnType": "any",
+              "isReturnWrapped": false,
+              "errorType": "ResData",
+              "isErrorWrapped": true,
+              "errorTypeBase": "ResData",
+              "successStatus": 200,
+              "args": [
+                {
+                  "name": "in",
+                  "type": "ValidGET",
+                  "source": "Query"
+                }
+              ],
+              "isArgsWrapped": false,
+              "contentType": "application/json",
+              "responseContentType": "application/json",
+              "errorContentType": "application/json"
+            }
+          ]
+        }
+      ],
+      "models": null,
+      "specializedDecorators": [
+        {
+          "name": "CheckOwner",
+          "stage": "invoke",
+          "isSpecialized": true,
+          "methodName": "UpdateUser",
+          "inputType": "UpdateUserArgs",
+          "returnType": "*User"
+        },
+        {
+          "name": "MaskEmail",
+          "stage": "response",
+          "isSpecialized": true,
+          "methodName": "UpdateUser",
+          "inputType": "UpdateUserArgs",
+          "returnType": "*User"
+        }
+      ]
+    },
+    {
+      "name": "TaskCenter",
+      "groups": [
+        {
+          "name": "Tasks",
+          "path": "/tasks",
+          "endpoints": [
+            {
+              "name": "CreateTask",
+              "method": "POST",
+              "path": "/create",
+              "fullPath": "/tasks/create",
+              "inputName": "CreateTaskInput",
+              "returnType": "ResData",
+              "returnTypeDSL": "ResData\u003cString\u003e",
+              "innerReturnType": "*string",
+              "isReturnWrapped": true,
+              "returnTypeBase": "ResData",
+              "errorType": "ResData",
+              "isErrorWrapped": true,
+              "errorTypeBase": "ResData",
+              "successStatus": 200,
+              "args": [
+                {
+                  "name": "input",
+                  "type": "CreateTaskInput",
+                  "source": "Body"
+                }
+              ],
+              "isArgsWrapped": false,
+              "contentType": "application/json",
+              "responseContentType": "application/json",
+              "errorContentType": "application/json"
+            },
+            {
+              "name": "GetTasks",
+              "method": "GET",
+              "path": "/list",
+              "fullPath": "/tasks/list",
+              "inputName": "GetTasksInput",
+              "returnType": "ResData",
+              "returnTypeDSL": "ResData\u003cString\u003e",
+              "innerReturnType": "*string",
+              "isReturnWrapped": true,
+              "returnTypeBase": "ResData",
+              "errorType": "ResData",
+              "isErrorWrapped": true,
+              "errorTypeBase": "ResData",
+              "successStatus": 200,
+              "args": [
+                {
+                  "name": "input",
+                  "type": "GetTasksInput",
+                  "source": "Query"
+                }
+              ],
+              "isArgsWrapped": false,
+              "contentType": "application/json",
+              "responseContentType": "application/json",
+              "errorContentType": "application/json"
+            }
+          ]
+        }
+      ],
+      "models": null
+    }
+  ],
+  "models": [
+    {
+      "name": "ResData",
+      "doc": "定义统一响应包装器",
+      "module": "UserCenter",
+      "isInput": false,
+      "isWrapper": true,
+      "typeParams": [
+        "T"
+      ],
+      "fields": [
+        {
+          "name": "code",
+          "type": "int",
+          "jsonName": "code",
+          "originalType": "Int",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        },
+        {
+          "name": "msg",
+          "type": "string",
+          "jsonName": "msg",
+          "originalType": "String",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        },
+        {
+          "name": "data",
+          "type": "*T",
+          "jsonName": "data",
+          "originalType": "T"
+        }
+      ]
+    },
+    {
+      "name": "User",
+      "doc": "核心用户模型",
+      "module": "UserCenter",
+      "isInput": false,
+      "isWrapper": false,
+      "fields": [
+        {
+          "name": "id",
+          "type": "int",
+          "jsonName": "id",
+          "originalType": "Int",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        },
+        {
+          "name": "username",
+          "type": "string",
+          "jsonName": "username",
+          "originalType": "String",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        },
+        {
+          "name": "email",
+          "type": "string",
+          "jsonName": "email",
+          "originalType": "String",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        },
+        {
+          "name": "avatar_url",
+          "type": "*string",
+          "jsonName": "avatarUrl",
+          "originalType": "String"
+        },
+        {
+          "name": "created_at",
+          "type": "*time.Time",
+          "jsonName": "createdAt",
+          "originalType": "Time"
+        }
+      ]
+    },
+    {
+      "name": "CreateUserInput",
+      "doc": "输入模型",
+      "module": "UserCenter",
+      "isInput": true,
+      "isWrapper": false,
+      "fields": [
+        {
+          "name": "username",
+          "doc": "昵称，长度在 5-20 之间",
+          "type": "string",
+          "jsonName": "username",
+          "originalType": "String",
+          "validators": [
+            {
+              "name": "Required"
+            },
+            {
+              "name": "Min",
+              "doc": "验证最小长度",
+              "args": [
+                {
+                  "name": "Len",
+                  "type": "",
+                  "jsonName": "",
+                  "originalType": "",
+                  "value": "5"
+                }
+              ]
+            },
+            {
+              "name": "Max",
+              "doc": "验证最大长度",
+              "args": [
+                {
+                  "name": "Len",
+                  "type": "",
+                  "jsonName": "",
+                  "originalType": "",
+                  "value": "20"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "email",
+          "doc": "邮箱",
+          "type": "string",
+          "jsonName": "email",
+          "originalType": "String",
+          "validators": [
+            {
+              "name": "Required"
+            },
+            {
+              "name": "Email",
+              "doc": "装饰器与校验器定义\n验证邮箱"
+            }
+          ]
+        },
+        {
+          "name": "mobile",
+          "doc": "手机号",
+          "type": "string",
+          "jsonName": "mobile",
+          "originalType": "String",
+          "validators": [
+            {
+              "name": "Required"
+            },
+            {
+              "name": "Mobile",
+              "doc": "验证手机号"
+            }
+          ]
+        },
+        {
+          "name": "password",
+          "doc": "密码",
+          "type": "string",
+          "jsonName": "password",
+          "originalType": "String",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        },
+        {
+          "name": "confirm_password",
+          "doc": "确认密码",
+          "type": "string",
+          "jsonName": "confirmPassword",
+          "originalType": "String",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "UploadAvatarInput",
+      "module": "UserCenter",
+      "isInput": true,
+      "isWrapper": false,
+      "fields": [
+        {
+          "name": "id",
+          "type": "int",
+          "jsonName": "id",
+          "originalType": "Int",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        },
+        {
+          "name": "file",
+          "type": "*multipart.FileHeader",
+          "jsonName": "file",
+          "originalType": "File",
+          "validators": [
+            {
+              "name": "Required"
+            },
+            {
+              "name": "FileRule",
+              "doc": "限制文件规则：大小、类型、自定义消息",
+              "args": [
+                {
+                  "name": "MaxSize",
+                  "type": "",
+                  "jsonName": "",
+                  "originalType": "",
+                  "value": "2097152"
+                },
+                {
+                  "name": "Types",
+                  "type": "",
+                  "jsonName": "",
+                  "originalType": "",
+                  "value": "[]string{\"image/jpeg\", \"image/png\"}"
+                },
+                {
+                  "name": "Msg",
+                  "type": "",
+                  "jsonName": "",
+                  "originalType": "",
+                  "value": "\"头像格式错误或文件太大\""
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ProfileUpdateInput",
+      "module": "UserCenter",
+      "isInput": true,
+      "isWrapper": false,
+      "fields": [
+        {
+          "name": "current_email",
+          "type": "string",
+          "jsonName": "currentEmail",
+          "originalType": "String",
+          "validators": [
+            {
+              "name": "Required"
+            },
+            {
+              "name": "Email",
+              "doc": "装饰器与校验器定义\n验证邮箱"
+            }
+          ]
+        },
+        {
+          "name": "security",
+          "type": "SecurityInfo",
+          "jsonName": "security",
+          "originalType": "SecurityInfo",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        },
+        {
+          "name": "email_confirm",
+          "type": "string",
+          "jsonName": "emailConfirm",
+          "originalType": "String",
+          "validators": [
+            {
+              "name": "Required"
+            },
+            {
+              "name": "Email",
+              "doc": "装饰器与校验器定义\n验证邮箱"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "SecurityInfo",
+      "module": "UserCenter",
+      "isInput": false,
+      "isWrapper": false,
+      "fields": [
+        {
+          "name": "backup_email",
+          "type": "string",
+          "jsonName": "backupEmail",
+          "originalType": "String",
+          "validators": [
+            {
+              "name": "Required"
+            },
+            {
+              "name": "Email",
+              "doc": "装饰器与校验器定义\n验证邮箱"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ValidGET",
+      "module": "UserCenter",
+      "isInput": true,
+      "isWrapper": false,
+      "fields": [
+        {
+          "name": "page",
+          "type": "*int",
+          "jsonName": "page",
+          "originalType": "Int"
+        },
+        {
+          "name": "size",
+          "type": "*int",
+          "jsonName": "size",
+          "originalType": "Int"
+        }
+      ]
+    },
+    {
+      "name": "Token",
+      "module": "UserCenter",
+      "isInput": false,
+      "isWrapper": false,
+      "fields": [
+        {
+          "name": "token",
+          "type": "string",
+          "jsonName": "token",
+          "originalType": "String",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "CreateTaskInput",
+      "module": "TaskCenter",
+      "isInput": true,
+      "isWrapper": false,
+      "fields": [
+        {
+          "name": "title",
+          "type": "string",
+          "jsonName": "title",
+          "originalType": "String",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        },
+        {
+          "name": "period",
+          "type": "TaskPeriod",
+          "jsonName": "period",
+          "originalType": "TaskPeriod",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "TaskPeriod",
+      "module": "TaskCenter",
+      "isInput": true,
+      "isWrapper": false,
+      "fields": [
+        {
+          "name": "start_time",
+          "type": "time.Time",
+          "jsonName": "startTime",
+          "originalType": "Time",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        },
+        {
+          "name": "end_time",
+          "type": "time.Time",
+          "jsonName": "endTime",
+          "originalType": "Time",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "GetTasksInput",
+      "module": "TaskCenter",
+      "isInput": true,
+      "isWrapper": false,
+      "fields": [
+        {
+          "name": "page",
+          "type": "*int",
+          "jsonName": "page",
+          "originalType": "Int"
+        },
+        {
+          "name": "size",
+          "type": "*int",
+          "jsonName": "size",
+          "originalType": "Int"
+        }
+      ]
+    },
+    {
+      "name": "UserCopyArgs",
+      "module": "UserCenter",
+      "isInput": true,
+      "isWrapper": false,
+      "fields": [
+        {
+          "name": "id",
+          "doc": "复制用户",
+          "type": "String",
+          "jsonName": "id",
+          "originalType": "String"
+        }
+      ]
+    },
+    {
+      "name": "LoginArgs",
+      "module": "UserCenter",
+      "isInput": true,
+      "isWrapper": false,
+      "fields": [
+        {
+          "name": "username",
+          "type": "String",
+          "jsonName": "username",
+          "originalType": "String"
+        },
+        {
+          "name": "password",
+          "type": "String",
+          "jsonName": "password",
+          "originalType": "String"
+        }
+      ]
+    },
+    {
+      "name": "UpdateUserArgs",
+      "module": "UserCenter",
+      "isInput": true,
+      "isWrapper": false,
+      "fields": [
+        {
+          "name": "id",
+          "type": "Int",
+          "jsonName": "id",
+          "originalType": "Int"
+        },
+        {
+          "name": "email",
+          "type": "String",
+          "jsonName": "email",
+          "originalType": "String"
+        }
+      ]
+    },
+    {
+      "name": "GetUsersArgs",
+      "module": "UserCenter",
+      "isInput": true,
+      "isWrapper": false,
+      "fields": [
+        {
+          "name": "page",
+          "type": "Int",
+          "jsonName": "page",
+          "originalType": "Int"
+        },
+        {
+          "name": "size",
+          "type": "Int",
+          "jsonName": "size",
+          "originalType": "Int"
+        }
+      ]
+    },
+    {
+      "name": "GetUserArgs",
+      "module": "UserCenter",
+      "isInput": true,
+      "isWrapper": false,
+      "fields": [
+        {
+          "name": "id",
+          "type": "Int",
+          "jsonName": "id",
+          "originalType": "Int"
+        }
+      ]
+    },
+    {
+      "name": "DeleteUserArgs",
+      "module": "UserCenter",
+      "isInput": true,
+      "isWrapper": false,
+      "fields": [
+        {
+          "name": "id",
+          "type": "Int",
+          "jsonName": "id",
+          "originalType": "Int"
+        }
+      ]
+    }
+  ]
+}

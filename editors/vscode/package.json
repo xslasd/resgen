@@ -1,0 +1,35 @@
+{
+    "name": "resgen-vscode",
+    "displayName": "Resgen DSL Support",
+    "description": "为 Resgen API 设计 DSL 提供官方语法高亮支持。Resgen 是一套极简、强类型且语言无关的 API 设计标准规范。",
+    "version": "0.1.0",
+    "publisher": "resgen",
+    "engines": {
+        "vscode": "^1.60.0"
+    },
+    "categories": [
+        "Programming Languages"
+    ],
+    "contributes": {
+        "languages": [
+            {
+                "id": "resgen",
+                "aliases": [
+                    "Resgen",
+                    "resgen"
+                ],
+                "extensions": [
+                    ".res"
+                ],
+                "configuration": "./language-configuration.json"
+            }
+        ],
+        "grammars": [
+            {
+                "language": "resgen",
+                "scopeName": "source.resgen",
+                "path": "./syntaxes/resgen.tmLanguage.json"
+            }
+        ]
+    }
+}

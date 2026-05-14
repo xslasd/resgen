@@ -1,0 +1,24 @@
+<idea-plugin>
+    <id>com.resgen.jetbrains.support</id>
+    <name>Resgen DSL Support</name>
+    <vendor email="support@resgen.org" url="https://resgen.org">Resgen</vendor>
+    <version>1.0.0</version>
+
+    <description><![CDATA[
+      Official Resgen DSL support for JetBrains IDEs.<br>
+      Features:<br>
+      <ul>
+        <li>Syntax highlighting for .res and .resgen files</li>
+        <li>Optimized color scheme (Orange keywords, Magenta keys)</li>
+      </ul>
+    ]]></description>
+
+    <!-- 依赖 TextMate 插件来实现基础高亮 -->
+    <depends>com.intellij.modules.platform</depends>
+    <depends>org.jetbrains.plugins.textmate</depends>
+
+    <extensions defaultExtensionNs="org.jetbrains.plugins.textmate">
+        <!-- 告诉 IDE 语法束在插件包内的路径 -->
+        <TextMateBundleProvider path="textmate-bundle"/>
+    </extensions>
+</idea-plugin>

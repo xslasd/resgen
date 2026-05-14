@@ -1,0 +1,49 @@
+generator:
+  # 生成代码的包名，默认为 resolver
+  package: "resolver"
+  # 是否开启全自动 API 文档生成功能（生成 docs 目录并自动注册路由）
+  enable_api_docs: true
+  enable_hooks: true
+  base_url: "http://localhost:8080"
+  
+  # 默认的请求体类型，可以使用下方的别名
+  default_content_type: "json"
+  
+  # Content-Type 别名映射：将简短的别名映射为标准的 MIME 类型
+  content_type_aliases:
+    json: "application/json"
+    form: "application/x-www-form-urlencoded"
+    multipart: "multipart/form-data"
+    xml: "application/xml"
+    text: "text/plain"
+    
+  # 结构体标签生成策略
+  # name: 标签名称 (json, form, xml, gorm 等)
+  # case: 命名风格转换策略
+  #   - snake: 下划线 (UserName -> user_name)
+  #   - camel: 小驼峰 (UserName -> userName)
+  #   - lower: 全小写 (UserName -> username)
+  #   - keep:  保持原样 (UserName -> UserName)
+  struct_tags:
+    - name: "json"
+      case: "snake"
+  
+  # api.json 文件中的命名风格
+  # 可选: snake, camel, lower, keep
+  doc_case: "snake"
+  
+  # 默认错误返回统一响应包装器
+  default_wrap: "ResData"
+
+  # 默认成功返回 http 状态码
+  default_ok_status: 200
+
+# 类型覆盖配置 (优先级最高)
+# 格式: "ModelName.FieldName": "GoType"
+# overrides:
+#   "User.AvatarUrl": github.com/google/uuid.UUID
+
+# 全局类型映射配置
+models:
+  # String:
+  #   model: github.com/google/uuid.UUID
