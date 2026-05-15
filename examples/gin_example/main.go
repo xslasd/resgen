@@ -6,7 +6,7 @@ import (
 	"mime/multipart"
 	"strconv"
 
-	"github.com/xslasd/resgen/examples/gin_example/resolver"
+	"github.com/xslasd/resgen/examples/resolver"
 
 	_ "embed"
 

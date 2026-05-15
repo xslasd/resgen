@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"mime/multipart"
 	"net/http"
-	"github.com/xslasd/resgen/examples/http_example/resolver"
+	"github.com/xslasd/resgen/examples/resolver"
 	"strconv"
 	"time"
 )

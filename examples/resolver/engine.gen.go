@@ -139,11 +139,11 @@ func (e *Engine[C]) registerApiDocs() {
 // ==========================================
 
 const (
+	SourceJson      BodySource = "json"
 	SourceForm      BodySource = "form"
 	SourceMultipart BodySource = "multipart"
 	SourceXml       BodySource = "xml"
 	SourceText      BodySource = "text"
-	SourceJson      BodySource = "json"
 )
 
 // ==========================================

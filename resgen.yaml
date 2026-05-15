@@ -3,7 +3,6 @@ generator:
   package: "resolver"
   # 是否开启全自动 API 文档生成功能（生成 docs 目录并自动注册路由）
   enable_api_docs: true
-  enable_hooks: true
   base_url: "http://localhost:8080"
   
   # 默认的请求体类型，可以使用下方的别名
