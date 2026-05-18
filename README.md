@@ -21,10 +21,9 @@ Resgen DSL 原生支持以下基础数据类型，引擎会自动将其映射到
 - `Int`：整数数值
 - `Float`：浮点数值
 - `Boolean`：布尔值
-- `Time`：时间类型（用于常规时间日期处理）
 - `File`：文件类型（支持 Multipart 表单文件上传或 Stream 下载流）
-- `Any`：任意类型（未知或动态结构的逃生舱）
-- `Field`：动态散列字段类型
+- `Any`：任意类型（未知或动态结构的逃生舱，底层映射为 Go 语言的 `any`）
+- `Field`：字段引用类型（专用于校验器参数声明，用于动态捕获并对比结构体中的其他字段。**⚠️ 警告：坚决不能作为普通 `type`/`input`/`wrap` 等模型中的属性字段类型！若需表达动态结构，请选用 `Any`**）
 
 > 💡 **类型修饰符**：支持 GraphQL 风格的修饰符。类型后追加 `!` 表示非空（必填），使用 `[]` 声明数组。例如 `[String!]!` 代表一个必定存在且内部元素不可为空的字符串列表。
 
@@ -36,6 +35,7 @@ Resgen DSL 原生支持以下基础数据类型，引擎会自动将其映射到
 # 声明路由修饰器与数据验证规则，享受强类型校验
 decorator @auth(role: String!)
 validator @phone
+validator @timeBefore(targetField: Field!)  # 声明高级跨字段校验器
 
 # 【亮点】定义统一的跨语言泛型格式包装器 (Wrapper)
 wrap ResData<T> {
@@ -45,6 +45,11 @@ wrap ResData<T> {
 }
 
 # 定义基础数据结构
+type TaskPeriod {
+    startTime: IntTime! @timeBefore("endTime")  # 优雅的跨字段关联校验，编译器智能识别！
+    endTime: IntTime!
+}
+
 type User {
     id: Int!
     username: String!

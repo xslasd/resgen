@@ -3,6 +3,8 @@ generator:
   package: "resolver"
   # 是否开启全自动 API 文档生成功能（生成 docs 目录并自动注册路由）
   enable_api_docs: true
+  # 交互式 API 文档 (api.json/api.html) 中的测试请求根地址
+  # 用作交互式调试面板中 "Try it out" 接口联调派发时的默认主机前缀
   base_url: "http://localhost:8080"
   
   # 默认的请求体类型，可以使用下方的别名
@@ -37,12 +39,21 @@ generator:
   # 默认成功返回 http 状态码
   default_ok_status: 200
 
-# 类型覆盖配置 (优先级最高)
-# 格式: "ModelName.FieldName": "GoType"
-# overrides:
-#   "User.AvatarUrl": github.com/google/uuid.UUID
-
-# 全局类型映射配置
-models:
-  # String:
-  #   model: github.com/google/uuid.UUID
+# 标量类型自定义映射配置 (Scalars Custom Mapping)
+# 用于将 DSL 中定义的自定义标量 (scalar) 映射到 Go 物理包的实现类型。
+#
+# 🚀 极其震撼的【AST 自适应推导与契约强校验系统】说明:
+#   1. 开发人员【完全不需要】手动配置繁琐的 `target` 参数了！
+#   2. 生成器在运行 `resgen generate` 时，会通过 golang.org/x/tools 自动静态解析 Go 源码中 `model` 的定义。
+#   3. 自动智能提取底层 Underlying 物理类型（例如从 `type IntTime time.Time` 自动推导出 "time.Time"），并在生成的代码里全自动写上 package 的 `import` 语句！
+#   4. 【三关契约强校验】：自动在生成期强校验该标量是否完美实现了以下三关契约签名：
+#      - FromParam(ctx any, s string) error
+#      - FromValue(ctx any, v BaseType) error  (BaseType 必须与 DSL 定义相符)
+#      - ToValue(ctx any) (BaseType, error)  (BaseType 必须与 DSL 定义相符)
+#      如果签名未实现或类型不一致，直接在生成控制台抛出精美的中文语义报错！
+#
+# 参数配置项说明:
+#   - model:  开发人员在 Go 物理项目中手写实现的标量类型的完整包路径 (例如: "github.com/xslasd/resgen/examples/scalars.IntTime")。
+scalars:
+  IntTime:
+    model: "github.com/xslasd/resgen/examples/scalars.IntTime"

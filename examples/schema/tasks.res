@@ -1,13 +1,15 @@
 module TaskCenter
 
+validator timeBefore(field: Field!)
+
 input CreateTaskInput {
     title: String!
     period: TaskPeriod!
 }
 
 input TaskPeriod {
-    startTime: Time!
-    endTime: Time!
+    startTime: IntTime! @timeBefore("endTime")
+    endTime: IntTime!
 }
 
 input GetTasksInput {

@@ -112,21 +112,14 @@ func metaGetBool(entries []parser.MetaEntry, key string) (bool, bool) {
 
 // ToGoType 将 DSL 的类型引用转换为 Go 类型字符串
 func ToGoType(t parser.TypeRef, conf *config.Config, extraImports *[]string, context string, modelMap map[string]*ModelInfo) string {
-	if conf != nil && conf.Overrides != nil && context != "" {
-		for key, targetType := range conf.Overrides {
-			if strings.EqualFold(key, context) && targetType != "" {
-				goBaseType, importPath := parseCustomType(targetType)
-				if importPath != "" && extraImports != nil {
-					addImport(extraImports, importPath)
-				}
-				return applyTypeModifiers(goBaseType, t)
-			}
-		}
-	}
 
-	if conf != nil && conf.Models != nil {
-		if mapping, ok := conf.Models[t.Name]; ok && mapping.Model != "" {
+
+	if conf != nil && conf.Scalars != nil {
+		if mapping, ok := conf.Scalars[t.Name]; ok && mapping.Model != "" {
 			rawType := mapping.Model
+			if mapping.Target != "" {
+				rawType = mapping.Target
+			}
 			goBaseType, importPath := parseCustomType(rawType)
 			if importPath != "" && extraImports != nil {
 				addImport(extraImports, importPath)
@@ -134,6 +127,8 @@ func ToGoType(t parser.TypeRef, conf *config.Config, extraImports *[]string, con
 			return applyTypeModifiers(goBaseType, t)
 		}
 	}
+
+
 
 	goBaseType := t.Name
 	switch t.Name {
@@ -145,8 +140,6 @@ func ToGoType(t parser.TypeRef, conf *config.Config, extraImports *[]string, con
 		goBaseType = "float64"
 	case "Boolean":
 		goBaseType = "bool"
-	case "Time":
-		goBaseType = "time.Time"
 	case "File":
 		goBaseType = "*multipart.FileHeader"
 	case "Any", "Field":
@@ -230,11 +223,27 @@ type ModelField struct {
 	Doc          string     `json:"doc,omitempty"`
 	Type         string     `json:"type"`
 	GoType       string     `json:"-"`
+	BaseGoType   string     `json:"-"`
+	IsScalar     bool       `json:"-"`
 	JSONName     string     `json:"jsonName"`
 	OriginalType string     `json:"originalType"`
 	GoValue      string     `json:"value,omitempty"`
 	Validators   []MetaInfo `json:"validators,omitempty"`
 	Tag          string     `json:"-"`
+	Source       string     `json:"-"` // Added: Path, Query, Header, Body
+	RefModel     *ModelInfo `json:"-"`
+	GoTypeDTO    string     `json:"-"`
+	IsArray      bool       `json:"-"`
+	IsPointer    bool       `json:"-"`
+	IsArrayElementPointer bool       `json:"-"`
+	ScalarModel           string     `json:"-"`
+}
+
+type ScalarInfo struct {
+	Name     string `json:"name"`
+	Doc      string `json:"doc,omitempty"`
+	BaseType string `json:"baseType"`
+	GoType   string `json:"goType"`
 }
 
 type ModelInfo struct {
@@ -243,6 +252,7 @@ type ModelInfo struct {
 	Module     string       `json:"module,omitempty"`
 	IsInput    bool         `json:"isInput"`
 	IsWrapper  bool         `json:"isWrapper"`
+	HasScalar  bool         `json:"-"`
 	TypeParams []string     `json:"typeParams,omitempty"`
 	Fields     []ModelField `json:"fields"`
 }
@@ -272,10 +282,14 @@ type MethodInfo struct {
 	Path               string         `json:"path"`
 	FullPath           string         `json:"fullPath"`
 	InputName          string         `json:"inputName,omitempty"`
+	InputModel         *ModelInfo     `json:"-"`
 	ReturnType         string         `json:"returnType"`
+	ReturnModel        *ModelInfo     `json:"-"`
+	InnerReturnModel   *ModelInfo     `json:"-"`
 	ReturnTypeDSL      string         `json:"returnTypeDSL,omitempty"`
 	InnerReturnType    string         `json:"innerReturnType,omitempty"`
 	IsReturnWrapped    bool           `json:"isReturnWrapped"`
+	IsReturnArray      bool           `json:"isReturnArray"`
 	ReturnTypeBase     string         `json:"returnTypeBase,omitempty"`
 	ErrorType          string         `json:"errorType,omitempty"`
 	IsErrorWrapped     bool           `json:"isErrorWrapped"`
@@ -293,6 +307,7 @@ type MethodInfo struct {
 	ResponseRenderFunc string         `json:"-"` // e.g. "Json", "Text"
 	ErrorRenderFunc    string         `json:"-"` // e.g. "Json", "Text"
 	HasValidation      bool           `json:"-"`
+	HasScalar          bool           `json:"-"`
 	HasInput           bool           `json:"-"`
 	CustomBind         bool           `json:"-"`
 	CustomValidate     bool           `json:"-"`
@@ -303,10 +318,13 @@ type ArgumentInfo struct {
 	Doc        string     `json:"doc,omitempty"`
 	Type       string     `json:"type"`
 	GoType     string     `json:"-"`
+	BaseGoType   string     `json:"-"`
+	IsScalar     bool       `json:"-"`
 	GoName     string     `json:"-"`
 	Source     string     `json:"source"`
 	Validators []MetaInfo `json:"validators,omitempty"`
 	RefModel   *ModelInfo `json:"-"`
+	ScalarModel string     `json:"-"`
 }
 
 type MetaInfo struct {
@@ -334,6 +352,7 @@ type DataContext struct {
 	Modules                     []ModuleInfo          `json:"modules"`
 	Models                      []*ModelInfo          `json:"models"`
 	ModelMap                    map[string]*ModelInfo `json:"-"`
+	Scalars                     map[string]*ScalarInfo `json:"scalars,omitempty"`
 	Config                      *config.Config        `json:"-"`
 	BodySources                 []BodySourceInfo      `json:"-"`
 	ExtraImports                []string              `json:"-"`
@@ -376,6 +395,7 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 	ctx := &DataContext{
 		Package:  "resolver",
 		ModelMap: make(map[string]*ModelInfo),
+		Scalars:  make(map[string]*ScalarInfo),
 		Config:   conf,
 		Info: ApiInfo{
 			Title:   "Resgen Generated API",
@@ -463,6 +483,53 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 				}
 			}
 		}
+		if decl.Scalar != nil {
+			rawType := decl.Scalar.Name
+			var mapping *config.ScalarConfig
+			if conf != nil && conf.Scalars != nil {
+				if m, ok := conf.Scalars[decl.Scalar.Name]; ok && m.Model != "" {
+					mapping = &m
+					rawType = m.Model
+				}
+			}
+			resolvedGoType, importPath := parseCustomType(rawType)
+			if importPath != "" {
+				addImport(&ctx.ExtraImports, importPath)
+			}
+
+			baseType := "string"
+			if decl.Scalar.Base != "" {
+				baseType = decl.Scalar.Base
+			}
+
+			// 🌟 奇迹时刻：自动进行 AST 物理分析、契约验证与 Target 类型智能推导！
+			if mapping != nil {
+				res, err := AnalyzeScalar(mapping.Model, baseType)
+				if err != nil {
+					// ❌ 静态语义强校验报错！直接返回，优雅终止代码生成
+					return fmt.Errorf("自定义标量 '%s' 物理类型校验失败！\n%v", decl.Scalar.Name, err)
+				}
+				if res != nil {
+					// 智能写回物理目标类型
+					if res.TargetType != "" {
+						mapping.Target = res.TargetType
+						// 动态更新 conf 中的 Scalars 映射，以让后面的 ToGoType 直接取得推导出的 target
+						conf.Scalars[decl.Scalar.Name] = *mapping
+					}
+					// 智能自动导入目标类型的物理包
+					if res.ImportPath != "" {
+						addImport(&ctx.ExtraImports, res.ImportPath)
+					}
+				}
+			}
+
+			ctx.Scalars[decl.Scalar.Name] = &ScalarInfo{
+				Name:     decl.Scalar.Name,
+				Doc:      decl.Scalar.Doc,
+				BaseType: baseType,
+				GoType:   resolvedGoType,
+			}
+		}
 		if decl.Model != nil {
 			mName := currentModule
 			if mName == "" {
@@ -494,6 +561,9 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 		if decl.Model != nil {
 			m := ctx.ModelMap[decl.Model.Name]
 			for _, field := range decl.Model.Properties {
+				if field.Type.Name == "Field" {
+					return fmt.Errorf("语义错误：模型属性 '%s.%s' 不能使用 'Field' 类型。'Field' 是专属于校验器形参的字段引用元类型，绝对不能作为普通属性类型！若需表达动态或任意结构数据，请选用 'Any' 类型", decl.Model.Name, field.Name)
+				}
 				fieldType := ToGoType(field.Type, ctx.Config, &ctx.ExtraImports, m.Name+"."+field.Name, ctx.ModelMap)
 				goType := fieldType
 				if m.IsWrapper {
@@ -513,9 +583,63 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 					Doc:          field.Doc,
 					Type:         fieldType,
 					GoType:       goType,
+					IsScalar:     ctx.Scalars[field.Type.Name] != nil,
+					ScalarModel: func() string {
+						if s, ok := ctx.Config.Scalars[field.Type.Name]; ok && s.Model != "" {
+							base, _ := parseCustomType(s.Model)
+							return base
+						}
+						return ""
+					}(),
+					BaseGoType:   func() string { if s := ctx.Scalars[field.Type.Name]; s != nil { return s.BaseType } else { return goType } }(),
 					OriginalType: field.Type.Name,
 					Tag:          generateTags(field.Name, ctx.Config),
+					Source:       "Body", // Default to Body
+					RefModel:     ctx.ModelMap[field.Type.Name],
 				})
+				if ctx.Scalars[field.Type.Name] != nil {
+					m.HasScalar = true
+				}
+			}
+		}
+	}
+
+	// 冒泡传递 HasScalar 属性（解决多级嵌套结构体的 HasScalar 传递）
+	changed := true
+	for changed {
+		changed = false
+		for _, m := range ctx.Models {
+			if m.HasScalar {
+				continue
+			}
+			for _, f := range m.Fields {
+				if f.RefModel != nil && f.RefModel.HasScalar {
+					m.HasScalar = true
+					changed = true
+					break
+				}
+			}
+		}
+	}
+
+	// 计算每个字段的 GoTypeDTO、IsArray、IsPointer 辅助属性
+	for _, m := range ctx.Models {
+		for i := range m.Fields {
+			field := &m.Fields[i]
+			field.IsArray = strings.Contains(field.GoType, "[]")
+			field.IsPointer = strings.HasPrefix(field.GoType, "*")
+			field.IsArrayElementPointer = field.IsArray && strings.HasPrefix(strings.TrimPrefix(field.GoType, "*"), "[]*")
+
+			if field.IsScalar {
+				goTypeDTO := field.BaseGoType
+				if strings.HasPrefix(field.GoType, "*") && !strings.HasPrefix(goTypeDTO, "*") {
+					goTypeDTO = "*" + goTypeDTO
+				}
+				field.GoTypeDTO = goTypeDTO
+			} else if field.RefModel != nil && field.RefModel.HasScalar {
+				field.GoTypeDTO = strings.ReplaceAll(field.GoType, field.RefModel.Name, field.RefModel.Name+"DTO")
+			} else {
+				field.GoTypeDTO = field.GoType
 			}
 		}
 	}
@@ -528,7 +652,11 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 					m.Fields[i].Validators = append(m.Fields[i].Validators, requiredInfo)
 				}
 				for _, d := range field.Directives {
-					if strings.ToLower(d.Name) == "required" {
+					switch strings.ToLower(d.Name) {
+					case "path", "query", "header":
+						m.Fields[i].Source = capitalize(d.Name)
+						continue
+					case "required":
 						continue
 					}
 					vInfo, _ := validatorMap[strings.ToLower(d.Name)]
@@ -598,12 +726,16 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 
 				isReturnWrapped := false
 				returnTypeBase := ""
+				isReturnArray := false
 				if baseModel, ok := ctx.ModelMap[ep.ReturnType.Name]; ok && baseModel.IsWrapper {
 					isReturnWrapped = true
 					returnTypeBase = baseModel.Name
 					if len(ep.ReturnType.TypeArgs) > 0 {
 						innerReturnType = ToGoType(ep.ReturnType.TypeArgs[0], ctx.Config, &ctx.ExtraImports, ep.Name+".InnerReturn", ctx.ModelMap)
+						isReturnArray = ep.ReturnType.TypeArgs[0].IsArray
 					}
+				} else {
+					isReturnArray = ep.ReturnType.IsArray
 				}
 
 				// 从接口级 ResponseMeta 读取 wrap/state；接口优先于组级
@@ -643,9 +775,16 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 					InnerReturnType: innerReturnType,
 					IsReturnWrapped: isReturnWrapped,
 					ReturnTypeBase:  returnTypeBase,
+					InnerReturnModel: func() *ModelInfo {
+						if isReturnWrapped && len(ep.ReturnType.TypeArgs) > 0 {
+							return ctx.ModelMap[ep.ReturnType.TypeArgs[0].Name]
+						}
+						return nil
+					}(),
 					ErrorType:       errorType,
 					IsErrorWrapped:  isErrorWrapped,
 					ErrorTypeBase:   errorTypeBase,
+					IsReturnArray:   isReturnArray,
 					SuccessStatus:   successStatus,
 					IsArgsWrapped:   true,
 				}
@@ -671,8 +810,17 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 					goType := ToGoType(arg.Type, ctx.Config, &ctx.ExtraImports, ep.Name+"."+arg.Name, ctx.ModelMap)
 					argInfo := ArgumentInfo{
 						Name: arg.Name, GoName: capitalize(arg.Name), Type: formatTypeRef(arg.Type), GoType: goType, Source: "Body", Doc: arg.Doc,
+						IsScalar: ctx.Scalars[arg.Type.Name] != nil,
+						ScalarModel: func() string {
+							if s, ok := ctx.Config.Scalars[arg.Type.Name]; ok && s.Model != "" {
+								base, _ := parseCustomType(s.Model)
+								return base
+							}
+							return ""
+						}(),
+						BaseGoType: func() string { if s := ctx.Scalars[arg.Type.Name]; s != nil { return s.BaseType } else { return goType } }(),
 					}
-					if ep.Method == "GET" {
+					if method.Method == "GET" {
 						argInfo.Source = "Query"
 						if ref, ok := ctx.ModelMap[arg.Type.Name]; ok {
 							for _, f := range ref.Fields {
@@ -711,11 +859,11 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 					args = append(args, argInfo)
 				}
 
-				if len(args) == 1 && args[0].RefModel != nil && (args[0].Source == "Body" || ep.Method == "GET") {
+				if len(args) == 1 && args[0].RefModel != nil && (args[0].Source == "Body" || (ep.Method == "GET" && !args[0].IsScalar)) {
 					method.InputName = args[0].RefModel.Name
 					method.IsArgsWrapped = false
 					method.Args = args
-				} else if len(args) > 0 {
+				} else if len(args) > 1 {
 					inputModelName := ep.Name + "Args"
 					inputModel := &ModelInfo{Name: inputModelName, IsInput: true, Module: modName}
 					for _, arg := range args {
@@ -725,24 +873,49 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 							Doc:          arg.Doc,
 							Type:         arg.Type,
 							GoType:       arg.GoType,
+							IsScalar:     arg.IsScalar,
+							ScalarModel:  arg.ScalarModel,
+							BaseGoType:   arg.BaseGoType,
 							OriginalType: arg.Type,
 							Tag:          generateTags(arg.Name, ctx.Config),
 						})
+						if arg.IsScalar {
+							inputModel.HasScalar = true
+						}
 					}
 					method.InputName = inputModelName
 					method.Args = args
+					method.IsArgsWrapped = true
 					ctx.Models = append(ctx.Models, inputModel)
 					ctx.ModelMap[inputModelName] = inputModel
+				} else if len(args) == 1 {
+					method.InputName = ""
+					method.Args = args
+					method.IsArgsWrapped = false
 				} else {
 					method.InputName = ""
 					method.Args = nil
+					method.IsArgsWrapped = false
 				}
 
 				// 检测是否有输入参数（排除空结构体）
 				method.HasInput = false
 				if inputModel, ok := ctx.ModelMap[method.InputName]; ok {
+					method.InputModel = inputModel
 					if len(inputModel.Fields) > 0 {
 						method.HasInput = true
+					}
+				}
+				if returnModel, ok := ctx.ModelMap[method.InnerReturnType]; ok {
+					method.ReturnModel = returnModel
+				} else {
+					// InnerReturnType is the go type name, maybe pointer. We should use ep.ReturnType.Name for lookup
+					if returnModel, ok := ctx.ModelMap[ep.ReturnType.Name]; ok {
+						method.ReturnModel = returnModel
+					} else if len(ep.ReturnType.TypeArgs) > 0 {
+						if returnModel, ok := ctx.ModelMap[ep.ReturnType.TypeArgs[0].Name]; ok {
+							method.ReturnModel = returnModel
+						}
 					}
 				}
 
@@ -872,6 +1045,19 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 				}
 				method.HasValidation = hasValidation
 
+				method.HasScalar = method.HasScalar || (isReturnWrapped && method.InnerReturnModel != nil && method.InnerReturnModel.HasScalar)
+				method.HasScalar = method.HasScalar || (method.ReturnModel != nil && method.ReturnModel.HasScalar)
+
+				// 检查参数和输入模型中是否有标量
+				if method.InputModel != nil && method.InputModel.HasScalar {
+					method.HasScalar = true
+				}
+				for _, arg := range method.Args {
+					if arg.IsScalar {
+						method.HasScalar = true
+					}
+				}
+
 				group.Endpoints = append(group.Endpoints, method)
 			}
 
@@ -975,7 +1161,7 @@ func formatValue(val parser.Value, targetType string, modelContext *ModelInfo, p
 		return "nil"
 	}
 
-	if (strings.Contains(targetType, "any") || modelContext != nil) && raw != "" {
+	if strings.Contains(targetType, "any") && modelContext != nil && raw != "" {
 		if modelContext != nil {
 			parts := strings.Split(raw, ".")
 			currentModel := modelContext
@@ -1048,15 +1234,70 @@ func renderAll(ctx *DataContext, targetDir string) error {
 		"Title":      capitalize,
 		"capitalize": capitalize,
 		"HasPrefix":  strings.HasPrefix,
+		"Replace":    strings.ReplaceAll,
+		"ParseParam": func(target, val, goType string, errHandler ...string) string {
+			isPointer := strings.HasPrefix(goType, "*")
+			baseType := goType
+			if isPointer {
+				baseType = goType[1:]
+			}
+
+			// 默认使用 "return err"
+			failStmt := "return err"
+			if len(errHandler) > 0 && errHandler[0] != "" {
+				failStmt = errHandler[0]
+			}
+
+			var parseFunc string
+			var typeCast string
+			switch baseType {
+			case "string":
+				if isPointer {
+					return fmt.Sprintf("%s = &%s", target, val)
+				}
+				return fmt.Sprintf("%s = %s", target, val)
+			case "int":
+				parseFunc = "IntFromParam"
+			case "int32":
+				parseFunc = "Int64FromParam"
+				typeCast = "int32"
+			case "int64":
+				parseFunc = "Int64FromParam"
+			case "uint":
+				parseFunc = "Int64FromParam"
+				typeCast = "uint"
+			case "uint64":
+				parseFunc = "Int64FromParam"
+				typeCast = "uint64"
+			case "float64":
+				parseFunc = "FloatFromParam"
+			case "bool":
+				parseFunc = "BoolFromParam"
+			default:
+				// Fallback to error for unknown types
+				return fmt.Sprintf("// 不支持的基础数据类型: %s\n%s", baseType, strings.ReplaceAll(failStmt, "err", fmt.Sprintf("fmt.Errorf(\"未支持的参数物理类型: %%s\", %q)", baseType)))
+			}
+
+			if isPointer {
+				if typeCast != "" {
+					return fmt.Sprintf("if v, err := %s(%s); err == nil { v2 := %s(v); %s = &v2 } else { %s }", parseFunc, val, typeCast, target, failStmt)
+				}
+				return fmt.Sprintf("if v, err := %s(%s); err == nil { v2 := v; %s = &v2 } else { %s }", parseFunc, val, target, failStmt)
+			}
+			if typeCast != "" {
+				return fmt.Sprintf("if v, err := %s(%s); err == nil { %s = %s(v) } else { %s }", parseFunc, val, target, typeCast, failStmt)
+			}
+			return fmt.Sprintf("if v, err := %s(%s); err == nil { %s = v } else { %s }", parseFunc, val, target, failStmt)
+		},
 	}
 
 	engineT, err := template.New("engine").Funcs(funcMap).Parse(engineTmpl)
 	if err != nil {
-		return fmt.Errorf("failed to parse engine template: %v", err)
+		return fmt.Errorf("解析引擎核心模板失败: %v", err)
 	}
 	var buf bytes.Buffer
 	if err := engineT.Execute(&buf, ctx); err != nil {
-		return fmt.Errorf("failed to execute engine template: %v", err)
+		return fmt.Errorf("渲染引擎核心模板失败: %v", err)
 	}
 	formatted, err := imports.Process(filepath.Join(targetDir, "engine.gen.go"), buf.Bytes(), nil)
 	if err != nil {
@@ -1066,18 +1307,18 @@ func renderAll(ctx *DataContext, targetDir string) error {
 
 	modT, err := template.New("module").Funcs(funcMap).Parse(moduleTmpl)
 	if err != nil {
-		return fmt.Errorf("failed to parse module template: %v", err)
+		return fmt.Errorf("解析模块生成模板失败: %v", err)
 	}
 	for _, mod := range ctx.Modules {
 		modCtx := &ModuleRenderContext{
 			Package:      ctx.Package,
 			Config:       ctx.Config,
 			Module:       mod,
-			ExtraImports: ctx.ExtraImports,
+			ExtraImports: append(ctx.ExtraImports, "strconv"),
 		}
 		var buf bytes.Buffer
 		if err := modT.Execute(&buf, modCtx); err != nil {
-			return fmt.Errorf("failed to execute module template for %s: %v", mod.Name, err)
+			return fmt.Errorf("渲染模块 '%s' 模板失败: %v", mod.Name, err)
 		}
 		formatted, err := imports.Process(filepath.Join(targetDir, strings.ToLower(mod.Name)+".gen.go"), buf.Bytes(), nil)
 		if err != nil {
@@ -1183,7 +1424,7 @@ func addRenderFunc(ctx *DataContext, mime string) string {
 func generateApiDocs(ctx *DataContext, targetDir string) error {
 	docsDir := filepath.Join(targetDir, "docs")
 	if err := os.MkdirAll(docsDir, 0755); err != nil {
-		return fmt.Errorf("failed to create docs directory: %v", err)
+		return fmt.Errorf("创建文档输出目录失败: %v", err)
 	}
 
 	// 创建一个用于文档生成的上下文副本，以应用 DocCase 转换（保持数据源原始性，仅改变显示名）
@@ -1225,20 +1466,20 @@ func generateApiDocs(ctx *DataContext, targetDir string) error {
 	// 1. 生成 api.json
 	docData, err := json.MarshalIndent(docCtx, "", "  ")
 	if err != nil {
-		return fmt.Errorf("failed to marshal api doc: %v", err)
+		return fmt.Errorf("序列化 API 文档 JSON 失败: %v", err)
 	}
 	if err := os.WriteFile(filepath.Join(docsDir, "api.json"), docData, 0644); err != nil {
-		return fmt.Errorf("failed to write api.json: %v", err)
+		return fmt.Errorf("写入 api.json 文件失败: %v", err)
 	}
 
 	// 2. 生成 api.html
 	t, err := template.New("apihtml").Parse(apiHtmlTmpl)
 	if err != nil {
-		return fmt.Errorf("failed to parse api.html template: %v", err)
+		return fmt.Errorf("解析交互式文档 api.html 模板失败: %v", err)
 	}
 	var htmlBuf bytes.Buffer
 	if err := t.Execute(&htmlBuf, struct{ ApiJson string }{string(docData)}); err != nil {
-		return fmt.Errorf("failed to execute api.html template: %v", err)
+		return fmt.Errorf("渲染交互式文档 api.html 失败: %v", err)
 	}
 	return os.WriteFile(filepath.Join(docsDir, "api.html"), htmlBuf.Bytes(), 0644)
 }

@@ -180,6 +180,12 @@ func (s *Schema) Validate() error {
 			}
 			decorators[decl.Decorator.Name] = true
 		}
+		if decl.Scalar != nil {
+			if models[decl.Scalar.Name] {
+				return fmt.Errorf("%s: duplicate scalar defined: %s", decl.Scalar.Pos, decl.Scalar.Name)
+			}
+			models[decl.Scalar.Name] = true
+		}
 	}
 
 	// 第二遍：验证引用完整性

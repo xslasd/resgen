@@ -29,6 +29,202 @@ type {{.Name}}{{if .TypeParams}}[{{range $i, $p := .TypeParams}}{{if $i}}, {{end
 	{{.Name}} {{.GoType}} {{.Tag}}
 	{{- end}}
 }
+
+{{if .HasScalar}}
+// {{.Name}}DTO 数据传输对象
+type {{.Name}}DTO{{if .TypeParams}}[{{range $i, $p := .TypeParams}}{{if $i}}, {{end}}{{$p}} any{{end}}]{{end}} struct {
+	{{- range .Fields}}
+	{{- if eq .Source "Body"}}
+	{{.Name}} {{.GoTypeDTO}} {{.Tag}}
+	{{- end}}
+	{{- end}}
+}
+
+func (m *{{.Name}}{{if .TypeParams}}[{{range $i, $p := .TypeParams}}{{if $i}}, {{end}}{{$p}}{{end}}]{{end}}) ToDTO(ctx any) (*{{.Name}}DTO{{if .TypeParams}}[{{range $i, $p := .TypeParams}}{{if $i}}, {{end}}{{$p}}{{end}}]{{end}}, error) {
+	if m == nil {
+		return nil, nil
+	}
+	dto := &{{.Name}}DTO{{if .TypeParams}}[{{range $i, $p := .TypeParams}}{{if $i}}, {{end}}{{$p}}{{end}}]{{end}}{}
+	{{- range .Fields}}
+	{{- if eq .Source "Body"}}
+	{{- if .IsScalar}}
+		{{- if .IsPointer}}
+	if m.{{.Name}} != nil {
+		tmp{{.Name}} := {{.ScalarModel}}(*m.{{.Name}})
+		val{{.Name}}, err := tmp{{.Name}}.ToValue(ctx)
+		if err != nil {
+			return nil, err
+		}
+		dto.{{.Name}} = &val{{.Name}}
+	}
+		{{- else}}
+	tmp{{.Name}} := {{.ScalarModel}}(m.{{.Name}})
+	val{{.Name}}, err := tmp{{.Name}}.ToValue(ctx)
+	if err != nil {
+		return nil, err
+	}
+	dto.{{.Name}} = val{{.Name}}
+		{{- end}}
+	{{- else if and .RefModel .RefModel.HasScalar}}
+		{{- if .IsArray}}
+			{{- if .IsPointer}}
+	if m.{{.Name}} != nil {
+		list := make([]{{if .IsArrayElementPointer}}*{{end}}{{.RefModel.Name}}DTO, len(*m.{{.Name}}))
+		for i, item := range *m.{{.Name}} {
+			{{- if .IsArrayElementPointer}}
+			dtoItem, err := item.ToDTO(ctx)
+			if err != nil {
+				return nil, err
+			}
+			list[i] = dtoItem
+			{{- else}}
+			dtoItem, err := (&item).ToDTO(ctx)
+			if err != nil {
+				return nil, err
+			}
+			if dtoItem != nil {
+				list[i] = *dtoItem
+			}
+			{{- end}}
+		}
+		dto.{{.Name}} = &list
+	}
+			{{- else}}
+	if m.{{.Name}} != nil {
+		list := make([]{{if .IsArrayElementPointer}}*{{end}}{{.RefModel.Name}}DTO, len(m.{{.Name}}))
+		for i, item := range m.{{.Name}} {
+			{{- if .IsArrayElementPointer}}
+			dtoItem, err := item.ToDTO(ctx)
+			if err != nil {
+				return nil, err
+			}
+			list[i] = dtoItem
+			{{- else}}
+			dtoItem, err := (&item).ToDTO(ctx)
+			if err != nil {
+				return nil, err
+			}
+			if dtoItem != nil {
+				list[i] = *dtoItem
+			}
+			{{- end}}
+		}
+		dto.{{.Name}} = list
+	}
+			{{- end}}
+		{{- else}}
+			{{- if .IsPointer}}
+	if m.{{.Name}} != nil {
+		val, err := m.{{.Name}}.ToDTO(ctx)
+		if err != nil {
+			return nil, err
+		}
+		dto.{{.Name}} = val
+	}
+			{{- else}}
+	val, err := (&m.{{.Name}}).ToDTO(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if val != nil {
+		dto.{{.Name}} = *val
+	}
+			{{- end}}
+		{{- end}}
+	{{- else}}
+	dto.{{.Name}} = m.{{.Name}}
+	{{- end}}
+	{{- end}}
+	{{- end}}
+	return dto, nil
+}
+
+func (m *{{.Name}}{{if .TypeParams}}[{{range $i, $p := .TypeParams}}{{if $i}}, {{end}}{{$p}}{{end}}]{{end}}) FromDTO(ctx any, dto *{{.Name}}DTO{{if .TypeParams}}[{{range $i, $p := .TypeParams}}{{if $i}}, {{end}}{{$p}}{{end}}]{{end}}) error {
+	if m == nil || dto == nil {
+		return nil
+	}
+	{{- range .Fields}}
+	{{- if eq .Source "Body"}}
+	{{- if .IsScalar}}
+		{{- if .IsPointer}}
+	if dto.{{.Name}} != nil {
+		var tmp {{.ScalarModel}}
+		if err := tmp.FromValue(ctx, *dto.{{.Name}}); err != nil {
+			return err
+		}
+		targetVal := {{slice .GoType 1}}(tmp)
+		m.{{.Name}} = &targetVal
+	}
+		{{- else}}
+	var tmp{{.Name}} {{.ScalarModel}}
+	if err := tmp{{.Name}}.FromValue(ctx, dto.{{.Name}}); err != nil {
+		return err
+	}
+	m.{{.Name}} = {{.GoType}}(tmp{{.Name}})
+		{{- end}}
+	{{- else if and .RefModel .RefModel.HasScalar}}
+		{{- if .IsArray}}
+			{{- if .IsPointer}}
+	if dto.{{.Name}} != nil {
+		list := make([]{{if .IsArrayElementPointer}}*{{end}}{{.RefModel.Name}}, len(*dto.{{.Name}}))
+		for i, item := range *dto.{{.Name}} {
+			{{- if .IsArrayElementPointer}}
+			var modelItem {{.RefModel.Name}}
+			if err := modelItem.FromDTO(ctx, item); err != nil {
+				return err
+			}
+			list[i] = &modelItem
+			{{- else}}
+			if err := list[i].FromDTO(ctx, &item); err != nil {
+				return err
+			}
+			{{- end}}
+		}
+		m.{{.Name}} = &list
+	}
+			{{- else}}
+	if dto.{{.Name}} != nil {
+		list := make([]{{if .IsArrayElementPointer}}*{{end}}{{.RefModel.Name}}, len(dto.{{.Name}}))
+		for i, item := range dto.{{.Name}} {
+			{{- if .IsArrayElementPointer}}
+			var modelItem {{.RefModel.Name}}
+			if err := modelItem.FromDTO(ctx, item); err != nil {
+				return err
+			}
+			list[i] = &modelItem
+			{{- else}}
+			if err := list[i].FromDTO(ctx, &item); err != nil {
+				return err
+			}
+			{{- end}}
+		}
+		m.{{.Name}} = list
+	}
+			{{- end}}
+		{{- else}}
+			{{- if .IsPointer}}
+	if dto.{{.Name}} != nil {
+		if m.{{.Name}} == nil {
+			m.{{.Name}} = &{{.RefModel.Name}}{}
+		}
+		if err := m.{{.Name}}.FromDTO(ctx, dto.{{.Name}}); err != nil {
+			return err
+		}
+	}
+			{{- else}}
+	if err := (&m.{{.Name}}).FromDTO(ctx, &dto.{{.Name}}); err != nil {
+		return err
+	}
+			{{- end}}
+		{{- end}}
+	{{- else}}
+	m.{{.Name}} = dto.{{.Name}}
+	{{- end}}
+	{{- end}}
+	{{- end}}
+	return nil
+}
+{{end}}
 {{end}}
 
 // ==========================================
@@ -53,7 +249,7 @@ type {{.Module.Name}}Resolver[T any] interface {
 	Validate{{.Name}}(ctx T, input *{{.InputName}}) error
 	{{- end}}
 	// {{.Name}} {{.Method}} {{.FullPath}}
-	{{.Name}}(ctx context.Context {{- if .HasInput}}, input *{{.InputName}}{{end}}) ({{.InnerReturnType}}, error)
+	{{.Name}}(ctx context.Context{{if .HasInput}}, input *{{.InputName}}{{else if and .Args (not .IsArgsWrapped)}}{{range .Args}}, {{.Name}} {{.GoType}}{{end}}{{end}}) ({{.InnerReturnType}}, error)
 	{{- range .ResponseDecorators}}{{if .IsSpecialized}}
 	OnResponse_{{.Name}}_{{$ep.Name}}(ctx T, info MethodInfo {{- if $ep.HasInput}}, input *{{.InputType}}{{end}}, result {{.ReturnType}}, err error {{- range .Args}}, {{.Name}} {{.GoType}} {{- end}}) ({{.ReturnType}}, error)
 	{{- end}}{{end}}
@@ -90,7 +286,6 @@ func Mount{{.Module.Name}}[T any, C ServerContext[T]](en *Engine[C], biz {{.Modu
 	executor.mount()
 }
 
-// {{.Module.Name}}Executor 模块执行器私有实现
 type {{.Module.Name}}Executor[T any, C ServerContext[T]] struct {
 	en  *Engine[C]
 	biz {{.Module.Name}}Resolver[T]
@@ -123,72 +318,98 @@ func (e *{{.Module.Name}}Executor[T, C]) mount() {
 {{$ep := .}}
 // handle{{.Name}} 封装了端点的自动化执行流
 func (e *{{$.Module.Name}}Executor[T, C]) handle{{.Name}}(request C, info MethodInfo) {
-	ctx := request.Native()
 	{{- range .RequestDecorators}}
 	{{- if not .IsSpecialized}}
-	if err := e.d.{{.Name}}(ctx, info {{range .Args}}, {{.GoValue}}{{end}}); err != nil {
+	if err := e.d.{{.Name}}(request.Native(), info {{range .Args}}, {{.GoValue}}{{end}}); err != nil {
 		{{- if $ep.IsErrorWrapped}}
-		request.Render{{$ep.ErrorRenderFunc}}(e.r.ErrorToStatus(ctx, err), e.r.Bind{{$ep.ErrorTypeBase}}(ctx, nil, err))
+		request.Render{{$ep.ErrorRenderFunc}}(e.r.ErrorToStatus(request.Native(), err), e.r.Bind{{$ep.ErrorTypeBase}}(request.Native(), nil, err))
 		{{- else}}
-		request.Render{{$ep.ErrorRenderFunc}}(e.r.ErrorToStatus(ctx, err), err.Error())
+		request.Render{{$ep.ErrorRenderFunc}}(e.r.ErrorToStatus(request.Native(), err), err.Error())
 		{{- end}}
 		return
 	}
 	{{- else}}
-	if err := e.biz.OnRequest_{{.Name}}_{{.MethodName}}(ctx, info {{range .Args}}, {{.GoValue}}{{end}}); err != nil {
-		request.Render{{$ep.ErrorRenderFunc}}(e.r.ErrorToStatus(ctx, err), e.r.Bind{{if $ep.IsReturnWrapped}}{{$ep.ReturnTypeBase}}{{else if $ep.IsErrorWrapped}}{{$ep.ErrorTypeBase}}{{else}}Error{{end}}(ctx, nil, err))
+	if err := e.biz.OnRequest_{{.Name}}_{{.MethodName}}(request.Native(), info {{range .Args}}, {{.GoValue}}{{end}}); err != nil {
+		request.Render{{$ep.ErrorRenderFunc}}(e.r.ErrorToStatus(request.Native(), err), e.r.Bind{{if $ep.IsReturnWrapped}}{{$ep.ReturnTypeBase}}{{else if $ep.IsErrorWrapped}}{{$ep.ErrorTypeBase}}{{else}}Error{{end}}(request.Native(), nil, err))
 		return
 	}
 	{{- end}}
 	{{- end}}
-	{{- if .HasInput}}
+	{{- if .InputName}}
 	var input {{.InputName}}
 	{{- if .CustomBind}}
 	if err := e.biz.Bind{{.Name}}(request, &input); err != nil {
 	{{- else}}
 	if err := e.bind{{.Name}}(request, &input); err != nil {
 	{{- end}}
-		request.Render{{.ErrorRenderFunc}}(e.r.ErrorToStatus(ctx, err), e.r.Bind{{if .IsReturnWrapped}}{{.ReturnTypeBase}}{{else if .IsErrorWrapped}}{{.ErrorTypeBase}}{{else}}Error{{end}}(ctx, nil, err))
+		request.Render{{.ErrorRenderFunc}}(e.r.ErrorToStatus(request.Native(), err), e.r.Bind{{if .IsReturnWrapped}}{{.ReturnTypeBase}}{{else if .IsErrorWrapped}}{{.ErrorTypeBase}}{{else}}Error{{end}}(request.Native(), nil, err))
 		return
 	}
 	{{- if .CustomValidate}}
-	if err := e.biz.Validate{{.Name}}(ctx, &input); err != nil {
-		request.Render{{.ErrorRenderFunc}}(e.r.ErrorToStatus(ctx, err), e.r.Bind{{if .IsReturnWrapped}}{{.ReturnTypeBase}}{{else if .IsErrorWrapped}}{{.ErrorTypeBase}}{{else}}Error{{end}}(ctx, nil, err))
+	if err := e.biz.Validate{{.Name}}(request.Native(), &input); err != nil {
+		request.Render{{.ErrorRenderFunc}}(e.r.ErrorToStatus(request.Native(), err), e.r.Bind{{if .IsReturnWrapped}}{{.ReturnTypeBase}}{{else if .IsErrorWrapped}}{{.ErrorTypeBase}}{{else}}Error{{end}}(request.Native(), nil, err))
 		return
 	}
 	{{- else if .HasValidation}}
-	if err := e.validate{{.Name}}(ctx, &input); err != nil {
-		request.Render{{.ErrorRenderFunc}}(e.r.ErrorToStatus(ctx, err), e.r.Bind{{if .IsReturnWrapped}}{{.ReturnTypeBase}}{{else if .IsErrorWrapped}}{{.ErrorTypeBase}}{{else}}Error{{end}}(ctx, nil, err))
+	if err := e.validate{{.Name}}(request.Native(), &input); err != nil {
+		request.Render{{.ErrorRenderFunc}}(e.r.ErrorToStatus(request.Native(), err), e.r.Bind{{if .IsReturnWrapped}}{{.ReturnTypeBase}}{{else if .IsErrorWrapped}}{{.ErrorTypeBase}}{{else}}Error{{end}}(request.Native(), nil, err))
 		return
 	}
 	{{- end}}
+	{{- else if and .Args (not .IsArgsWrapped)}}
+		{{- range .Args}}
+		var {{.Name}}Val {{.GoType}}
+		{{- $extractFunc := "GetQuery" -}}
+		{{- if eq .Source "Path"}}{{$extractFunc = "GetPath"}}{{end}}
+		{{- if eq .Source "Header"}}{{$extractFunc = "GetHeader"}}{{end}}
+		{{- if .IsScalar}}
+		if val := request.{{$extractFunc}}("{{.Name}}"); val != "" {
+			var tmp {{.ScalarModel}}
+			if err := tmp.FromParam(request.Native(), val); err != nil {
+				request.Render{{$ep.ErrorRenderFunc}}(e.r.ErrorToStatus(request.Native(), err), e.r.Bind{{if $ep.IsReturnWrapped}}{{$ep.ReturnTypeBase}}{{else if $ep.IsErrorWrapped}}{{$ep.ErrorTypeBase}}{{else}}Error{{end}}(request.Native(), nil, err))
+				return
+			}
+			{{- if HasPrefix .GoType "*" }}
+			targetVal := {{slice .GoType 1}}(tmp)
+			{{.Name}}Val = &targetVal
+			{{- else}}
+			{{.Name}}Val = {{.GoType}}(tmp)
+			{{- end}}
+		}
+		{{- else}}
+		{{- $errBind := "Error"}}{{if $ep.IsReturnWrapped}}{{$errBind = $ep.ReturnTypeBase}}{{else if $ep.IsErrorWrapped}}{{$errBind = $ep.ErrorTypeBase}}{{end}}
+		if val := request.{{$extractFunc}}("{{.Name}}"); val != "" {
+			{{ParseParam (printf "%sVal" .Name) "val" .GoType (printf "request.Render%s(e.r.ErrorToStatus(request.Native(), err), e.r.Bind%s(request.Native(), nil, err)); return" $ep.ErrorRenderFunc $errBind)}}
+		}
+		{{- end}}
+		{{- end}}
 	{{- end}}
 	{{- range .InvokeDecorators}}
 	{{- if not .IsSpecialized}}
-	if err := e.d.{{.Name}}(ctx, info {{- if $ep.HasInput}}, &input{{else}}, nil{{end}} {{range .Args}}, {{.GoValue}}{{end}}); err != nil {
-		request.Render{{$ep.ErrorRenderFunc}}(e.r.ErrorToStatus(ctx, err), e.r.Bind{{if $ep.IsReturnWrapped}}{{$ep.ReturnTypeBase}}{{else if $ep.IsErrorWrapped}}{{$ep.ErrorTypeBase}}{{else}}Error{{end}}(ctx, nil, err))
+	if err := e.d.{{.Name}}(request.Native(), info {{- if $ep.InputName}}, &input{{else}}, nil{{end}} {{range .Args}}, {{.GoValue}}{{end}}); err != nil {
+		request.Render{{$ep.ErrorRenderFunc}}(e.r.ErrorToStatus(request.Native(), err), e.r.Bind{{if $ep.IsReturnWrapped}}{{$ep.ReturnTypeBase}}{{else if $ep.IsErrorWrapped}}{{$ep.ErrorTypeBase}}{{else}}Error{{end}}(request.Native(), nil, err))
 		return
 	}
 	{{- else}}
-	if err := e.biz.OnInvoke_{{.Name}}_{{$ep.Name}}(ctx, info {{- if $ep.HasInput}}, &input{{end}} {{range .Args}}, {{.GoValue}}{{end}}); err != nil {
-		request.Render{{$ep.ErrorRenderFunc}}(e.r.ErrorToStatus(ctx, err), e.r.Bind{{if $ep.IsReturnWrapped}}{{$ep.ReturnTypeBase}}{{else if $ep.IsErrorWrapped}}{{$ep.ErrorTypeBase}}{{else}}Error{{end}}(ctx, nil, err))
+	if err := e.biz.OnInvoke_{{.Name}}_{{$ep.Name}}(request.Native(), info {{- if $ep.InputName}}, &input{{else}}, nil{{end}} {{range .Args}}, {{.GoValue}}{{end}}); err != nil {
+		request.Render{{$ep.ErrorRenderFunc}}(e.r.ErrorToStatus(request.Native(), err), e.r.Bind{{if $ep.IsReturnWrapped}}{{$ep.ReturnTypeBase}}{{else if $ep.IsErrorWrapped}}{{$ep.ErrorTypeBase}}{{else}}Error{{end}}(request.Native(), nil, err))
 		return
 	}
 	{{- end}}
 	{{- end}}
-	result, err := e.biz.{{.Name}}(request.Context() {{- if .HasInput}}, &input{{end}})
+	result, err := e.biz.{{.Name}}(request.Context() {{- if .InputName}}, &input{{else if and .Args (not .IsArgsWrapped)}}{{range .Args}}, {{.Name}}Val{{end}}{{end}})
 	{{- range .ResponseDecorators}}
 	{{- if not .IsSpecialized}}
-	if res, rerr := e.d.{{.Name}}(ctx, info {{- if $ep.HasInput}}, &input{{else}}, nil{{end}}, result, err {{range .Args}}, {{.GoValue}}{{end}}); rerr != nil {
-		request.Render{{$ep.ErrorRenderFunc}}(e.r.ErrorToStatus(ctx, rerr), e.r.Bind{{if $ep.IsReturnWrapped}}{{$ep.ReturnTypeBase}}{{else if $ep.IsErrorWrapped}}{{$ep.ErrorTypeBase}}{{else}}Error{{end}}(ctx, nil, rerr))
+	if res, rerr := e.d.{{.Name}}(request.Native(), info {{- if $ep.HasInput}}, &input{{else}}, nil{{end}}, result, err {{range .Args}}, {{.GoValue}}{{end}}); rerr != nil {
+		request.Render{{$ep.ErrorRenderFunc}}(e.r.ErrorToStatus(request.Native(), rerr), e.r.Bind{{if $ep.IsReturnWrapped}}{{$ep.ReturnTypeBase}}{{else if $ep.IsErrorWrapped}}{{$ep.ErrorTypeBase}}{{else}}Error{{end}}(request.Native(), nil, rerr))
 		return
 	} else {
 		result, _ = res.({{$ep.InnerReturnType}})
 		err = rerr
 	}
 	{{- else}}
-	if res, rerr := e.biz.OnResponse_{{.Name}}_{{$ep.Name}}(ctx, info {{- if $ep.HasInput}}, &input{{end}}, result, err {{range .Args}}, {{.GoValue}}{{end}}); rerr != nil {
-		request.Render{{$ep.ErrorRenderFunc}}(e.r.ErrorToStatus(ctx, rerr), e.r.Bind{{if $ep.IsReturnWrapped}}{{$ep.ReturnTypeBase}}{{else if $ep.IsErrorWrapped}}{{$ep.ErrorTypeBase}}{{else}}Error{{end}}(ctx, nil, rerr))
+	if res, rerr := e.biz.OnResponse_{{.Name}}_{{$ep.Name}}(request.Native(), info {{- if $ep.HasInput}}, &input{{end}}, result, err {{range .Args}}, {{.GoValue}}{{end}}); rerr != nil {
+		request.Render{{$ep.ErrorRenderFunc}}(e.r.ErrorToStatus(request.Native(), rerr), e.r.Bind{{if $ep.IsReturnWrapped}}{{$ep.ReturnTypeBase}}{{else if $ep.IsErrorWrapped}}{{$ep.ErrorTypeBase}}{{else}}Error{{end}}(request.Native(), nil, rerr))
 		return
 	} else {
 		result = res
@@ -198,18 +419,53 @@ func (e *{{$.Module.Name}}Executor[T, C]) handle{{.Name}}(request C, info Method
 	{{- end}}
 	if err != nil {
 		{{- if .IsReturnWrapped}}
-		request.Render{{.ErrorRenderFunc}}(e.r.ErrorToStatus(ctx, err), e.r.Bind{{.ReturnTypeBase}}(ctx, nil, err))
+		request.Render{{.ErrorRenderFunc}}(e.r.ErrorToStatus(request.Native(), err), e.r.Bind{{.ReturnTypeBase}}(request.Native(), nil, err))
 		{{- else if .IsErrorWrapped}}
-		request.Render{{.ErrorRenderFunc}}(e.r.ErrorToStatus(ctx, err), e.r.Bind{{.ErrorTypeBase}}(ctx, nil, err))
+		request.Render{{.ErrorRenderFunc}}(e.r.ErrorToStatus(request.Native(), err), e.r.Bind{{.ErrorTypeBase}}(request.Native(), nil, err))
 		{{- else}}
-		request.Render{{.ErrorRenderFunc}}(e.r.ErrorToStatus(ctx, err), err.Error())
+		request.Render{{.ErrorRenderFunc}}(e.r.ErrorToStatus(request.Native(), err), err.Error())
 		{{- end}}
 		return
 	}
+	{{- $targetModel := .ReturnModel -}}
+	{{- if and .IsReturnWrapped .InnerReturnModel -}}
+		{{- $targetModel = .InnerReturnModel -}}
+	{{- end -}}
+
+	{{- if and $targetModel $targetModel.HasScalar}}
+	{{- if .IsReturnArray}}
+	var dtoResult []{{if HasPrefix .InnerReturnType "*"}}*{{end}}{{$targetModel.Name}}DTO
+	for _, item := range *result {
+		if dto, dErr := item.ToDTO(request.Native()); dErr == nil {
+			dtoResult = append(dtoResult, dto)
+		} else {
+			request.Render{{.ErrorRenderFunc}}(e.r.ErrorToStatus(request.Native(), dErr), e.r.Bind{{if .IsReturnWrapped}}{{.ReturnTypeBase}}{{else if .IsErrorWrapped}}{{.ErrorTypeBase}}{{else}}Error{{end}}(request.Native(), nil, dErr))
+			return
+		}
+	}
 	{{- if .IsReturnWrapped}}
-	request.Render{{.ResponseRenderFunc}}({{.SuccessStatus}}, e.r.Bind{{.ReturnTypeBase}}(ctx, result, nil))
+	request.Render{{.ResponseRenderFunc}}({{.SuccessStatus}}, e.r.Bind{{.ReturnTypeBase}}(request.Native(), dtoResult, nil))
+	{{- else}}
+	request.Render{{.ResponseRenderFunc}}({{.SuccessStatus}}, dtoResult)
+	{{- end}}
+	{{- else}}
+	dtoResult, dErr := result.ToDTO(request.Native())
+	if dErr != nil {
+		request.Render{{.ErrorRenderFunc}}(e.r.ErrorToStatus(request.Native(), dErr), e.r.Bind{{if .IsReturnWrapped}}{{.ReturnTypeBase}}{{else if .IsErrorWrapped}}{{.ErrorTypeBase}}{{else}}Error{{end}}(request.Native(), nil, dErr))
+		return
+	}
+	{{- if .IsReturnWrapped}}
+	request.Render{{.ResponseRenderFunc}}({{.SuccessStatus}}, e.r.Bind{{.ReturnTypeBase}}(request.Native(), dtoResult, nil))
+	{{- else}}
+	request.Render{{.ResponseRenderFunc}}({{.SuccessStatus}}, dtoResult)
+	{{- end}}
+	{{- end}}
+	{{- else}}
+	{{- if .IsReturnWrapped}}
+	request.Render{{.ResponseRenderFunc}}({{.SuccessStatus}}, e.r.Bind{{.ReturnTypeBase}}(request.Native(), result, nil))
 	{{- else}}
 	request.Render{{.ResponseRenderFunc}}({{.SuccessStatus}}, result)
+	{{- end}}
 	{{- end}}
 }
 
@@ -217,31 +473,67 @@ func (e *{{$.Module.Name}}Executor[T, C]) handle{{.Name}}(request C, info Method
 // bind{{.Name}} 自动生成的参数提取与转换实现
 func (e *{{$.Module.Name}}Executor[T, C]) bind{{.Name}}(request C, input *{{.InputName}}) error {
 	{{- if or (eq .Method "POST") (eq .Method "PUT") (eq .Method "PATCH")}}
+	{{- if and .InputModel .InputModel.HasScalar}}
+	var dto {{.InputName}}DTO
+	if err := request.Payload({{.ContentType}}, &dto); err != nil {
+		return err
+	}
+	if err := input.FromDTO(request.Native(), &dto); err != nil {
+		return err
+	}
+	{{- else}}
 	if err := request.Payload({{.ContentType}}, input); err != nil {
 		return err
 	}
 	{{- end}}
+	{{- end}}
 
     {{- if .IsArgsWrapped}}
-	{{range .Args}}
-	{{if eq .Source "Path"}}
-    if err := request.Path("{{.Name}}", &input.{{.GoName}}); err != nil { return err }
-	{{else if eq .Source "Query"}}
-    if err := request.Query("{{.Name}}", &input.{{.GoName}}); err != nil { return err }
-	{{else if eq .Source "Header"}}
-    if err := request.Header("{{.Name}}", &input.{{.GoName}}); err != nil { return err }
-	{{else}}
-	{{- /* 其它 Body 相关的绑定 */ -}}
-	{{- $source := "SourceJson" -}}
-	{{if eq .Source "Form"}}{{$source = "SourceForm"}}{{end}}
-	{{if eq .Type "*multipart.FileHeader"}}{{$source = "SourceMultipart"}}{{end}}
-    if err := request.Field({{$source}}, "{{.Name}}", &input.{{.GoName}}); err != nil { return err }
-	{{end}}
-	{{end}}
+	{{- range .Args}}
+	{{- if and .IsScalar (or (eq .Source "Path") (eq .Source "Query") (eq .Source "Header"))}}
+	{{- $extractFunc := "GetQuery" -}}
+	{{- if eq .Source "Path"}}{{$extractFunc = "GetPath"}}{{end}}
+	{{- if eq .Source "Header"}}{{$extractFunc = "GetHeader"}}{{end}}
+	if val := request.{{$extractFunc}}("{{.Name}}"); val != "" {
+		var tmp {{.ScalarModel}}
+		if err := tmp.FromParam(request.Native(), val); err != nil { return err }
+		{{- if HasPrefix .GoType "*" }}
+		targetVal := {{slice .GoType 1}}(tmp)
+		input.{{.GoName}} = &targetVal
+		{{- else}}
+		input.{{.GoName}} = {{.GoType}}(tmp)
+		{{- end}}
+	}
+	{{- else if not .IsScalar}}
+	{{- if or (eq .Source "Path") (eq .Source "Query") (eq .Source "Header")}}
+	{{- $extractFunc := "GetQuery" -}}
+	{{- if eq .Source "Path"}}{{$extractFunc = "GetPath"}}{{end}}
+	{{- if eq .Source "Header"}}{{$extractFunc = "GetHeader"}}{{end}}
+	if val := request.{{$extractFunc}}("{{.Name}}"); val != "" {
+		{{ParseParam (printf "input.%s" .GoName) "val" .GoType}}
+	}
+	{{- end}}
+	{{- end}}
+	{{- end}}
 	{{- else}}
 	{{- if eq .Method "GET"}}
 	{{- range (index .Args 0).RefModel.Fields}}
-	if err := request.Query("{{.JSONName}}", &input.{{.Name}}); err != nil { return err }
+	{{- if .IsScalar}}
+	if val := request.GetQuery("{{.JSONName}}"); val != "" {
+		var tmp {{.ScalarModel}}
+		if err := tmp.FromParam(request.Native(), val); err != nil { return err }
+		{{- if HasPrefix .GoType "*" }}
+		targetVal := {{slice .GoType 1}}(tmp)
+		input.{{.Name}} = &targetVal
+		{{- else}}
+		input.{{.Name}} = {{.GoType}}(tmp)
+		{{- end}}
+	}
+	{{- else}}
+	if val := request.GetQuery("{{.JSONName}}"); val != "" {
+		{{ParseParam (printf "input.%s" .Name) "val" .GoType}}
+	}
+	{{- end}}
 	{{- end}}
 	{{- end}}
     {{- end}}
@@ -282,10 +574,10 @@ func (e *{{$.Module.Name}}Executor[T, C]) validate{{.Name}}(ctx T, input *{{.Inp
 	if input.{{$arg.GoName}} != nil {
 		{{- if HasPrefix $field.Type "*"}}
 		if input.{{$arg.GoName}}.{{$field.Name}} != nil {
-			if err := e.v.{{.Name}}(ctx, "{{$arg.Name}}.{{$field.JSONName}}", *input.{{$arg.GoName}}.{{$field.Name}} {{range .Args}}, {{.GoValue}}{{end}}); err != nil { return err }
+			if err := e.v.{{.Name}}(ctx, "{{$arg.Name}}.{{$field.JSONName}}", *input.{{$arg.GoName}}.{{$field.Name}} {{range .Args}}, {{Replace .GoValue "input." (printf "input.%s." $arg.GoName)}}{{end}}); err != nil { return err }
 		}
 		{{- else}}
-		if err := e.v.{{.Name}}(ctx, "{{$arg.Name}}.{{$field.JSONName}}", input.{{$arg.GoName}}.{{$field.Name}} {{range .Args}}, {{.GoValue}}{{end}}); err != nil { return err }
+		if err := e.v.{{.Name}}(ctx, "{{$arg.Name}}.{{$field.JSONName}}", input.{{$arg.GoName}}.{{$field.Name}} {{range .Args}}, {{Replace .GoValue "input." (printf "input.%s." $arg.GoName)}}{{end}}); err != nil { return err }
 		{{- end}}
 	}
 	{{- end}}{{end}}{{end}}{{end}}
@@ -293,12 +585,20 @@ func (e *{{$.Module.Name}}Executor[T, C]) validate{{.Name}}(ctx T, input *{{.Inp
 	{{- else}}
 	{{- $inputModel := (index .Args 0).RefModel}}
 	// Pass 1: Required validations
-	{{- range $inputModel.Fields}}{{$field := .}}{{- range .Validators}}{{if eq .Name "Required"}}
+	{{- range $inputModel.Fields}}
+	{{- $field := .}}
+	{{- range .Validators}}{{if eq .Name "Required"}}
 	if err := e.v.{{.Name}}(ctx, "{{$field.JSONName}}", input.{{$field.Name}} {{range .Args}}, {{.GoValue}}{{end}}); err != nil { return err }
-	{{- end}}{{end}}{{end}}
+	{{- end}}{{end}}
+	{{- if .RefModel}}{{range .RefModel.Fields}}{{$subField := .}}{{- range .Validators}}{{if eq .Name "Required"}}
+	if err := e.v.{{.Name}}(ctx, "{{$field.JSONName}}.{{$subField.JSONName}}", input.{{$field.Name}}.{{$subField.Name}} {{range .Args}}, {{.GoValue}}{{end}}); err != nil { return err }
+	{{- end}}{{end}}{{end}}{{end}}
+	{{- end}}
 
 	// Pass 2: Other validations
-	{{- range $inputModel.Fields}}{{$field := .}}{{- range .Validators}}{{if ne .Name "Required"}}
+	{{- range $inputModel.Fields}}
+	{{- $field := .}}
+	{{- range .Validators}}{{if ne .Name "Required"}}
 	{{- if HasPrefix $field.Type "*"}}
 	if input.{{$field.Name}} != nil {
 		if err := e.v.{{.Name}}(ctx, "{{$field.JSONName}}", *input.{{$field.Name}} {{range .Args}}, {{.GoValue}}{{end}}); err != nil { return err }
@@ -306,7 +606,17 @@ func (e *{{$.Module.Name}}Executor[T, C]) validate{{.Name}}(ctx T, input *{{.Inp
 	{{- else}}
 	if err := e.v.{{.Name}}(ctx, "{{$field.JSONName}}", input.{{$field.Name}} {{range .Args}}, {{.GoValue}}{{end}}); err != nil { return err }
 	{{- end}}
-	{{- end}}{{end}}{{end}}
+	{{- end}}{{end}}
+	{{- if .RefModel}}{{range .RefModel.Fields}}{{$subField := .}}{{- range .Validators}}{{if ne .Name "Required"}}
+	{{- if HasPrefix $subField.Type "*"}}
+	if input.{{$field.Name}}.{{$subField.Name}} != nil {
+		if err := e.v.{{.Name}}(ctx, "{{$field.JSONName}}.{{$subField.JSONName}}", *input.{{$field.Name}}.{{$subField.Name}} {{range .Args}}, {{Replace .GoValue "input." (printf "input.%s." $field.Name)}}{{end}}); err != nil { return err }
+	}
+	{{- else}}
+	if err := e.v.{{.Name}}(ctx, "{{$field.JSONName}}.{{$subField.JSONName}}", input.{{$field.Name}}.{{$subField.Name}} {{range .Args}}, {{Replace .GoValue "input." (printf "input.%s." $field.Name)}}{{end}}); err != nil { return err }
+	{{- end}}
+	{{- end}}{{end}}{{end}}{{end}}
+	{{- end}}
 	{{- end}}
 	return nil
 }

@@ -25,6 +25,18 @@ func (c *NativeHttpContext) Native() *NativeHttpContext {
 	return c
 }
 
+func (c *NativeHttpContext) GetHeader(name string) string {
+	return c.R.Header.Get(name)
+}
+
+func (c *NativeHttpContext) GetPath(name string) string {
+	return c.R.PathValue(name)
+}
+
+func (c *NativeHttpContext) GetQuery(name string) string {
+	return c.R.URL.Query().Get(name)
+}
+
 // ResponseWriterWrapper 用于捕获状态码（可选，此处为了演示 Render）
 type ResponseWriterWrapper struct {
 	http.ResponseWriter
@@ -153,7 +165,7 @@ type UserHandler struct{}
 func (u *UserHandler) GetProfile(ctx context.Context) (*resolver.User, error) {
 	return &resolver.User{}, nil
 }
-func (u *UserHandler) UserCopy(ctx context.Context, input *resolver.UserCopyArgs) (*resolver.User, error) {
+func (u *UserHandler) UserCopy(ctx context.Context, id string) (*resolver.User, error) {
 	return &resolver.User{}, nil
 }
 func (u *UserHandler) Login(ctx context.Context, input *resolver.LoginArgs) (*resolver.Token, error) {
@@ -177,7 +189,7 @@ func (u *UserHandler) OnResponse_MaskEmail_UpdateUser(ctx *NativeHttpContext, in
 func (u *UserHandler) GetUsers(ctx context.Context, input *resolver.GetUsersArgs) (*[]*resolver.User, error) {
 	return nil, nil
 }
-func (u *UserHandler) GetUser(ctx context.Context, input *resolver.GetUserArgs) (*resolver.User, error) {
+func (u *UserHandler) GetUser(ctx context.Context, id *int) (*resolver.User, error) {
 	return &resolver.User{}, nil
 }
 func (u *UserHandler) CreateUser(ctx context.Context, input *resolver.CreateUserInput) (*resolver.User, error) {
@@ -191,7 +203,7 @@ func (u *UserHandler) UploadAvatar(ctx context.Context, input *resolver.UploadAv
 	s := ""
 	return &s, nil
 }
-func (u *UserHandler) DeleteUser(ctx context.Context, input *resolver.DeleteUserArgs) (*string, error) {
+func (u *UserHandler) DeleteUser(ctx context.Context, id *int) (*string, error) {
 	s := ""
 	return &s, nil
 }

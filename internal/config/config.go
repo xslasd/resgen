@@ -7,12 +7,12 @@ import (
 
 type Config struct {
 	Generator GeneratorConfig         `yaml:"generator"`
-	Models    map[string]ModelMapping `yaml:"models"`
-	Overrides map[string]string      `yaml:"overrides"` // 新增：字段级覆盖，如 "User.id": "github.com/.../uuid.UUID"
+	Scalars   map[string]ScalarConfig `yaml:"scalars"`  // 新增：标量映射配置
 }
 
-type ModelMapping struct {
-	Model string `yaml:"model"` // 对应用户提供的路径，如 "github.com/.../graphql.Int64"
+type ScalarConfig struct {
+	Model  string `yaml:"model"`  // Go 类型路径，如 "time.Time" 或 "pkg.IntTime"
+	Target string `yaml:"target"` // 目标业务 Go 类型路径，如 "time.Time"
 }
 
 type GeneratorConfig struct {

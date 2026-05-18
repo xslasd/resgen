@@ -31,6 +31,7 @@ type ScalarDecl struct {
 	Pos  lexer.Position
 	Doc  string
 	Name string `"scalar" @Ident`
+	Base string `(":" @Ident)?`
 }
 
 // MetaDecl 涵盖了 validator 和 decorator

@@ -3,6 +3,7 @@
   "info": {
     "title": "Resgen Generated API",
     "version": "1.0.0",
+    "description": "scalar_test.res",
     "baseUrl": "http://localhost:8080"
   },
   "validators": [
@@ -74,6 +75,19 @@
           "originalType": ""
         }
       ]
+    },
+    {
+      "name": "TimeBefore",
+      "stage": "request",
+      "scope": "global",
+      "args": [
+        {
+          "name": "Field",
+          "type": "any",
+          "jsonName": "",
+          "originalType": ""
+        }
+      ]
     }
   ],
   "modules": [
@@ -94,12 +108,13 @@
               "returnTypeDSL": "ResData\u003cUser\u003e",
               "innerReturnType": "*User",
               "isReturnWrapped": true,
+              "isReturnArray": false,
               "returnTypeBase": "ResData",
               "errorType": "ResData",
               "isErrorWrapped": true,
               "errorTypeBase": "ResData",
               "successStatus": 200,
-              "isArgsWrapped": true,
+              "isArgsWrapped": false,
               "contentType": "application/json",
               "responseContentType": "application/json",
               "errorContentType": "application/json"
@@ -110,11 +125,11 @@
               "method": "GET",
               "path": "/user/copy",
               "fullPath": "/users/user/copy",
-              "inputName": "UserCopyArgs",
               "returnType": "*ResData",
               "returnTypeDSL": "ResData\u003cUser\u003e",
               "innerReturnType": "*User",
               "isReturnWrapped": true,
+              "isReturnArray": false,
               "returnTypeBase": "ResData",
               "errorType": "ResData",
               "isErrorWrapped": true,
@@ -125,7 +140,7 @@
                   "name": "id",
                   "doc": "复制用户",
                   "type": "String",
-                  "source": "Body",
+                  "source": "Query",
                   "validators": [
                     {
                       "name": "Required"
@@ -133,7 +148,7 @@
                   ]
                 }
               ],
-              "isArgsWrapped": true,
+              "isArgsWrapped": false,
               "contentType": "application/json",
               "responseContentType": "application/json",
               "errorContentType": "application/json"
@@ -148,6 +163,7 @@
               "returnTypeDSL": "ResData\u003cUser\u003e",
               "innerReturnType": "*User",
               "isReturnWrapped": true,
+              "isReturnArray": false,
               "returnTypeBase": "ResData",
               "errorType": "ResData",
               "isErrorWrapped": true,
@@ -175,6 +191,7 @@
               "returnTypeDSL": "ResData\u003cToken\u003e",
               "innerReturnType": "*Token",
               "isReturnWrapped": true,
+              "isReturnArray": false,
               "returnTypeBase": "ResData",
               "errorType": "ResData",
               "isErrorWrapped": true,
@@ -208,6 +225,7 @@
               "returnTypeDSL": "ResData\u003cUser\u003e",
               "innerReturnType": "*User",
               "isReturnWrapped": true,
+              "isReturnArray": false,
               "returnTypeBase": "ResData",
               "errorType": "ResData",
               "isErrorWrapped": true,
@@ -245,6 +263,7 @@
               "returnTypeDSL": "ResData\u003cString\u003e",
               "innerReturnType": "*string",
               "isReturnWrapped": true,
+              "isReturnArray": false,
               "returnTypeBase": "ResData",
               "errorType": "ResData",
               "isErrorWrapped": true,
@@ -272,6 +291,7 @@
               "returnTypeDSL": "ResData\u003c[User]\u003e",
               "innerReturnType": "*[]*User",
               "isReturnWrapped": true,
+              "isReturnArray": true,
               "returnTypeBase": "ResData",
               "errorType": "ResData",
               "isErrorWrapped": true,
@@ -319,11 +339,11 @@
               "method": "GET",
               "path": "/users/:id",
               "fullPath": "/users/users/:id",
-              "inputName": "GetUserArgs",
               "returnType": "*User",
               "returnTypeDSL": "User",
               "innerReturnType": "*User",
               "isReturnWrapped": false,
+              "isReturnArray": false,
               "errorType": "ResData",
               "isErrorWrapped": true,
               "errorTypeBase": "ResData",
@@ -335,7 +355,7 @@
                   "source": "Path"
                 }
               ],
-              "isArgsWrapped": true,
+              "isArgsWrapped": false,
               "contentType": "application/json",
               "responseContentType": "application/json",
               "errorContentType": "application/json"
@@ -345,11 +365,11 @@
               "method": "DELETE",
               "path": "/users/:id",
               "fullPath": "/users/users/:id",
-              "inputName": "DeleteUserArgs",
               "returnType": "*ResData",
               "returnTypeDSL": "ResData\u003cString\u003e",
               "innerReturnType": "*string",
               "isReturnWrapped": true,
+              "isReturnArray": false,
               "returnTypeBase": "ResData",
               "errorType": "ResData",
               "isErrorWrapped": true,
@@ -362,7 +382,7 @@
                   "source": "Path"
                 }
               ],
-              "isArgsWrapped": true,
+              "isArgsWrapped": false,
               "contentType": "application/json",
               "responseContentType": "application/json",
               "errorContentType": "application/json"
@@ -377,6 +397,7 @@
               "returnTypeDSL": "ResData\u003cString\u003e",
               "innerReturnType": "*string",
               "isReturnWrapped": true,
+              "isReturnArray": false,
               "returnTypeBase": "ResData",
               "errorType": "ResData",
               "isErrorWrapped": true,
@@ -404,11 +425,12 @@
               "returnTypeDSL": "String",
               "innerReturnType": "*string",
               "isReturnWrapped": false,
+              "isReturnArray": false,
               "errorType": "ResData",
               "isErrorWrapped": true,
               "errorTypeBase": "ResData",
               "successStatus": 200,
-              "isArgsWrapped": true,
+              "isArgsWrapped": false,
               "contentType": "application/json",
               "responseContentType": "text/plain",
               "errorContentType": "application/json"
@@ -423,6 +445,7 @@
               "returnTypeDSL": "Any",
               "innerReturnType": "any",
               "isReturnWrapped": false,
+              "isReturnArray": false,
               "errorType": "ResData",
               "isErrorWrapped": true,
               "errorTypeBase": "ResData",
@@ -463,6 +486,73 @@
       ]
     },
     {
+      "name": "ScalarCenter",
+      "groups": [
+        {
+          "name": "ScalarGroup",
+          "path": "/scalar",
+          "endpoints": [
+            {
+              "name": "TestScalar",
+              "method": "GET",
+              "path": "/test/:time",
+              "fullPath": "/scalar/test/:time",
+              "returnType": "*ResData",
+              "returnTypeDSL": "ResData\u003cScalarOutput\u003e",
+              "innerReturnType": "*ScalarOutput",
+              "isReturnWrapped": true,
+              "isReturnArray": false,
+              "returnTypeBase": "ResData",
+              "errorType": "ResData",
+              "isErrorWrapped": true,
+              "errorTypeBase": "ResData",
+              "successStatus": 200,
+              "args": [
+                {
+                  "name": "time",
+                  "type": "IntTime",
+                  "source": "Path"
+                }
+              ],
+              "isArgsWrapped": false,
+              "contentType": "application/json",
+              "responseContentType": "application/json",
+              "errorContentType": "application/json"
+            },
+            {
+              "name": "TestScalarBody",
+              "method": "POST",
+              "path": "/test",
+              "fullPath": "/scalar/test",
+              "inputName": "ScalarInput",
+              "returnType": "*ResData",
+              "returnTypeDSL": "ResData\u003cScalarOutput\u003e",
+              "innerReturnType": "*ScalarOutput",
+              "isReturnWrapped": true,
+              "isReturnArray": false,
+              "returnTypeBase": "ResData",
+              "errorType": "ResData",
+              "isErrorWrapped": true,
+              "errorTypeBase": "ResData",
+              "successStatus": 200,
+              "args": [
+                {
+                  "name": "input",
+                  "type": "ScalarInput",
+                  "source": "Body"
+                }
+              ],
+              "isArgsWrapped": false,
+              "contentType": "application/json",
+              "responseContentType": "application/json",
+              "errorContentType": "application/json"
+            }
+          ]
+        }
+      ],
+      "models": null
+    },
+    {
       "name": "TaskCenter",
       "groups": [
         {
@@ -479,6 +569,7 @@
               "returnTypeDSL": "ResData\u003cString\u003e",
               "innerReturnType": "*string",
               "isReturnWrapped": true,
+              "isReturnArray": false,
               "returnTypeBase": "ResData",
               "errorType": "ResData",
               "isErrorWrapped": true,
@@ -506,6 +597,7 @@
               "returnTypeDSL": "ResData\u003cString\u003e",
               "innerReturnType": "*string",
               "isReturnWrapped": true,
+              "isReturnArray": false,
               "returnTypeBase": "ResData",
               "errorType": "ResData",
               "isErrorWrapped": true,
@@ -620,7 +712,7 @@
           "name": "created_at",
           "type": "*time.Time",
           "jsonName": "createdAt",
-          "originalType": "Time"
+          "originalType": "IntTime"
         }
       ]
     },
@@ -896,6 +988,129 @@
       ]
     },
     {
+      "name": "ScalarInput",
+      "module": "ScalarCenter",
+      "isInput": true,
+      "isWrapper": false,
+      "fields": [
+        {
+          "name": "time",
+          "type": "*time.Time",
+          "jsonName": "time",
+          "originalType": "IntTime"
+        },
+        {
+          "name": "body_time",
+          "type": "*time.Time",
+          "jsonName": "body_time",
+          "originalType": "IntTime"
+        }
+      ]
+    },
+    {
+      "name": "ComplexA",
+      "module": "ScalarCenter",
+      "isInput": false,
+      "isWrapper": false,
+      "fields": [
+        {
+          "name": "name",
+          "type": "string",
+          "jsonName": "name",
+          "originalType": "String",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        },
+        {
+          "name": "scalar_val",
+          "type": "time.Time",
+          "jsonName": "scalarVal",
+          "originalType": "IntTime",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ComplexB",
+      "module": "ScalarCenter",
+      "isInput": false,
+      "isWrapper": false,
+      "fields": [
+        {
+          "name": "title",
+          "type": "string",
+          "jsonName": "title",
+          "originalType": "String",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        },
+        {
+          "name": "a_single",
+          "type": "ComplexA",
+          "jsonName": "aSingle",
+          "originalType": "ComplexA",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        },
+        {
+          "name": "a_pointer",
+          "type": "*ComplexA",
+          "jsonName": "aPointer",
+          "originalType": "ComplexA"
+        },
+        {
+          "name": "a_array_val",
+          "type": "[]ComplexA",
+          "jsonName": "aArrayVal",
+          "originalType": "ComplexA",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        },
+        {
+          "name": "a_array_ptr",
+          "type": "*[]*ComplexA",
+          "jsonName": "aArrayPtr",
+          "originalType": "ComplexA"
+        }
+      ]
+    },
+    {
+      "name": "ScalarOutput",
+      "module": "ScalarCenter",
+      "isInput": false,
+      "isWrapper": false,
+      "fields": [
+        {
+          "name": "time",
+          "type": "*time.Time",
+          "jsonName": "time",
+          "originalType": "IntTime"
+        },
+        {
+          "name": "nested_complex",
+          "type": "*ComplexB",
+          "jsonName": "nestedComplex",
+          "originalType": "ComplexB"
+        }
+      ]
+    },
+    {
       "name": "CreateTaskInput",
       "module": "TaskCenter",
       "isInput": true,
@@ -935,10 +1150,22 @@
           "name": "start_time",
           "type": "time.Time",
           "jsonName": "startTime",
-          "originalType": "Time",
+          "originalType": "IntTime",
           "validators": [
             {
               "name": "Required"
+            },
+            {
+              "name": "TimeBefore",
+              "args": [
+                {
+                  "name": "Field",
+                  "type": "",
+                  "jsonName": "",
+                  "originalType": "",
+                  "value": "input.EndTime"
+                }
+              ]
             }
           ]
         },
@@ -946,7 +1173,7 @@
           "name": "end_time",
           "type": "time.Time",
           "jsonName": "endTime",
-          "originalType": "Time",
+          "originalType": "IntTime",
           "validators": [
             {
               "name": "Required"
@@ -972,21 +1199,6 @@
           "type": "*int",
           "jsonName": "size",
           "originalType": "Int"
-        }
-      ]
-    },
-    {
-      "name": "UserCopyArgs",
-      "module": "UserCenter",
-      "isInput": true,
-      "isWrapper": false,
-      "fields": [
-        {
-          "name": "id",
-          "doc": "复制用户",
-          "type": "String",
-          "jsonName": "id",
-          "originalType": "String"
         }
       ]
     },
@@ -1049,34 +1261,13 @@
           "originalType": "Int"
         }
       ]
-    },
-    {
-      "name": "GetUserArgs",
-      "module": "UserCenter",
-      "isInput": true,
-      "isWrapper": false,
-      "fields": [
-        {
-          "name": "id",
-          "type": "Int",
-          "jsonName": "id",
-          "originalType": "Int"
-        }
-      ]
-    },
-    {
-      "name": "DeleteUserArgs",
-      "module": "UserCenter",
-      "isInput": true,
-      "isWrapper": false,
-      "fields": [
-        {
-          "name": "id",
-          "type": "Int",
-          "jsonName": "id",
-          "originalType": "Int"
-        }
-      ]
     }
-  ]
+  ],
+  "scalars": {
+    "IntTime": {
+      "name": "IntTime",
+      "baseType": "int64",
+      "goType": "scalars.IntTime"
+    }
+  }
 }

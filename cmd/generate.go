@@ -38,15 +38,13 @@ var generateCmd = &cobra.Command{
 		if globalAst == nil || len(globalAst.Declarations) == 0 {
 			log.Fatalf("\n❌ 错误: 未提供任何有效的 DSL 文件")
 		}
-		
-		fmt.Printf("\n✅ 恭喜！解析器成功读取并构建了核心 AST (大小: %d 条顶层声明)！\n", len(globalAst.Declarations))
-		
-		// 执行代码生成
+		// 执行代码生成与高阶语义校验
 		if err := generator.Generate(globalAst, targetDir, conf); err != nil {
-			log.Fatalf("\n❌ 生成代码失败 (Generate Error): \n%v", err)
+			log.Fatalf("\n❌ 接口语义校验或代码生成失败: \n%v", err)
 		}
 
-		fmt.Printf("🚀 代码已成功生成至目录: %s\n", targetDir)
+		fmt.Printf("\n✅ 恭喜！DSL 语法解析与语义分析 100%% 校验通过 (共 %d 条核心声明)！\n", len(globalAst.Declarations))
+		fmt.Printf("🚀 强类型 API 代码已安全生成至目录: %s\n", targetDir)
 	},
 }
 

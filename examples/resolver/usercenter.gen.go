@@ -7,6 +7,8 @@ import (
 	"context"
 	"mime/multipart"
 	"time"
+
+	"github.com/xslasd/resgen/examples/scalars"
 )
 
 // ==========================================
@@ -20,6 +22,54 @@ type User struct {
 	Email     string     `json:"email"`
 	AvatarUrl *string    `json:"avatar_url"`
 	CreatedAt *time.Time `json:"created_at"`
+}
+
+// UserDTO 数据传输对象
+type UserDTO struct {
+	Id        int     `json:"id"`
+	Username  string  `json:"username"`
+	Email     string  `json:"email"`
+	AvatarUrl *string `json:"avatar_url"`
+	CreatedAt *int64  `json:"created_at"`
+}
+
+func (m *User) ToDTO(ctx any) (*UserDTO, error) {
+	if m == nil {
+		return nil, nil
+	}
+	dto := &UserDTO{}
+	dto.Id = m.Id
+	dto.Username = m.Username
+	dto.Email = m.Email
+	dto.AvatarUrl = m.AvatarUrl
+	if m.CreatedAt != nil {
+		tmpCreatedAt := scalars.IntTime(*m.CreatedAt)
+		valCreatedAt, err := tmpCreatedAt.ToValue(ctx)
+		if err != nil {
+			return nil, err
+		}
+		dto.CreatedAt = &valCreatedAt
+	}
+	return dto, nil
+}
+
+func (m *User) FromDTO(ctx any, dto *UserDTO) error {
+	if m == nil || dto == nil {
+		return nil
+	}
+	m.Id = dto.Id
+	m.Username = dto.Username
+	m.Email = dto.Email
+	m.AvatarUrl = dto.AvatarUrl
+	if dto.CreatedAt != nil {
+		var tmp scalars.IntTime
+		if err := tmp.FromValue(ctx, *dto.CreatedAt); err != nil {
+			return err
+		}
+		targetVal := time.Time(tmp)
+		m.CreatedAt = &targetVal
+	}
+	return nil
 }
 
 // CreateUserInput 输入模型
@@ -60,11 +110,6 @@ type Token struct {
 	Token string `json:"token"`
 }
 
-// UserCopyArgs 输入模型
-type UserCopyArgs struct {
-	Id string `json:"id"`
-}
-
 // LoginArgs 输入模型
 type LoginArgs struct {
 	Username *string `json:"username"`
@@ -83,16 +128,6 @@ type GetUsersArgs struct {
 	Size *int `json:"size"`
 }
 
-// GetUserArgs 输入模型
-type GetUserArgs struct {
-	Id *int `json:"id"`
-}
-
-// DeleteUserArgs 输入模型
-type DeleteUserArgs struct {
-	Id *int `json:"id"`
-}
-
 // ==========================================
 // 2. Resolver Interface
 // ==========================================
@@ -104,7 +139,7 @@ type UserCenterResolver[T any] interface {
 	GetProfile(ctx context.Context) (*User, error)
 
 	// UserCopy GET /users/user/copy
-	UserCopy(ctx context.Context, input *UserCopyArgs) (*User, error)
+	UserCopy(ctx context.Context, id string) (*User, error)
 
 	// CreateUser POST /users/register
 	CreateUser(ctx context.Context, input *CreateUserInput) (*User, error)
@@ -126,10 +161,10 @@ type UserCenterResolver[T any] interface {
 	GetUsers(ctx context.Context, input *GetUsersArgs) (*[]*User, error)
 
 	// GetUser GET /users/users/:id
-	GetUser(ctx context.Context, input *GetUserArgs) (*User, error)
+	GetUser(ctx context.Context, id *int) (*User, error)
 
 	// DeleteUser DELETE /users/users/:id
-	DeleteUser(ctx context.Context, input *DeleteUserArgs) (*string, error)
+	DeleteUser(ctx context.Context, id *int) (*string, error)
 
 	// UpdateProfile POST /users/update_profile
 	UpdateProfile(ctx context.Context, input *ProfileUpdateInput) (*string, error)
@@ -170,7 +205,6 @@ func MountUserCenter[T any, C ServerContext[T]](en *Engine[C], biz UserCenterRes
 	executor.mount()
 }
 
-// UserCenterExecutor 模块执行器私有实现
 type UserCenterExecutor[T any, C ServerContext[T]] struct {
 	en  *Engine[C]
 	biz UserCenterResolver[T]
@@ -294,78 +328,64 @@ func (e *UserCenterExecutor[T, C]) mount() {
 
 // handleGetProfile 封装了端点的自动化执行流
 func (e *UserCenterExecutor[T, C]) handleGetProfile(request C, info MethodInfo) {
-	ctx := request.Native()
-	if err := e.d.LoginRequired(ctx, info); err != nil {
-		request.RenderJson(e.r.ErrorToStatus(ctx, err), e.r.BindResData(ctx, nil, err))
+	if err := e.d.LoginRequired(request.Native(), info); err != nil {
+		request.RenderJson(e.r.ErrorToStatus(request.Native(), err), e.r.BindResData(request.Native(), nil, err))
 		return
 	}
 	result, err := e.biz.GetProfile(request.Context())
 	if err != nil {
-		request.RenderJson(e.r.ErrorToStatus(ctx, err), e.r.BindResData(ctx, nil, err))
+		request.RenderJson(e.r.ErrorToStatus(request.Native(), err), e.r.BindResData(request.Native(), nil, err))
 		return
 	}
-	request.RenderJson(200, e.r.BindResData(ctx, result, nil))
+	dtoResult, dErr := result.ToDTO(request.Native())
+	if dErr != nil {
+		request.RenderJson(e.r.ErrorToStatus(request.Native(), dErr), e.r.BindResData(request.Native(), nil, dErr))
+		return
+	}
+	request.RenderJson(200, e.r.BindResData(request.Native(), dtoResult, nil))
 }
 
 // handleUserCopy 封装了端点的自动化执行流
 func (e *UserCenterExecutor[T, C]) handleUserCopy(request C, info MethodInfo) {
-	ctx := request.Native()
-	var input UserCopyArgs
-	if err := e.bindUserCopy(request, &input); err != nil {
-		request.RenderJson(e.r.ErrorToStatus(ctx, err), e.r.BindResData(ctx, nil, err))
-		return
+	var idVal string
+	if val := request.GetQuery("id"); val != "" {
+		idVal = val
 	}
-	if err := e.validateUserCopy(ctx, &input); err != nil {
-		request.RenderJson(e.r.ErrorToStatus(ctx, err), e.r.BindResData(ctx, nil, err))
-		return
-	}
-	result, err := e.biz.UserCopy(request.Context(), &input)
+	result, err := e.biz.UserCopy(request.Context(), idVal)
 	if err != nil {
-		request.RenderJson(e.r.ErrorToStatus(ctx, err), e.r.BindResData(ctx, nil, err))
+		request.RenderJson(e.r.ErrorToStatus(request.Native(), err), e.r.BindResData(request.Native(), nil, err))
 		return
 	}
-	request.RenderJson(200, e.r.BindResData(ctx, result, nil))
-}
-
-// bindUserCopy 自动生成的参数提取与转换实现
-func (e *UserCenterExecutor[T, C]) bindUserCopy(request C, input *UserCopyArgs) error {
-
-	if err := request.Field(SourceJson, "id", &input.Id); err != nil {
-		return err
+	dtoResult, dErr := result.ToDTO(request.Native())
+	if dErr != nil {
+		request.RenderJson(e.r.ErrorToStatus(request.Native(), dErr), e.r.BindResData(request.Native(), nil, dErr))
+		return
 	}
-
-	return nil
-}
-
-// validateUserCopy 参数验证逻辑
-func (e *UserCenterExecutor[T, C]) validateUserCopy(ctx T, input *UserCopyArgs) error {
-	// Pass 1: Required validations for top-level arguments and their fields
-	if err := e.v.Required(ctx, "id", input.Id); err != nil {
-		return err
-	}
-
-	// Pass 2: Other validations
-	return nil
+	request.RenderJson(200, e.r.BindResData(request.Native(), dtoResult, nil))
 }
 
 // handleCreateUser 封装了端点的自动化执行流
 func (e *UserCenterExecutor[T, C]) handleCreateUser(request C, info MethodInfo) {
-	ctx := request.Native()
 	var input CreateUserInput
 	if err := e.bindCreateUser(request, &input); err != nil {
-		request.RenderJson(e.r.ErrorToStatus(ctx, err), e.r.BindResData(ctx, nil, err))
+		request.RenderJson(e.r.ErrorToStatus(request.Native(), err), e.r.BindResData(request.Native(), nil, err))
 		return
 	}
-	if err := e.validateCreateUser(ctx, &input); err != nil {
-		request.RenderJson(e.r.ErrorToStatus(ctx, err), e.r.BindResData(ctx, nil, err))
+	if err := e.validateCreateUser(request.Native(), &input); err != nil {
+		request.RenderJson(e.r.ErrorToStatus(request.Native(), err), e.r.BindResData(request.Native(), nil, err))
 		return
 	}
 	result, err := e.biz.CreateUser(request.Context(), &input)
 	if err != nil {
-		request.RenderJson(e.r.ErrorToStatus(ctx, err), e.r.BindResData(ctx, nil, err))
+		request.RenderJson(e.r.ErrorToStatus(request.Native(), err), e.r.BindResData(request.Native(), nil, err))
 		return
 	}
-	request.RenderJson(200, e.r.BindResData(ctx, result, nil))
+	dtoResult, dErr := result.ToDTO(request.Native())
+	if dErr != nil {
+		request.RenderJson(e.r.ErrorToStatus(request.Native(), dErr), e.r.BindResData(request.Native(), nil, dErr))
+		return
+	}
+	request.RenderJson(200, e.r.BindResData(request.Native(), dtoResult, nil))
 }
 
 // bindCreateUser 自动生成的参数提取与转换实现
@@ -413,57 +433,60 @@ func (e *UserCenterExecutor[T, C]) validateCreateUser(ctx T, input *CreateUserIn
 
 // handleLogin 封装了端点的自动化执行流
 func (e *UserCenterExecutor[T, C]) handleLogin(request C, info MethodInfo) {
-	ctx := request.Native()
 	var input LoginArgs
 	if err := e.biz.BindLogin(request, &input); err != nil {
-		request.RenderJson(e.r.ErrorToStatus(ctx, err), e.r.BindResData(ctx, nil, err))
+		request.RenderJson(e.r.ErrorToStatus(request.Native(), err), e.r.BindResData(request.Native(), nil, err))
 		return
 	}
-	if err := e.biz.ValidateLogin(ctx, &input); err != nil {
-		request.RenderJson(e.r.ErrorToStatus(ctx, err), e.r.BindResData(ctx, nil, err))
+	if err := e.biz.ValidateLogin(request.Native(), &input); err != nil {
+		request.RenderJson(e.r.ErrorToStatus(request.Native(), err), e.r.BindResData(request.Native(), nil, err))
 		return
 	}
 	result, err := e.biz.Login(request.Context(), &input)
 	if err != nil {
-		request.RenderJson(e.r.ErrorToStatus(ctx, err), e.r.BindResData(ctx, nil, err))
+		request.RenderJson(e.r.ErrorToStatus(request.Native(), err), e.r.BindResData(request.Native(), nil, err))
 		return
 	}
-	request.RenderJson(201, e.r.BindResData(ctx, result, nil))
+	request.RenderJson(201, e.r.BindResData(request.Native(), result, nil))
 }
 
 // handleUpdateUser 封装了端点的自动化执行流
 func (e *UserCenterExecutor[T, C]) handleUpdateUser(request C, info MethodInfo) {
-	ctx := request.Native()
-	if err := e.d.LoginRequired(ctx, info); err != nil {
-		request.RenderJson(e.r.ErrorToStatus(ctx, err), e.r.BindResData(ctx, nil, err))
+	if err := e.d.LoginRequired(request.Native(), info); err != nil {
+		request.RenderJson(e.r.ErrorToStatus(request.Native(), err), e.r.BindResData(request.Native(), nil, err))
 		return
 	}
 	var input UpdateUserArgs
 	if err := e.bindUpdateUser(request, &input); err != nil {
-		request.RenderJson(e.r.ErrorToStatus(ctx, err), e.r.BindResData(ctx, nil, err))
+		request.RenderJson(e.r.ErrorToStatus(request.Native(), err), e.r.BindResData(request.Native(), nil, err))
 		return
 	}
-	if err := e.validateUpdateUser(ctx, &input); err != nil {
-		request.RenderJson(e.r.ErrorToStatus(ctx, err), e.r.BindResData(ctx, nil, err))
+	if err := e.validateUpdateUser(request.Native(), &input); err != nil {
+		request.RenderJson(e.r.ErrorToStatus(request.Native(), err), e.r.BindResData(request.Native(), nil, err))
 		return
 	}
-	if err := e.biz.OnInvoke_CheckOwner_UpdateUser(ctx, info, &input); err != nil {
-		request.RenderJson(e.r.ErrorToStatus(ctx, err), e.r.BindResData(ctx, nil, err))
+	if err := e.biz.OnInvoke_CheckOwner_UpdateUser(request.Native(), info, &input); err != nil {
+		request.RenderJson(e.r.ErrorToStatus(request.Native(), err), e.r.BindResData(request.Native(), nil, err))
 		return
 	}
 	result, err := e.biz.UpdateUser(request.Context(), &input)
-	if res, rerr := e.biz.OnResponse_MaskEmail_UpdateUser(ctx, info, &input, result, err); rerr != nil {
-		request.RenderJson(e.r.ErrorToStatus(ctx, rerr), e.r.BindResData(ctx, nil, rerr))
+	if res, rerr := e.biz.OnResponse_MaskEmail_UpdateUser(request.Native(), info, &input, result, err); rerr != nil {
+		request.RenderJson(e.r.ErrorToStatus(request.Native(), rerr), e.r.BindResData(request.Native(), nil, rerr))
 		return
 	} else {
 		result = res
 		err = rerr
 	}
 	if err != nil {
-		request.RenderJson(e.r.ErrorToStatus(ctx, err), e.r.BindResData(ctx, nil, err))
+		request.RenderJson(e.r.ErrorToStatus(request.Native(), err), e.r.BindResData(request.Native(), nil, err))
 		return
 	}
-	request.RenderJson(200, e.r.BindResData(ctx, result, nil))
+	dtoResult, dErr := result.ToDTO(request.Native())
+	if dErr != nil {
+		request.RenderJson(e.r.ErrorToStatus(request.Native(), dErr), e.r.BindResData(request.Native(), nil, dErr))
+		return
+	}
+	request.RenderJson(200, e.r.BindResData(request.Native(), dtoResult, nil))
 }
 
 // bindUpdateUser 自动生成的参数提取与转换实现
@@ -471,15 +494,6 @@ func (e *UserCenterExecutor[T, C]) bindUpdateUser(request C, input *UpdateUserAr
 	if err := request.Payload(SourceJson, input); err != nil {
 		return err
 	}
-
-	if err := request.Field(SourceJson, "id", &input.Id); err != nil {
-		return err
-	}
-
-	if err := request.Field(SourceJson, "email", &input.Email); err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -496,22 +510,21 @@ func (e *UserCenterExecutor[T, C]) validateUpdateUser(ctx T, input *UpdateUserAr
 
 // handleUploadAvatar 封装了端点的自动化执行流
 func (e *UserCenterExecutor[T, C]) handleUploadAvatar(request C, info MethodInfo) {
-	ctx := request.Native()
 	var input UploadAvatarInput
 	if err := e.bindUploadAvatar(request, &input); err != nil {
-		request.RenderJson(e.r.ErrorToStatus(ctx, err), e.r.BindResData(ctx, nil, err))
+		request.RenderJson(e.r.ErrorToStatus(request.Native(), err), e.r.BindResData(request.Native(), nil, err))
 		return
 	}
-	if err := e.validateUploadAvatar(ctx, &input); err != nil {
-		request.RenderJson(e.r.ErrorToStatus(ctx, err), e.r.BindResData(ctx, nil, err))
+	if err := e.validateUploadAvatar(request.Native(), &input); err != nil {
+		request.RenderJson(e.r.ErrorToStatus(request.Native(), err), e.r.BindResData(request.Native(), nil, err))
 		return
 	}
 	result, err := e.biz.UploadAvatar(request.Context(), &input)
 	if err != nil {
-		request.RenderJson(e.r.ErrorToStatus(ctx, err), e.r.BindResData(ctx, nil, err))
+		request.RenderJson(e.r.ErrorToStatus(request.Native(), err), e.r.BindResData(request.Native(), nil, err))
 		return
 	}
-	request.RenderJson(200, e.r.BindResData(ctx, result, nil))
+	request.RenderJson(200, e.r.BindResData(request.Native(), result, nil))
 }
 
 // bindUploadAvatar 自动生成的参数提取与转换实现
@@ -543,35 +556,49 @@ func (e *UserCenterExecutor[T, C]) validateUploadAvatar(ctx T, input *UploadAvat
 
 // handleGetUsers 封装了端点的自动化执行流
 func (e *UserCenterExecutor[T, C]) handleGetUsers(request C, info MethodInfo) {
-	ctx := request.Native()
 	var input GetUsersArgs
 	if err := e.bindGetUsers(request, &input); err != nil {
-		request.RenderJson(e.r.ErrorToStatus(ctx, err), e.r.BindResData(ctx, nil, err))
+		request.RenderJson(e.r.ErrorToStatus(request.Native(), err), e.r.BindResData(request.Native(), nil, err))
 		return
 	}
-	if err := e.validateGetUsers(ctx, &input); err != nil {
-		request.RenderJson(e.r.ErrorToStatus(ctx, err), e.r.BindResData(ctx, nil, err))
+	if err := e.validateGetUsers(request.Native(), &input); err != nil {
+		request.RenderJson(e.r.ErrorToStatus(request.Native(), err), e.r.BindResData(request.Native(), nil, err))
 		return
 	}
 	result, err := e.biz.GetUsers(request.Context(), &input)
 	if err != nil {
-		request.RenderJson(e.r.ErrorToStatus(ctx, err), e.r.BindResData(ctx, nil, err))
+		request.RenderJson(e.r.ErrorToStatus(request.Native(), err), e.r.BindResData(request.Native(), nil, err))
 		return
 	}
-	request.RenderJson(200, e.r.BindResData(ctx, result, nil))
+	var dtoResult []*UserDTO
+	for _, item := range *result {
+		if dto, dErr := item.ToDTO(request.Native()); dErr == nil {
+			dtoResult = append(dtoResult, dto)
+		} else {
+			request.RenderJson(e.r.ErrorToStatus(request.Native(), dErr), e.r.BindResData(request.Native(), nil, dErr))
+			return
+		}
+	}
+	request.RenderJson(200, e.r.BindResData(request.Native(), dtoResult, nil))
 }
 
 // bindGetUsers 自动生成的参数提取与转换实现
 func (e *UserCenterExecutor[T, C]) bindGetUsers(request C, input *GetUsersArgs) error {
-
-	if err := request.Query("page", &input.Page); err != nil {
-		return err
+	if val := request.GetQuery("page"); val != "" {
+		if v, err := IntFromParam(val); err == nil {
+			input.Page = v
+		} else {
+			return err
+		}
 	}
-
-	if err := request.Query("size", &input.Size); err != nil {
-		return err
+	if val := request.GetQuery("size"); val != "" {
+		if v, err := IntFromParam(val); err == nil {
+			v2 := v
+			input.Size = &v2
+		} else {
+			return err
+		}
 	}
-
 	return nil
 }
 
@@ -591,74 +618,66 @@ func (e *UserCenterExecutor[T, C]) validateGetUsers(ctx T, input *GetUsersArgs) 
 
 // handleGetUser 封装了端点的自动化执行流
 func (e *UserCenterExecutor[T, C]) handleGetUser(request C, info MethodInfo) {
-	ctx := request.Native()
-	var input GetUserArgs
-	if err := e.bindGetUser(request, &input); err != nil {
-		request.RenderJson(e.r.ErrorToStatus(ctx, err), e.r.BindResData(ctx, nil, err))
-		return
+	var idVal *int
+	if val := request.GetPath("id"); val != "" {
+		if v, err := IntFromParam(val); err == nil {
+			v2 := v
+			idVal = &v2
+		} else {
+			request.RenderJson(e.r.ErrorToStatus(request.Native(), err), e.r.BindResData(request.Native(), nil, err))
+			return
+		}
 	}
-	result, err := e.biz.GetUser(request.Context(), &input)
+	result, err := e.biz.GetUser(request.Context(), idVal)
 	if err != nil {
-		request.RenderJson(e.r.ErrorToStatus(ctx, err), e.r.BindResData(ctx, nil, err))
+		request.RenderJson(e.r.ErrorToStatus(request.Native(), err), e.r.BindResData(request.Native(), nil, err))
 		return
 	}
-	request.RenderJson(200, result)
-}
-
-// bindGetUser 自动生成的参数提取与转换实现
-func (e *UserCenterExecutor[T, C]) bindGetUser(request C, input *GetUserArgs) error {
-
-	if err := request.Path("id", &input.Id); err != nil {
-		return err
+	dtoResult, dErr := result.ToDTO(request.Native())
+	if dErr != nil {
+		request.RenderJson(e.r.ErrorToStatus(request.Native(), dErr), e.r.BindResData(request.Native(), nil, dErr))
+		return
 	}
-
-	return nil
+	request.RenderJson(200, dtoResult)
 }
 
 // handleDeleteUser 封装了端点的自动化执行流
 func (e *UserCenterExecutor[T, C]) handleDeleteUser(request C, info MethodInfo) {
-	ctx := request.Native()
-	var input DeleteUserArgs
-	if err := e.bindDeleteUser(request, &input); err != nil {
-		request.RenderJson(e.r.ErrorToStatus(ctx, err), e.r.BindResData(ctx, nil, err))
-		return
+	var idVal *int
+	if val := request.GetPath("id"); val != "" {
+		if v, err := IntFromParam(val); err == nil {
+			v2 := v
+			idVal = &v2
+		} else {
+			request.RenderJson(e.r.ErrorToStatus(request.Native(), err), e.r.BindResData(request.Native(), nil, err))
+			return
+		}
 	}
-	result, err := e.biz.DeleteUser(request.Context(), &input)
+	result, err := e.biz.DeleteUser(request.Context(), idVal)
 	if err != nil {
-		request.RenderJson(e.r.ErrorToStatus(ctx, err), e.r.BindResData(ctx, nil, err))
+		request.RenderJson(e.r.ErrorToStatus(request.Native(), err), e.r.BindResData(request.Native(), nil, err))
 		return
 	}
-	request.RenderJson(200, e.r.BindResData(ctx, result, nil))
-}
-
-// bindDeleteUser 自动生成的参数提取与转换实现
-func (e *UserCenterExecutor[T, C]) bindDeleteUser(request C, input *DeleteUserArgs) error {
-
-	if err := request.Path("id", &input.Id); err != nil {
-		return err
-	}
-
-	return nil
+	request.RenderJson(200, e.r.BindResData(request.Native(), result, nil))
 }
 
 // handleUpdateProfile 封装了端点的自动化执行流
 func (e *UserCenterExecutor[T, C]) handleUpdateProfile(request C, info MethodInfo) {
-	ctx := request.Native()
 	var input ProfileUpdateInput
 	if err := e.bindUpdateProfile(request, &input); err != nil {
-		request.RenderJson(e.r.ErrorToStatus(ctx, err), e.r.BindResData(ctx, nil, err))
+		request.RenderJson(e.r.ErrorToStatus(request.Native(), err), e.r.BindResData(request.Native(), nil, err))
 		return
 	}
-	if err := e.validateUpdateProfile(ctx, &input); err != nil {
-		request.RenderJson(e.r.ErrorToStatus(ctx, err), e.r.BindResData(ctx, nil, err))
+	if err := e.validateUpdateProfile(request.Native(), &input); err != nil {
+		request.RenderJson(e.r.ErrorToStatus(request.Native(), err), e.r.BindResData(request.Native(), nil, err))
 		return
 	}
 	result, err := e.biz.UpdateProfile(request.Context(), &input)
 	if err != nil {
-		request.RenderJson(e.r.ErrorToStatus(ctx, err), e.r.BindResData(ctx, nil, err))
+		request.RenderJson(e.r.ErrorToStatus(request.Native(), err), e.r.BindResData(request.Native(), nil, err))
 		return
 	}
-	request.RenderJson(200, e.r.BindResData(ctx, result, nil))
+	request.RenderJson(200, e.r.BindResData(request.Native(), result, nil))
 }
 
 // bindUpdateProfile 自动生成的参数提取与转换实现
@@ -678,12 +697,18 @@ func (e *UserCenterExecutor[T, C]) validateUpdateProfile(ctx T, input *ProfileUp
 	if err := e.v.Required(ctx, "security", input.Security); err != nil {
 		return err
 	}
+	if err := e.v.Required(ctx, "security.backupEmail", input.Security.BackupEmail); err != nil {
+		return err
+	}
 	if err := e.v.Required(ctx, "emailConfirm", input.EmailConfirm); err != nil {
 		return err
 	}
 
 	// Pass 2: Other validations
 	if err := e.v.Email(ctx, "currentEmail", input.CurrentEmail); err != nil {
+		return err
+	}
+	if err := e.v.Email(ctx, "security.backupEmail", input.Security.BackupEmail); err != nil {
 		return err
 	}
 	if err := e.v.Email(ctx, "emailConfirm", input.EmailConfirm); err != nil {
@@ -694,10 +719,9 @@ func (e *UserCenterExecutor[T, C]) validateUpdateProfile(ctx T, input *ProfileUp
 
 // handleExportUsers 封装了端点的自动化执行流
 func (e *UserCenterExecutor[T, C]) handleExportUsers(request C, info MethodInfo) {
-	ctx := request.Native()
 	result, err := e.biz.ExportUsers(request.Context())
 	if err != nil {
-		request.RenderJson(e.r.ErrorToStatus(ctx, err), e.r.BindResData(ctx, nil, err))
+		request.RenderJson(e.r.ErrorToStatus(request.Native(), err), e.r.BindResData(request.Native(), nil, err))
 		return
 	}
 	request.RenderText(200, result)
@@ -705,15 +729,14 @@ func (e *UserCenterExecutor[T, C]) handleExportUsers(request C, info MethodInfo)
 
 // handleTestValid 封装了端点的自动化执行流
 func (e *UserCenterExecutor[T, C]) handleTestValid(request C, info MethodInfo) {
-	ctx := request.Native()
 	var input ValidGET
 	if err := e.bindTestValid(request, &input); err != nil {
-		request.RenderJson(e.r.ErrorToStatus(ctx, err), e.r.BindResData(ctx, nil, err))
+		request.RenderJson(e.r.ErrorToStatus(request.Native(), err), e.r.BindResData(request.Native(), nil, err))
 		return
 	}
 	result, err := e.biz.TestValid(request.Context(), &input)
 	if err != nil {
-		request.RenderJson(e.r.ErrorToStatus(ctx, err), e.r.BindResData(ctx, nil, err))
+		request.RenderJson(e.r.ErrorToStatus(request.Native(), err), e.r.BindResData(request.Native(), nil, err))
 		return
 	}
 	request.RenderJson(200, result)
@@ -721,11 +744,21 @@ func (e *UserCenterExecutor[T, C]) handleTestValid(request C, info MethodInfo) {
 
 // bindTestValid 自动生成的参数提取与转换实现
 func (e *UserCenterExecutor[T, C]) bindTestValid(request C, input *ValidGET) error {
-	if err := request.Query("page", &input.Page); err != nil {
-		return err
+	if val := request.GetQuery("page"); val != "" {
+		if v, err := IntFromParam(val); err == nil {
+			v2 := v
+			input.Page = &v2
+		} else {
+			return err
+		}
 	}
-	if err := request.Query("size", &input.Size); err != nil {
-		return err
+	if val := request.GetQuery("size"); val != "" {
+		if v, err := IntFromParam(val); err == nil {
+			v2 := v
+			input.Size = &v2
+		} else {
+			return err
+		}
 	}
 	return nil
 }

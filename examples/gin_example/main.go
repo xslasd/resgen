@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 	"mime/multipart"
-	"strconv"
 
 	"github.com/xslasd/resgen/examples/resolver"
 
 	_ "embed"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -26,20 +26,16 @@ func (c *GinContext) Native() *gin.Context {
 	return c.GC
 }
 
-func (c *GinContext) Path(name string, dest any) error {
-	val := c.GC.Param(name)
-	return bindString(val, dest)
+func (c *GinContext) GetPath(name string) string {
+	return c.GC.Param(name)
 }
 
-func (c *GinContext) Query(name string, dest any) error {
-	// 明确使用 c.GC 调用 Gin 原生方法，否则会产生递归调用错误
-	val := c.GC.Query(name)
-	return bindString(val, dest)
+func (c *GinContext) GetQuery(name string) string {
+	return c.GC.Query(name)
 }
 
-func (c *GinContext) Header(name string, dest any) error {
-	val := c.GC.GetHeader(name)
-	return bindString(val, dest)
+func (c *GinContext) GetHeader(name string) string {
+	return c.GC.GetHeader(name)
 }
 
 func (c *GinContext) Payload(source resolver.BodySource, dest any) error {
@@ -70,7 +66,10 @@ func (c *GinContext) Field(source resolver.BodySource, name string, dest any) er
 		}
 		// 如果是普通 Form 字段
 		val := c.GC.PostForm(name)
-		return bindString(val, dest)
+		if d, ok := dest.(*string); ok {
+			*d = val
+		}
+		return nil
 	default:
 		return fmt.Errorf("unsupported field source: %s", source)
 	}
@@ -96,25 +95,6 @@ func (c *GinContext) Context() context.Context {
 	return c.GC.Request.Context()
 }
 
-// 辅助绑定函数
-func bindString(val string, dest any) error {
-	if val == "" {
-		return nil
-	}
-	switch d := dest.(type) {
-	case *string:
-		*d = val
-	case **string:
-		*d = &val
-	case *int:
-		i, _ := strconv.Atoi(val)
-		*d = i
-	case **int:
-		i, _ := strconv.Atoi(val)
-		*d = &i
-	}
-	return nil
-}
 
 // --- 2. 实现 Responder 契约 ---
 type MyResponder struct{}
@@ -156,11 +136,11 @@ func (u *UserHandler) Login(ctx context.Context, input *resolver.LoginArgs) (*re
 func (u *UserHandler) BindLogin(request resolver.ServerContextBase, input *resolver.LoginArgs) error {
 	fmt.Printf(">>> [Custom Bind] Login\n")
 	// 手动绑定
-	if err := request.Query("username", &input.Username); err != nil {
-		return err
+	if val := request.GetQuery("username"); val != "" {
+		input.Username = &val
 	}
-	if err := request.Query("password", &input.Password); err != nil {
-		return err
+	if val := request.GetQuery("password"); val != "" {
+		input.Password = &val
 	}
 	return nil
 }
@@ -173,15 +153,15 @@ func (u *UserHandler) ValidateLogin(ctx *gin.Context, input *resolver.LoginArgs)
 	return nil
 }
 
-func (u *UserHandler) UserCopy(ctx context.Context, input *resolver.UserCopyArgs) (*resolver.User, error) {
-	return &resolver.User{Username: "copy_" + input.Id}, nil
+func (u *UserHandler) UserCopy(ctx context.Context, id string) (*resolver.User, error) {
+	return &resolver.User{Username: "copy_" + id}, nil
 }
 
 func (u *UserHandler) GetUsers(ctx context.Context, input *resolver.GetUsersArgs) (*[]*resolver.User, error) {
 	return &[]*resolver.User{{Username: "user1"}}, nil
 }
-func (u *UserHandler) GetUser(ctx context.Context, input *resolver.GetUserArgs) (*resolver.User, error) {
-	return &resolver.User{Id: *input.Id}, nil
+func (u *UserHandler) GetUser(ctx context.Context, id *int) (*resolver.User, error) {
+	return &resolver.User{Id: *id}, nil
 }
 func (u *UserHandler) CreateUser(ctx context.Context, input *resolver.CreateUserInput) (*resolver.User, error) {
 	return &resolver.User{Username: input.Username}, nil
@@ -211,7 +191,7 @@ func (u *UserHandler) UploadAvatar(ctx context.Context, input *resolver.UploadAv
 	s := "uploaded"
 	return &s, nil
 }
-func (u *UserHandler) DeleteUser(ctx context.Context, input *resolver.DeleteUserArgs) (*string, error) {
+func (u *UserHandler) DeleteUser(ctx context.Context, id *int) (*string, error) {
 	s := "deleted"
 	return &s, nil
 }
@@ -234,6 +214,17 @@ func (t *TaskHandler) CreateTask(ctx context.Context, input *resolver.CreateTask
 func (t *TaskHandler) GetTasks(ctx context.Context, input *resolver.GetTasksInput) (*string, error) {
 	s := "task list"
 	return &s, nil
+}
+
+// --- ScalarCenter 业务逻辑 ---
+type ScalarHandler struct{}
+
+func (s *ScalarHandler) TestScalar(ctx context.Context, time *time.Time) (*resolver.ScalarOutput, error) {
+	return &resolver.ScalarOutput{Time: time}, nil
+}
+
+func (s *ScalarHandler) TestScalarBody(ctx context.Context, input *resolver.ScalarInput) (*resolver.ScalarOutput, error) {
+	return &resolver.ScalarOutput{Time: input.Body_time}, nil
 }
 
 // 装饰器与验证器实现 (模拟)
@@ -265,7 +256,7 @@ func (v *MyValidator) FileRule(ctx *gin.Context, fieldName string, value any, ma
 	// 1. 校验文件大小
 	if file.Size > int64(maxSize) {
 		if msg != "" {
-			return fmt.Errorf(msg)
+			return fmt.Errorf("%s", msg)
 		}
 		return fmt.Errorf("文件 [%s] 超过限制 (%d 字节)", fieldName, maxSize)
 	}
@@ -281,7 +272,7 @@ func (v *MyValidator) FileRule(ctx *gin.Context, fieldName string, value any, ma
 	}
 	if !found {
 		if msg != "" {
-			return fmt.Errorf(msg)
+			return fmt.Errorf("%s", msg)
 		}
 		return fmt.Errorf("文件 [%s] 类型 [%s] 不被允许，仅支持: %v", fieldName, contentType, types)
 	}
@@ -315,6 +306,7 @@ func main() {
 	// 挂载业务模块
 	resolver.MountUserCenter(en, &UserHandler{})
 	resolver.MountTaskCenter(en, &TaskHandler{})
+	resolver.MountScalarCenter(en, &ScalarHandler{})
 
 	fmt.Println("Resgen Gin Example running on :8080")
 	r.Run(":8080")

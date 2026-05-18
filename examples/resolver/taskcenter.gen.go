@@ -6,6 +6,8 @@ package resolver
 import (
 	"context"
 	"time"
+
+	"github.com/xslasd/resgen/examples/scalars"
 )
 
 // ==========================================
@@ -18,10 +20,86 @@ type CreateTaskInput struct {
 	Period TaskPeriod `json:"period"`
 }
 
+// CreateTaskInputDTO 数据传输对象
+type CreateTaskInputDTO struct {
+	Title  string        `json:"title"`
+	Period TaskPeriodDTO `json:"period"`
+}
+
+func (m *CreateTaskInput) ToDTO(ctx any) (*CreateTaskInputDTO, error) {
+	if m == nil {
+		return nil, nil
+	}
+	dto := &CreateTaskInputDTO{}
+	dto.Title = m.Title
+	val, err := (&m.Period).ToDTO(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if val != nil {
+		dto.Period = *val
+	}
+	return dto, nil
+}
+
+func (m *CreateTaskInput) FromDTO(ctx any, dto *CreateTaskInputDTO) error {
+	if m == nil || dto == nil {
+		return nil
+	}
+	m.Title = dto.Title
+	if err := (&m.Period).FromDTO(ctx, &dto.Period); err != nil {
+		return err
+	}
+	return nil
+}
+
 // TaskPeriod 输入模型
 type TaskPeriod struct {
 	StartTime time.Time `json:"start_time"`
 	EndTime   time.Time `json:"end_time"`
+}
+
+// TaskPeriodDTO 数据传输对象
+type TaskPeriodDTO struct {
+	StartTime int64 `json:"start_time"`
+	EndTime   int64 `json:"end_time"`
+}
+
+func (m *TaskPeriod) ToDTO(ctx any) (*TaskPeriodDTO, error) {
+	if m == nil {
+		return nil, nil
+	}
+	dto := &TaskPeriodDTO{}
+	tmpStartTime := scalars.IntTime(m.StartTime)
+	valStartTime, err := tmpStartTime.ToValue(ctx)
+	if err != nil {
+		return nil, err
+	}
+	dto.StartTime = valStartTime
+	tmpEndTime := scalars.IntTime(m.EndTime)
+	valEndTime, err := tmpEndTime.ToValue(ctx)
+	if err != nil {
+		return nil, err
+	}
+	dto.EndTime = valEndTime
+	return dto, nil
+}
+
+func (m *TaskPeriod) FromDTO(ctx any, dto *TaskPeriodDTO) error {
+	if m == nil || dto == nil {
+		return nil
+	}
+	var tmpStartTime scalars.IntTime
+	if err := tmpStartTime.FromValue(ctx, dto.StartTime); err != nil {
+		return err
+	}
+	m.StartTime = time.Time(tmpStartTime)
+	var tmpEndTime scalars.IntTime
+	if err := tmpEndTime.FromValue(ctx, dto.EndTime); err != nil {
+		return err
+	}
+	m.EndTime = time.Time(tmpEndTime)
+	return nil
 }
 
 // GetTasksInput 输入模型
@@ -73,7 +151,6 @@ func MountTaskCenter[T any, C ServerContext[T]](en *Engine[C], biz TaskCenterRes
 	executor.mount()
 }
 
-// TaskCenterExecutor 模块执行器私有实现
 type TaskCenterExecutor[T any, C ServerContext[T]] struct {
 	en  *Engine[C]
 	biz TaskCenterResolver[T]
@@ -107,27 +184,30 @@ func (e *TaskCenterExecutor[T, C]) mount() {
 
 // handleCreateTask 封装了端点的自动化执行流
 func (e *TaskCenterExecutor[T, C]) handleCreateTask(request C, info MethodInfo) {
-	ctx := request.Native()
 	var input CreateTaskInput
 	if err := e.bindCreateTask(request, &input); err != nil {
-		request.RenderJson(e.r.ErrorToStatus(ctx, err), e.r.BindResData(ctx, nil, err))
+		request.RenderJson(e.r.ErrorToStatus(request.Native(), err), e.r.BindResData(request.Native(), nil, err))
 		return
 	}
-	if err := e.validateCreateTask(ctx, &input); err != nil {
-		request.RenderJson(e.r.ErrorToStatus(ctx, err), e.r.BindResData(ctx, nil, err))
+	if err := e.validateCreateTask(request.Native(), &input); err != nil {
+		request.RenderJson(e.r.ErrorToStatus(request.Native(), err), e.r.BindResData(request.Native(), nil, err))
 		return
 	}
 	result, err := e.biz.CreateTask(request.Context(), &input)
 	if err != nil {
-		request.RenderJson(e.r.ErrorToStatus(ctx, err), e.r.BindResData(ctx, nil, err))
+		request.RenderJson(e.r.ErrorToStatus(request.Native(), err), e.r.BindResData(request.Native(), nil, err))
 		return
 	}
-	request.RenderJson(200, e.r.BindResData(ctx, result, nil))
+	request.RenderJson(200, e.r.BindResData(request.Native(), result, nil))
 }
 
 // bindCreateTask 自动生成的参数提取与转换实现
 func (e *TaskCenterExecutor[T, C]) bindCreateTask(request C, input *CreateTaskInput) error {
-	if err := request.Payload(SourceJson, input); err != nil {
+	var dto CreateTaskInputDTO
+	if err := request.Payload(SourceJson, &dto); err != nil {
+		return err
+	}
+	if err := input.FromDTO(request.Native(), &dto); err != nil {
 		return err
 	}
 	return nil
@@ -142,34 +222,52 @@ func (e *TaskCenterExecutor[T, C]) validateCreateTask(ctx T, input *CreateTaskIn
 	if err := e.v.Required(ctx, "period", input.Period); err != nil {
 		return err
 	}
+	if err := e.v.Required(ctx, "period.startTime", input.Period.StartTime); err != nil {
+		return err
+	}
+	if err := e.v.Required(ctx, "period.endTime", input.Period.EndTime); err != nil {
+		return err
+	}
 
 	// Pass 2: Other validations
+	if err := e.v.TimeBefore(ctx, "period.startTime", input.Period.StartTime, input.Period.EndTime); err != nil {
+		return err
+	}
 	return nil
 }
 
 // handleGetTasks 封装了端点的自动化执行流
 func (e *TaskCenterExecutor[T, C]) handleGetTasks(request C, info MethodInfo) {
-	ctx := request.Native()
 	var input GetTasksInput
 	if err := e.bindGetTasks(request, &input); err != nil {
-		request.RenderJson(e.r.ErrorToStatus(ctx, err), e.r.BindResData(ctx, nil, err))
+		request.RenderJson(e.r.ErrorToStatus(request.Native(), err), e.r.BindResData(request.Native(), nil, err))
 		return
 	}
 	result, err := e.biz.GetTasks(request.Context(), &input)
 	if err != nil {
-		request.RenderJson(e.r.ErrorToStatus(ctx, err), e.r.BindResData(ctx, nil, err))
+		request.RenderJson(e.r.ErrorToStatus(request.Native(), err), e.r.BindResData(request.Native(), nil, err))
 		return
 	}
-	request.RenderJson(200, e.r.BindResData(ctx, result, nil))
+	request.RenderJson(200, e.r.BindResData(request.Native(), result, nil))
 }
 
 // bindGetTasks 自动生成的参数提取与转换实现
 func (e *TaskCenterExecutor[T, C]) bindGetTasks(request C, input *GetTasksInput) error {
-	if err := request.Query("page", &input.Page); err != nil {
-		return err
+	if val := request.GetQuery("page"); val != "" {
+		if v, err := IntFromParam(val); err == nil {
+			v2 := v
+			input.Page = &v2
+		} else {
+			return err
+		}
 	}
-	if err := request.Query("size", &input.Size); err != nil {
-		return err
+	if val := request.GetQuery("size"); val != "" {
+		if v, err := IntFromParam(val); err == nil {
+			v2 := v
+			input.Size = &v2
+		} else {
+			return err
+		}
 	}
 	return nil
 }

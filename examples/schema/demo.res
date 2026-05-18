@@ -13,7 +13,7 @@ type User {
     username: String!
     email: String!
     avatarUrl: String
-    createdAt: Time
+    createdAt: IntTime
 }
 
 # 装饰器与校验器定义

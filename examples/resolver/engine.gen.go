@@ -6,6 +6,7 @@ package resolver
 import (
 	"context"
 	"embed"
+	"strconv"
 )
 
 var _ embed.FS // 确保 embed 被使用
@@ -19,23 +20,17 @@ type CodedError interface {
 // ServerContextBase 包含了底层 Web 框架的通用参数绑定与渲染契约
 // 框架适配层（如 GinContext）必须实现此接口。
 type ServerContextBase interface {
-	// --- 1. 声明式参数绑定 ---
-	Path(name string, dest any) error
-	Query(name string, dest any) error
-	Header(name string, dest any) error
+	// --- 1.1 获取原始字符串 (用于 Scalar 和基础类型内置解析) ---
+	GetPath(name string) string
+	GetQuery(name string) string
+	GetHeader(name string) string
 
 	// Payload 绑定整个请求体（如 JSON 结构体或整个 Form 映射）
 	Payload(source BodySource, dest any) error
 
-	// Field 从请求体中提取单个字段（如 Form 中的 key 或上传的文件）
-	Field(source BodySource, name string, dest any) error
-
 	// --- 2. 底层响应控制 ---
 	// RenderRaw 渲染原始响应（指定 Content-Type 和原始字节，适合文件流等场景）
 	RenderRaw(code int, contentType string, body []byte)
-
-	// SetHeader 设置响应头
-	SetHeader(name, value string)
 
 	// Context 返回标准的 context.Context
 	Context() context.Context
@@ -139,12 +134,35 @@ func (e *Engine[C]) registerApiDocs() {
 // ==========================================
 
 const (
+	SourceXml       BodySource = "xml"
+	SourceText      BodySource = "text"
 	SourceJson      BodySource = "json"
 	SourceForm      BodySource = "form"
 	SourceMultipart BodySource = "multipart"
-	SourceXml       BodySource = "xml"
-	SourceText      BodySource = "text"
 )
+
+// --- 基础类型内置解析辅助函数 ---
+
+func IntFromParam(s string) (int, error) {
+	return strconv.Atoi(s)
+}
+
+func Int64FromParam(s string) (int64, error) {
+	return strconv.ParseInt(s, 10, 64)
+}
+
+func FloatFromParam(s string) (float64, error) {
+	return strconv.ParseFloat(s, 64)
+}
+
+func BoolFromParam(s string) (bool, error) {
+	return strconv.ParseBool(s)
+}
+
+// AnyFromParam 作为一个通用的逃生舱，返回原始字符串
+func AnyFromParam(s string) (any, error) {
+	return s, nil
+}
 
 // ==========================================
 // 2. Decorators & Validators
@@ -169,6 +187,8 @@ type Validator[T any] interface {
 	Max(ctx T, fieldName string, value any, Len int) error
 	// FileRule 校验逻辑
 	FileRule(ctx T, fieldName string, value any, MaxSize int, Types []string, Msg string) error
+	// TimeBefore 校验逻辑
+	TimeBefore(ctx T, fieldName string, value any, Field any) error
 }
 
 // Responder [T any] 定义了响应包装与错误映射契约
@@ -179,9 +199,8 @@ type Responder[T any] interface {
 	BindResData(ctx T, data any, err error) ResData
 }
 
-// ==========================================
-// 3. Response Wrappers
-// ==========================================
+// Any 任意类型（逃生舱）
+type Any any
 
 // 定义统一响应包装器
 // ResData 输出模型
