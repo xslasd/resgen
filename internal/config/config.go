@@ -25,6 +25,7 @@ type GeneratorConfig struct {
 	BaseURL            string            `yaml:"base_url"`
 	DefaultWrap        string            `yaml:"default_wrap"`
 	DefaultOkStatus    int               `yaml:"default_ok_status"`
+	ScalarStyle        string            `yaml:"scalar_style"` // isolation (默认) | direct
 }
 
 type TagConfig struct {
@@ -48,6 +49,7 @@ func LoadConfig(path string) (*Config, error) {
 				{Name: "form", Case: "lower"},
 			},
 			DefaultOkStatus: 200,
+			ScalarStyle:     "isolation",
 		},
 	}
 

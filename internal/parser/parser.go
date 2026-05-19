@@ -128,22 +128,115 @@ func attachCommentsToSchema(s *Schema, comments map[int]string) {
 			decl.Group.Doc = doc 
 			for j := range decl.Group.Endpoints {
 				ep := &decl.Group.Endpoints[j]
-				ep.Doc = findImmediateComment(ep.Pos.Line, comments)
+				
+				// 收集 Endpoint 上方的所有连续单行注释
+				epLines := collectMultilineCommentsAbove(ep.Pos.Line, comments)
+				epDoc, paramDocs := parseComments(epLines)
+				
+				ep.Doc = epDoc
+				
 				for k := range ep.Args {
 					a := &ep.Args[k]
-					a.Doc = findImmediateComment(a.Pos.Line, comments)
+					// 优先使用智能注释提取的专属描述。如果同处一行，且没有专属匹配，则不降级以防主文档泄漏；仅在多行展开（a.Pos.Line > ep.Pos.Line）时才降级为原本的紧贴上一行机制
+					if pd, ok := paramDocs[a.Name]; ok {
+						a.Doc = pd
+					} else if a.Pos.Line > ep.Pos.Line {
+						a.Doc = findImmediateComment(a.Pos.Line, comments)
+					} else {
+						a.Doc = ""
+					}
 				}
 			}
 		}
 	}
 }
 
+// collectMultilineCommentsAbove 向上搜寻并收集某一位置上方的所有连续单行注释行（保持自上而下的正确顺序）
+func collectMultilineCommentsAbove(line int, comments map[int]string) []string {
+	var lines []string
+	for l := line - 1; l > 0; l-- {
+		if txt, ok := comments[l]; ok {
+			lines = append([]string{txt}, lines...)
+		} else {
+			break
+		}
+	}
+	return lines
+}
+
+// parseComments 智能解析连续注释块，提取参数文档并过滤主文档描述
+func parseComments(lines []string) (string, map[string]string) {
+	var mainDoc []string
+	paramDocs := make(map[string]string)
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+
+		found := false
+		
+		// 1. 尝试使用 ':' 或 '-' 切分（如 'id: ArticleID' 或 'id - ArticleID'）
+		if idx := strings.IndexAny(trimmed, ":-"); idx > 0 {
+			key := strings.TrimSpace(trimmed[:idx])
+			val := strings.TrimSpace(trimmed[idx+1:])
+			if isValidIdentifier(key) && val != "" {
+				paramDocs[key] = val
+				found = true
+			}
+		}
+
+		// 2. 尝试使用两个或以上的空格或制表符切分（如 'id  ArticleID'）
+		if !found {
+			if idx := strings.Index(trimmed, "  "); idx > 0 {
+				key := strings.TrimSpace(trimmed[:idx])
+				val := strings.TrimSpace(trimmed[idx:])
+				if isValidIdentifier(key) && val != "" {
+					paramDocs[key] = strings.TrimSpace(val)
+					found = true
+				}
+			} else if idx := strings.Index(trimmed, "\t"); idx > 0 {
+				key := strings.TrimSpace(trimmed[:idx])
+				val := strings.TrimSpace(trimmed[idx:])
+				if isValidIdentifier(key) && val != "" {
+					paramDocs[key] = strings.TrimSpace(val)
+					found = true
+				}
+			}
+		}
+
+		// 如果都不属于任何参数描述，则为 Endpoint 的主说明文案
+		if !found {
+			mainDoc = append(mainDoc, line)
+		}
+	}
+
+	return strings.Join(mainDoc, "\n"), paramDocs
+}
+
+// isValidIdentifier 校验是否是一个合法的 DSL 标识符
+func isValidIdentifier(s string) bool {
+	if len(s) == 0 {
+		return false
+	}
+	first := s[0]
+	if !((first >= 'a' && first <= 'z') || (first >= 'A' && first <= 'Z') || first == '_') {
+		return false
+	}
+	for i := 1; i < len(s); i++ {
+		c := s[i]
+		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_') {
+			return false
+		}
+	}
+	return true
+}
+
 func findImmediateComment(line int, comments map[int]string) string {
-	// 目前简单处理：取上一行内容
 	if txt, ok := comments[line-1]; ok {
 		return txt
 	}
-    // 或者同一行末尾？Lexer 虽然能分出来，但 collectComments 目前只抓整行注释
 	return ""
 }
 

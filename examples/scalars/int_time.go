@@ -1,6 +1,7 @@
 package scalars
 
 import (
+	"encoding/json"
 	"strconv"
 	"time"
 )
@@ -43,4 +44,23 @@ func (it IntTime) Std() time.Time {
 // String 实现 Stringer 接口
 func (it IntTime) String() string {
 	return time.Time(it).Format(time.RFC3339)
+}
+
+// MarshalJSON 实现 json.Marshaler 接口。
+// 当使用 direct 模式时，json.Marshal 会自动调用此方法，
+// 将 IntTime 序列化为 int64 秒级时间戳，而非 time.Time 的 RFC3339 字符串。
+func (it IntTime) MarshalJSON() ([]byte, error) {
+	return json.Marshal(time.Time(it).Unix())
+}
+
+// UnmarshalJSON 实现 json.Unmarshaler 接口。
+// 当使用 direct 模式时，json.Unmarshal 会自动调用此方法，
+// 将 JSON 中的 int64 秒级时间戳反解析为 IntTime。
+func (it *IntTime) UnmarshalJSON(data []byte) error {
+	var sec int64
+	if err := json.Unmarshal(data, &sec); err != nil {
+		return err
+	}
+	*it = IntTime(time.Unix(sec, 0))
+	return nil
 }

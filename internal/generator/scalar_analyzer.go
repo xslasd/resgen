@@ -6,6 +6,7 @@ import (
 	"go/token"
 	"go/types"
 	"strings"
+
 	"golang.org/x/tools/go/packages"
 )
 
@@ -15,9 +16,14 @@ type ScalarAnalysisResult struct {
 	ImportPath string // 如果目标类型需要导入，返回对应的包路径，如 "time"
 }
 
-// AnalyzeScalar 利用 golang.org/x/tools/go/packages 动态分析并校验自定义标量符号
-// 如果加载包失败，为确保离线 CI/CD 编译的鲁棒性，体面退化返回 nil, nil 而不直接崩溃
-func AnalyzeScalar(modelPath string, dslBaseType string) (*ScalarAnalysisResult, error) {
+// AnalyzeScalar 利用 golang.org/x/tools/go/packages 动态分析并校验自定义标量符号。
+//
+// scalarStyle 控制契约校验策略：
+//   - "isolation": 校验 FromParam + FromValue + ToValue
+//   - "direct":    校验 FromParam + MarshalJSON + UnmarshalJSON
+//
+// 如果加载包失败，为确保离线 CI/CD 编译的鲁棒性，体面退化返回 nil, nil 而不直接崩溃。
+func AnalyzeScalar(modelPath string, dslBaseType string, scalarStyle string) (*ScalarAnalysisResult, error) {
 	// 1. 解析物理完整路径，提取包路径和具名类型
 	// 期望格式: "github.com/xslasd/resgen/examples/scalars.IntTime"
 	lastDot := strings.LastIndex(modelPath, ".")
@@ -123,11 +129,9 @@ func AnalyzeScalar(modelPath string, dslBaseType string) (*ScalarAnalysisResult,
 		}
 	}
 
-	// 5. 极致强校验：三关接口契约校验
 	ptrType := types.NewPointer(named)
-	goBaseType := toGoPhysicalBaseType(dslBaseType)
 
-	// 第一关：验证 FromParam 契约 (挂在指针接收者上)
+	// 5. 第一关（两种模式均需要）：验证 FromParam 契约 (挂在指针接收者上)
 	// 期望签名: func (it *IntTime) FromParam(ctx any, s string) error
 	fromParamObj, _, _ := types.LookupFieldOrMethod(ptrType, true, pkg.Types, "FromParam")
 	if fromParamObj == nil {
@@ -145,55 +149,113 @@ func AnalyzeScalar(modelPath string, dslBaseType string) (*ScalarAnalysisResult,
 		return nil, fmt.Errorf("标量 '%s' 的 FromParam 方法的返回值必须是 error 类型！", typeName)
 	}
 
-	// 第二关：验证 FromValue 契约 (挂在指针接收者上)
-	// 期望签名: func (it *IntTime) FromValue(ctx any, v BaseType) error
+	if scalarStyle != "direct" {
+		// isolation 模式：校验 FromValue + ToValue，确保 DTO 转换链路完整
+		goBaseType := toGoPhysicalBaseType(dslBaseType)
+		if err := checkFromValue(ptrType, pkg, typeName, goBaseType); err != nil {
+			return nil, err
+		}
+		if err := checkToValue(ptrType, pkg, typeName, goBaseType); err != nil {
+			return nil, err
+		}
+	}
+	// direct 模式下仅校验 FromParam，序列化方式由用户自行决定，不做强制约束
+
+	return &ScalarAnalysisResult{
+		TargetType: targetTypeStr,
+		ImportPath: targetImportPath,
+	}, nil
+}
+
+// checkFromValue 校验 isolation 模式下的 FromValue 契约
+func checkFromValue(ptrType *types.Pointer, pkg *packages.Package, typeName, goBaseType string) error {
 	fromValueObj, _, _ := types.LookupFieldOrMethod(ptrType, true, pkg.Types, "FromValue")
 	if fromValueObj == nil {
-		return nil, fmt.Errorf("标量类型 '%s' 未实现 FromValue 契约方法！\n  期望的签名: func (it *%s) FromValue(ctx any, v %s) error", typeName, typeName, goBaseType)
+		return fmt.Errorf("标量类型 '%s' 未实现 FromValue 契约方法！\n  期望的签名: func (it *%s) FromValue(ctx any, v %s) error", typeName, typeName, goBaseType)
 	}
 	fromValueFunc := fromValueObj.(*types.Func)
 	fromValueSig := fromValueFunc.Type().(*types.Signature)
 	if fromValueSig.Params().Len() != 2 || fromValueSig.Results().Len() != 1 {
-		return nil, fmt.Errorf("标量 '%s' 的 FromValue 方法参数或返回值个数不符合契约！\n  期望的签名: func (it *%s) FromValue(ctx any, v %s) error", typeName, typeName, goBaseType)
+		return fmt.Errorf("标量 '%s' 的 FromValue 方法参数或返回值个数不符合契约！\n  期望的签名: func (it *%s) FromValue(ctx any, v %s) error", typeName, typeName, goBaseType)
 	}
-	// 校验反序列化值类型匹配度
 	valTypeStr := fromValueSig.Params().At(1).Type().String()
 	if valTypeStr == "interface{}" {
 		valTypeStr = "any"
 	}
 	if !strings.HasSuffix(valTypeStr, goBaseType) {
-		return nil, fmt.Errorf("标量 '%s' 的 FromValue 方法的第二个参数类型为 '%s'，与 DSL 中定义的基类物理类型 '%s' 不匹配！", typeName, valTypeStr, goBaseType)
+		return fmt.Errorf("标量 '%s' 的 FromValue 方法的第二个参数类型为 '%s'，与 DSL 中定义的基类物理类型 '%s' 不匹配！", typeName, valTypeStr, goBaseType)
 	}
 	if !isErrorType(fromValueSig.Results().At(0).Type()) {
-		return nil, fmt.Errorf("标量 '%s' 的 FromValue 方法的返回值必须是 error 类型！", typeName)
+		return fmt.Errorf("标量 '%s' 的 FromValue 方法的返回值必须是 error 类型！", typeName)
 	}
+	return nil
+}
 
-	// 第三关：验证 ToValue 契约 (值接收者或指针接收者均可)
-	// 期望签名: func (it IntTime) ToValue(ctx any) (BaseType, error)
+// checkToValue 校验 isolation 模式下的 ToValue 契约
+func checkToValue(ptrType *types.Pointer, pkg *packages.Package, typeName, goBaseType string) error {
 	toValueObj, _, _ := types.LookupFieldOrMethod(ptrType, true, pkg.Types, "ToValue")
 	if toValueObj == nil {
-		return nil, fmt.Errorf("标量类型 '%s' 未实现 ToValue 契约方法！\n  期望的签名: func (it %s) ToValue(ctx any) (%s, error)", typeName, typeName, goBaseType)
+		return fmt.Errorf("标量类型 '%s' 未实现 ToValue 契约方法！\n  期望的签名: func (it %s) ToValue(ctx any) (%s, error)", typeName, typeName, goBaseType)
 	}
 	toValueFunc := toValueObj.(*types.Func)
 	toValueSig := toValueFunc.Type().(*types.Signature)
 	if toValueSig.Params().Len() != 1 || toValueSig.Results().Len() != 2 {
-		return nil, fmt.Errorf("标量 '%s' 的 ToValue 方法参数或返回值个数不符合契约！\n  期望的签名: func (it %s) ToValue(ctx any) (%s, error)", typeName, typeName, goBaseType)
+		return fmt.Errorf("标量 '%s' 的 ToValue 方法参数或返回值个数不符合契约！\n  期望的签名: func (it %s) ToValue(ctx any) (%s, error)", typeName, typeName, goBaseType)
 	}
 	retTypeStr := toValueSig.Results().At(0).Type().String()
 	if retTypeStr == "interface{}" {
 		retTypeStr = "any"
 	}
 	if !strings.HasSuffix(retTypeStr, goBaseType) {
-		return nil, fmt.Errorf("标量 '%s' 的 ToValue 方法的第一个返回值类型为 '%s'，与 DSL 中定义的基类物理类型 '%s' 不匹配！", typeName, retTypeStr, goBaseType)
+		return fmt.Errorf("标量 '%s' 的 ToValue 方法的第一个返回值类型为 '%s'，与 DSL 中定义的基类物理类型 '%s' 不匹配！", typeName, retTypeStr, goBaseType)
 	}
 	if !isErrorType(toValueSig.Results().At(1).Type()) {
-		return nil, fmt.Errorf("标量 '%s' 的 ToValue 方法的第二个返回值必须是 error 类型！", typeName)
+		return fmt.Errorf("标量 '%s' 的 ToValue 方法的第二个返回值必须是 error 类型！", typeName)
+	}
+	return nil
+}
+
+// checkMarshalJSON 校验 direct 模式下的 MarshalJSON + UnmarshalJSON 契约
+func checkMarshalJSON(ptrType *types.Pointer, named *types.Named, pkg *packages.Package, typeName string) error {
+	// 校验值接收者的 MarshalJSON() ([]byte, error)
+	marshalObj, _, _ := types.LookupFieldOrMethod(named, false, pkg.Types, "MarshalJSON")
+	if marshalObj == nil {
+		return fmt.Errorf(
+			"标量类型 '%s' 使用了 direct 风格，但未实现 MarshalJSON 契约！\n"+
+				"  期望的签名: func (it %s) MarshalJSON() ([]byte, error)\n"+
+				"  此方法负责将标量序列化为 JSON 传输层格式（如 int64 时间戳）",
+			typeName, typeName,
+		)
+	}
+	marshalFunc := marshalObj.(*types.Func)
+	marshalSig := marshalFunc.Type().(*types.Signature)
+	if marshalSig.Params().Len() != 0 || marshalSig.Results().Len() != 2 {
+		return fmt.Errorf("标量 '%s' 的 MarshalJSON 方法签名不符合契约！\n  期望的签名: func (it %s) MarshalJSON() ([]byte, error)", typeName, typeName)
+	}
+	if !isErrorType(marshalSig.Results().At(1).Type()) {
+		return fmt.Errorf("标量 '%s' 的 MarshalJSON 方法第二个返回值必须是 error 类型！", typeName)
 	}
 
-	return &ScalarAnalysisResult{
-		TargetType: targetTypeStr,
-		ImportPath: targetImportPath,
-	}, nil
+	// 校验指针接收者的 UnmarshalJSON([]byte) error
+	unmarshalObj, _, _ := types.LookupFieldOrMethod(ptrType, true, pkg.Types, "UnmarshalJSON")
+	if unmarshalObj == nil {
+		return fmt.Errorf(
+			"标量类型 '%s' 使用了 direct 风格，但未实现 UnmarshalJSON 契约！\n"+
+				"  期望的签名: func (it *%s) UnmarshalJSON(data []byte) error\n"+
+				"  此方法负责将 JSON 传输层格式（如 int64 时间戳）反解析为标量",
+			typeName, typeName,
+		)
+	}
+	unmarshalFunc := unmarshalObj.(*types.Func)
+	unmarshalSig := unmarshalFunc.Type().(*types.Signature)
+	if unmarshalSig.Params().Len() != 1 || unmarshalSig.Results().Len() != 1 {
+		return fmt.Errorf("标量 '%s' 的 UnmarshalJSON 方法签名不符合契约！\n  期望的签名: func (it *%s) UnmarshalJSON(data []byte) error", typeName, typeName)
+	}
+	if !isErrorType(unmarshalSig.Results().At(0).Type()) {
+		return fmt.Errorf("标量 '%s' 的 UnmarshalJSON 方法返回值必须是 error 类型！", typeName)
+	}
+
+	return nil
 }
 
 // isErrorType 判断类型是否为 error 接口

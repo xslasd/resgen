@@ -30,7 +30,7 @@ type {{.Name}}{{if .TypeParams}}[{{range $i, $p := .TypeParams}}{{if $i}}, {{end
 	{{- end}}
 }
 
-{{if .HasScalar}}
+{{if and .HasScalar (ne $.Config.Generator.ScalarStyle "direct")}}
 // {{.Name}}DTO 数据传输对象
 type {{.Name}}DTO{{if .TypeParams}}[{{range $i, $p := .TypeParams}}{{if $i}}, {{end}}{{$p}} any{{end}}]{{end}} struct {
 	{{- range .Fields}}
@@ -318,19 +318,26 @@ func (e *{{.Module.Name}}Executor[T, C]) mount() {
 {{$ep := .}}
 // handle{{.Name}} 封装了端点的自动化执行流
 func (e *{{$.Module.Name}}Executor[T, C]) handle{{.Name}}(request C, info MethodInfo) {
+	native := request.Native()
 	{{- range .RequestDecorators}}
 	{{- if not .IsSpecialized}}
-	if err := e.d.{{.Name}}(request.Native(), info {{range .Args}}, {{.GoValue}}{{end}}); err != nil {
+	if err := e.d.{{.Name}}(native, info {{range .Args}}, {{.GoValue}}{{end}}); err != nil {
 		{{- if $ep.IsErrorWrapped}}
-		request.Render{{$ep.ErrorRenderFunc}}(e.r.ErrorToStatus(request.Native(), err), e.r.Bind{{$ep.ErrorTypeBase}}(request.Native(), nil, err))
+		request.Render{{$ep.ErrorRenderFunc}}(e.r.ErrorToStatus(native, err), e.r.Bind{{$ep.ErrorTypeBase}}(native, nil, err))
 		{{- else}}
-		request.Render{{$ep.ErrorRenderFunc}}(e.r.ErrorToStatus(request.Native(), err), err.Error())
+		request.Render{{$ep.ErrorRenderFunc}}(e.r.ErrorToStatus(native, err), err.Error())
 		{{- end}}
 		return
 	}
 	{{- else}}
-	if err := e.biz.OnRequest_{{.Name}}_{{.MethodName}}(request.Native(), info {{range .Args}}, {{.GoValue}}{{end}}); err != nil {
-		request.Render{{$ep.ErrorRenderFunc}}(e.r.ErrorToStatus(request.Native(), err), e.r.Bind{{if $ep.IsReturnWrapped}}{{$ep.ReturnTypeBase}}{{else if $ep.IsErrorWrapped}}{{$ep.ErrorTypeBase}}{{else}}Error{{end}}(request.Native(), nil, err))
+	if err := e.biz.OnRequest_{{.Name}}_{{.MethodName}}(native, info {{range .Args}}, {{.GoValue}}{{end}}); err != nil {
+		{{- if $ep.IsReturnWrapped}}
+		request.Render{{$ep.ErrorRenderFunc}}(e.r.ErrorToStatus(native, err), e.r.Bind{{$ep.ReturnTypeBase}}(native, nil, err))
+		{{- else if $ep.IsErrorWrapped}}
+		request.Render{{$ep.ErrorRenderFunc}}(e.r.ErrorToStatus(native, err), e.r.Bind{{$ep.ErrorTypeBase}}(native, nil, err))
+		{{- else}}
+		request.Render{{$ep.ErrorRenderFunc}}(e.r.ErrorToStatus(native, err), err.Error())
+		{{- end}}
 		return
 	}
 	{{- end}}
@@ -342,31 +349,55 @@ func (e *{{$.Module.Name}}Executor[T, C]) handle{{.Name}}(request C, info Method
 	{{- else}}
 	if err := e.bind{{.Name}}(request, &input); err != nil {
 	{{- end}}
-		request.Render{{.ErrorRenderFunc}}(e.r.ErrorToStatus(request.Native(), err), e.r.Bind{{if .IsReturnWrapped}}{{.ReturnTypeBase}}{{else if .IsErrorWrapped}}{{.ErrorTypeBase}}{{else}}Error{{end}}(request.Native(), nil, err))
+		{{- if .IsReturnWrapped}}
+		request.Render{{.ErrorRenderFunc}}(e.r.ErrorToStatus(native, err), e.r.Bind{{.ReturnTypeBase}}(native, nil, err))
+		{{- else if .IsErrorWrapped}}
+		request.Render{{.ErrorRenderFunc}}(e.r.ErrorToStatus(native, err), e.r.Bind{{.ErrorTypeBase}}(native, nil, err))
+		{{- else}}
+		request.Render{{.ErrorRenderFunc}}(e.r.ErrorToStatus(native, err), err.Error())
+		{{- end}}
 		return
 	}
 	{{- if .CustomValidate}}
-	if err := e.biz.Validate{{.Name}}(request.Native(), &input); err != nil {
-		request.Render{{.ErrorRenderFunc}}(e.r.ErrorToStatus(request.Native(), err), e.r.Bind{{if .IsReturnWrapped}}{{.ReturnTypeBase}}{{else if .IsErrorWrapped}}{{.ErrorTypeBase}}{{else}}Error{{end}}(request.Native(), nil, err))
+	if err := e.biz.Validate{{.Name}}(native, &input); err != nil {
+		{{- if .IsReturnWrapped}}
+		request.Render{{.ErrorRenderFunc}}(e.r.ErrorToStatus(native, err), e.r.Bind{{.ReturnTypeBase}}(native, nil, err))
+		{{- else if .IsErrorWrapped}}
+		request.Render{{.ErrorRenderFunc}}(e.r.ErrorToStatus(native, err), e.r.Bind{{.ErrorTypeBase}}(native, nil, err))
+		{{- else}}
+		request.Render{{.ErrorRenderFunc}}(e.r.ErrorToStatus(native, err), err.Error())
+		{{- end}}
 		return
 	}
 	{{- else if .HasValidation}}
-	if err := e.validate{{.Name}}(request.Native(), &input); err != nil {
-		request.Render{{.ErrorRenderFunc}}(e.r.ErrorToStatus(request.Native(), err), e.r.Bind{{if .IsReturnWrapped}}{{.ReturnTypeBase}}{{else if .IsErrorWrapped}}{{.ErrorTypeBase}}{{else}}Error{{end}}(request.Native(), nil, err))
+	if err := e.validate{{.Name}}(native, &input); err != nil {
+		{{- if .IsReturnWrapped}}
+		request.Render{{.ErrorRenderFunc}}(e.r.ErrorToStatus(native, err), e.r.Bind{{.ReturnTypeBase}}(native, nil, err))
+		{{- else if .IsErrorWrapped}}
+		request.Render{{.ErrorRenderFunc}}(e.r.ErrorToStatus(native, err), e.r.Bind{{.ErrorTypeBase}}(native, nil, err))
+		{{- else}}
+		request.Render{{.ErrorRenderFunc}}(e.r.ErrorToStatus(native, err), err.Error())
+		{{- end}}
 		return
 	}
 	{{- end}}
 	{{- else if and .Args (not .IsArgsWrapped)}}
 		{{- range .Args}}
 		var {{.Name}}Val {{.GoType}}
-		{{- $extractFunc := "GetQuery" -}}
-		{{- if eq .Source "Path"}}{{$extractFunc = "GetPath"}}{{end}}
-		{{- if eq .Source "Header"}}{{$extractFunc = "GetHeader"}}{{end}}
-		{{- if .IsScalar}}
+		{{$extractFunc := "GetQuery"}}
+		{{if eq .Source "Path"}}{{$extractFunc = "GetPath"}}{{end}}
+		{{if eq .Source "Header"}}{{$extractFunc = "GetHeader"}}{{end}}
+		{{if .IsScalar}}
 		if val := request.{{$extractFunc}}("{{.Name}}"); val != "" {
 			var tmp {{.ScalarModel}}
-			if err := tmp.FromParam(request.Native(), val); err != nil {
-				request.Render{{$ep.ErrorRenderFunc}}(e.r.ErrorToStatus(request.Native(), err), e.r.Bind{{if $ep.IsReturnWrapped}}{{$ep.ReturnTypeBase}}{{else if $ep.IsErrorWrapped}}{{$ep.ErrorTypeBase}}{{else}}Error{{end}}(request.Native(), nil, err))
+			if err := tmp.FromParam(native, val); err != nil {
+				{{- if $ep.IsReturnWrapped}}
+				request.Render{{$ep.ErrorRenderFunc}}(e.r.ErrorToStatus(native, err), e.r.Bind{{$ep.ReturnTypeBase}}(native, nil, err))
+				{{- else if $ep.IsErrorWrapped}}
+				request.Render{{$ep.ErrorRenderFunc}}(e.r.ErrorToStatus(native, err), e.r.Bind{{$ep.ErrorTypeBase}}(native, nil, err))
+				{{- else}}
+				request.Render{{$ep.ErrorRenderFunc}}(e.r.ErrorToStatus(native, err), err.Error())
+				{{- end}}
 				return
 			}
 			{{- if HasPrefix .GoType "*" }}
@@ -377,22 +408,39 @@ func (e *{{$.Module.Name}}Executor[T, C]) handle{{.Name}}(request C, info Method
 			{{- end}}
 		}
 		{{- else}}
-		{{- $errBind := "Error"}}{{if $ep.IsReturnWrapped}}{{$errBind = $ep.ReturnTypeBase}}{{else if $ep.IsErrorWrapped}}{{$errBind = $ep.ErrorTypeBase}}{{end}}
+		{{$errHandler := printf "request.Render%s(e.r.ErrorToStatus(native, err), err.Error()); return" $ep.ErrorRenderFunc}}
+		{{if $ep.IsReturnWrapped}}
+			{{$errHandler = printf "request.Render%s(e.r.ErrorToStatus(native, err), e.r.Bind%s(native, nil, err)); return" $ep.ErrorRenderFunc $ep.ReturnTypeBase}}
+		{{else if $ep.IsErrorWrapped}}
+			{{$errHandler = printf "request.Render%s(e.r.ErrorToStatus(native, err), e.r.Bind%s(native, nil, err)); return" $ep.ErrorRenderFunc $ep.ErrorTypeBase}}
+		{{end}}
 		if val := request.{{$extractFunc}}("{{.Name}}"); val != "" {
-			{{ParseParam (printf "%sVal" .Name) "val" .GoType (printf "request.Render%s(e.r.ErrorToStatus(request.Native(), err), e.r.Bind%s(request.Native(), nil, err)); return" $ep.ErrorRenderFunc $errBind)}}
+			{{ParseParam (printf "%sVal" .Name) "val" .GoType $errHandler}}
 		}
 		{{- end}}
 		{{- end}}
 	{{- end}}
 	{{- range .InvokeDecorators}}
 	{{- if not .IsSpecialized}}
-	if err := e.d.{{.Name}}(request.Native(), info {{- if $ep.InputName}}, &input{{else}}, nil{{end}} {{range .Args}}, {{.GoValue}}{{end}}); err != nil {
-		request.Render{{$ep.ErrorRenderFunc}}(e.r.ErrorToStatus(request.Native(), err), e.r.Bind{{if $ep.IsReturnWrapped}}{{$ep.ReturnTypeBase}}{{else if $ep.IsErrorWrapped}}{{$ep.ErrorTypeBase}}{{else}}Error{{end}}(request.Native(), nil, err))
+	if err := e.d.{{.Name}}(native, info {{- if $ep.InputName}}, &input{{else}}, nil{{end}} {{range .Args}}, {{.GoValue}}{{end}}); err != nil {
+		{{- if $ep.IsReturnWrapped}}
+		request.Render{{$ep.ErrorRenderFunc}}(e.r.ErrorToStatus(native, err), e.r.Bind{{$ep.ReturnTypeBase}}(native, nil, err))
+		{{- else if $ep.IsErrorWrapped}}
+		request.Render{{$ep.ErrorRenderFunc}}(e.r.ErrorToStatus(native, err), e.r.Bind{{$ep.ErrorTypeBase}}(native, nil, err))
+		{{- else}}
+		request.Render{{$ep.ErrorRenderFunc}}(e.r.ErrorToStatus(native, err), err.Error())
+		{{- end}}
 		return
 	}
 	{{- else}}
-	if err := e.biz.OnInvoke_{{.Name}}_{{$ep.Name}}(request.Native(), info {{- if $ep.InputName}}, &input{{else}}, nil{{end}} {{range .Args}}, {{.GoValue}}{{end}}); err != nil {
-		request.Render{{$ep.ErrorRenderFunc}}(e.r.ErrorToStatus(request.Native(), err), e.r.Bind{{if $ep.IsReturnWrapped}}{{$ep.ReturnTypeBase}}{{else if $ep.IsErrorWrapped}}{{$ep.ErrorTypeBase}}{{else}}Error{{end}}(request.Native(), nil, err))
+	if err := e.biz.OnInvoke_{{.Name}}_{{$ep.Name}}(native, info {{- if $ep.InputName}}, &input{{else}}, nil{{end}} {{range .Args}}, {{.GoValue}}{{end}}); err != nil {
+		{{- if $ep.IsReturnWrapped}}
+		request.Render{{$ep.ErrorRenderFunc}}(e.r.ErrorToStatus(native, err), e.r.Bind{{$ep.ReturnTypeBase}}(native, nil, err))
+		{{- else if $ep.IsErrorWrapped}}
+		request.Render{{$ep.ErrorRenderFunc}}(e.r.ErrorToStatus(native, err), e.r.Bind{{$ep.ErrorTypeBase}}(native, nil, err))
+		{{- else}}
+		request.Render{{$ep.ErrorRenderFunc}}(e.r.ErrorToStatus(native, err), err.Error())
+		{{- end}}
 		return
 	}
 	{{- end}}
@@ -400,16 +448,28 @@ func (e *{{$.Module.Name}}Executor[T, C]) handle{{.Name}}(request C, info Method
 	result, err := e.biz.{{.Name}}(request.Context() {{- if .InputName}}, &input{{else if and .Args (not .IsArgsWrapped)}}{{range .Args}}, {{.Name}}Val{{end}}{{end}})
 	{{- range .ResponseDecorators}}
 	{{- if not .IsSpecialized}}
-	if res, rerr := e.d.{{.Name}}(request.Native(), info {{- if $ep.HasInput}}, &input{{else}}, nil{{end}}, result, err {{range .Args}}, {{.GoValue}}{{end}}); rerr != nil {
-		request.Render{{$ep.ErrorRenderFunc}}(e.r.ErrorToStatus(request.Native(), rerr), e.r.Bind{{if $ep.IsReturnWrapped}}{{$ep.ReturnTypeBase}}{{else if $ep.IsErrorWrapped}}{{$ep.ErrorTypeBase}}{{else}}Error{{end}}(request.Native(), nil, rerr))
+	if res, rerr := e.d.{{.Name}}(native, info {{- if $ep.HasInput}}, &input{{else}}, nil{{end}}, result, err {{range .Args}}, {{.GoValue}}{{end}}); rerr != nil {
+		{{- if $ep.IsReturnWrapped}}
+		request.Render{{$ep.ErrorRenderFunc}}(e.r.ErrorToStatus(native, rerr), e.r.Bind{{$ep.ReturnTypeBase}}(native, nil, rerr))
+		{{- else if $ep.IsErrorWrapped}}
+		request.Render{{$ep.ErrorRenderFunc}}(e.r.ErrorToStatus(native, rerr), e.r.Bind{{$ep.ErrorTypeBase}}(native, nil, rerr))
+		{{- else}}
+		request.Render{{$ep.ErrorRenderFunc}}(e.r.ErrorToStatus(native, rerr), rerr.Error())
+		{{- end}}
 		return
 	} else {
 		result, _ = res.({{$ep.InnerReturnType}})
 		err = rerr
 	}
 	{{- else}}
-	if res, rerr := e.biz.OnResponse_{{.Name}}_{{$ep.Name}}(request.Native(), info {{- if $ep.HasInput}}, &input{{end}}, result, err {{range .Args}}, {{.GoValue}}{{end}}); rerr != nil {
-		request.Render{{$ep.ErrorRenderFunc}}(e.r.ErrorToStatus(request.Native(), rerr), e.r.Bind{{if $ep.IsReturnWrapped}}{{$ep.ReturnTypeBase}}{{else if $ep.IsErrorWrapped}}{{$ep.ErrorTypeBase}}{{else}}Error{{end}}(request.Native(), nil, rerr))
+	if res, rerr := e.biz.OnResponse_{{.Name}}_{{$ep.Name}}(native, info {{- if $ep.HasInput}}, &input{{end}}, result, err {{range .Args}}, {{.GoValue}}{{end}}); rerr != nil {
+		{{- if $ep.IsReturnWrapped}}
+		request.Render{{$ep.ErrorRenderFunc}}(e.r.ErrorToStatus(native, rerr), e.r.Bind{{$ep.ReturnTypeBase}}(native, nil, rerr))
+		{{- else if $ep.IsErrorWrapped}}
+		request.Render{{$ep.ErrorRenderFunc}}(e.r.ErrorToStatus(native, rerr), e.r.Bind{{$ep.ErrorTypeBase}}(native, nil, rerr))
+		{{- else}}
+		request.Render{{$ep.ErrorRenderFunc}}(e.r.ErrorToStatus(native, rerr), rerr.Error())
+		{{- end}}
 		return
 	} else {
 		result = res
@@ -419,11 +479,11 @@ func (e *{{$.Module.Name}}Executor[T, C]) handle{{.Name}}(request C, info Method
 	{{- end}}
 	if err != nil {
 		{{- if .IsReturnWrapped}}
-		request.Render{{.ErrorRenderFunc}}(e.r.ErrorToStatus(request.Native(), err), e.r.Bind{{.ReturnTypeBase}}(request.Native(), nil, err))
+		request.Render{{.ErrorRenderFunc}}(e.r.ErrorToStatus(native, err), e.r.Bind{{.ReturnTypeBase}}(native, nil, err))
 		{{- else if .IsErrorWrapped}}
-		request.Render{{.ErrorRenderFunc}}(e.r.ErrorToStatus(request.Native(), err), e.r.Bind{{.ErrorTypeBase}}(request.Native(), nil, err))
+		request.Render{{.ErrorRenderFunc}}(e.r.ErrorToStatus(native, err), e.r.Bind{{.ErrorTypeBase}}(native, nil, err))
 		{{- else}}
-		request.Render{{.ErrorRenderFunc}}(e.r.ErrorToStatus(request.Native(), err), err.Error())
+		request.Render{{.ErrorRenderFunc}}(e.r.ErrorToStatus(native, err), err.Error())
 		{{- end}}
 		return
 	}
@@ -432,37 +492,49 @@ func (e *{{$.Module.Name}}Executor[T, C]) handle{{.Name}}(request C, info Method
 		{{- $targetModel = .InnerReturnModel -}}
 	{{- end -}}
 
-	{{- if and $targetModel $targetModel.HasScalar}}
+	{{- if and $targetModel $targetModel.HasScalar (ne $.Config.Generator.ScalarStyle "direct")}}
 	{{- if .IsReturnArray}}
 	var dtoResult []{{if HasPrefix .InnerReturnType "*"}}*{{end}}{{$targetModel.Name}}DTO
 	for _, item := range *result {
-		if dto, dErr := item.ToDTO(request.Native()); dErr == nil {
+		if dto, dErr := item.ToDTO(native); dErr == nil {
 			dtoResult = append(dtoResult, dto)
 		} else {
-			request.Render{{.ErrorRenderFunc}}(e.r.ErrorToStatus(request.Native(), dErr), e.r.Bind{{if .IsReturnWrapped}}{{.ReturnTypeBase}}{{else if .IsErrorWrapped}}{{.ErrorTypeBase}}{{else}}Error{{end}}(request.Native(), nil, dErr))
+			{{- if .IsReturnWrapped}}
+			request.Render{{.ErrorRenderFunc}}(e.r.ErrorToStatus(native, dErr), e.r.Bind{{.ReturnTypeBase}}(native, nil, dErr))
+			{{- else if .IsErrorWrapped}}
+			request.Render{{.ErrorRenderFunc}}(e.r.ErrorToStatus(native, dErr), e.r.Bind{{.ErrorTypeBase}}(native, nil, dErr))
+			{{- else}}
+			request.Render{{.ErrorRenderFunc}}(e.r.ErrorToStatus(native, dErr), dErr.Error())
+			{{- end}}
 			return
 		}
 	}
 	{{- if .IsReturnWrapped}}
-	request.Render{{.ResponseRenderFunc}}({{.SuccessStatus}}, e.r.Bind{{.ReturnTypeBase}}(request.Native(), dtoResult, nil))
+	request.Render{{.ResponseRenderFunc}}({{.SuccessStatus}}, e.r.Bind{{.ReturnTypeBase}}(native, dtoResult, nil))
 	{{- else}}
 	request.Render{{.ResponseRenderFunc}}({{.SuccessStatus}}, dtoResult)
 	{{- end}}
 	{{- else}}
-	dtoResult, dErr := result.ToDTO(request.Native())
+	dtoResult, dErr := result.ToDTO(native)
 	if dErr != nil {
-		request.Render{{.ErrorRenderFunc}}(e.r.ErrorToStatus(request.Native(), dErr), e.r.Bind{{if .IsReturnWrapped}}{{.ReturnTypeBase}}{{else if .IsErrorWrapped}}{{.ErrorTypeBase}}{{else}}Error{{end}}(request.Native(), nil, dErr))
+		{{- if .IsReturnWrapped}}
+		request.Render{{.ErrorRenderFunc}}(e.r.ErrorToStatus(native, dErr), e.r.Bind{{.ReturnTypeBase}}(native, nil, dErr))
+		{{- else if .IsErrorWrapped}}
+		request.Render{{.ErrorRenderFunc}}(e.r.ErrorToStatus(native, dErr), e.r.Bind{{.ErrorTypeBase}}(native, nil, dErr))
+		{{- else}}
+		request.Render{{.ErrorRenderFunc}}(e.r.ErrorToStatus(native, dErr), dErr.Error())
+		{{- end}}
 		return
 	}
 	{{- if .IsReturnWrapped}}
-	request.Render{{.ResponseRenderFunc}}({{.SuccessStatus}}, e.r.Bind{{.ReturnTypeBase}}(request.Native(), dtoResult, nil))
+	request.Render{{.ResponseRenderFunc}}({{.SuccessStatus}}, e.r.Bind{{.ReturnTypeBase}}(native, dtoResult, nil))
 	{{- else}}
 	request.Render{{.ResponseRenderFunc}}({{.SuccessStatus}}, dtoResult)
 	{{- end}}
 	{{- end}}
 	{{- else}}
 	{{- if .IsReturnWrapped}}
-	request.Render{{.ResponseRenderFunc}}({{.SuccessStatus}}, e.r.Bind{{.ReturnTypeBase}}(request.Native(), result, nil))
+	request.Render{{.ResponseRenderFunc}}({{.SuccessStatus}}, e.r.Bind{{.ReturnTypeBase}}(native, result, nil))
 	{{- else}}
 	request.Render{{.ResponseRenderFunc}}({{.SuccessStatus}}, result)
 	{{- end}}
@@ -473,7 +545,7 @@ func (e *{{$.Module.Name}}Executor[T, C]) handle{{.Name}}(request C, info Method
 // bind{{.Name}} 自动生成的参数提取与转换实现
 func (e *{{$.Module.Name}}Executor[T, C]) bind{{.Name}}(request C, input *{{.InputName}}) error {
 	{{- if or (eq .Method "POST") (eq .Method "PUT") (eq .Method "PATCH")}}
-	{{- if and .InputModel .InputModel.HasScalar}}
+	{{- if and .InputModel .InputModel.HasScalar (ne $.Config.Generator.ScalarStyle "direct")}}
 	var dto {{.InputName}}DTO
 	if err := request.Payload({{.ContentType}}, &dto); err != nil {
 		return err

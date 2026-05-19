@@ -1,0 +1,30 @@
+generator:
+  # 生成代码的包名，默认为 resolver
+  package: "resolver"
+  # 是否开启全自动 API 文档生成功能
+  enable_api_docs: true
+  base_url: "http://localhost:8080"
+  
+  default_content_type: "json"
+  
+  content_type_aliases:
+    json: "application/json"
+    form: "application/x-www-form-urlencoded"
+    multipart: "multipart/form-data"
+    xml: "application/xml"
+    text: "text/plain"
+    
+  struct_tags:
+    - name: "json"
+      case: "snake"
+  
+  doc_case: "snake"
+  default_wrap: "ResData"
+  default_ok_status: 200
+
+  # 自定义标量生成风格：使用 isolation 风格 (生成 DTO 并在物理层解耦)
+  scalar_style: "isolation"
+
+scalars:
+  IntTime:
+    model: "github.com/xslasd/resgen/examples/scalars.IntTime"

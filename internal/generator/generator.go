@@ -117,7 +117,7 @@ func ToGoType(t parser.TypeRef, conf *config.Config, extraImports *[]string, con
 	if conf != nil && conf.Scalars != nil {
 		if mapping, ok := conf.Scalars[t.Name]; ok && mapping.Model != "" {
 			rawType := mapping.Model
-			if mapping.Target != "" {
+			if conf.Generator.ScalarStyle != "direct" && mapping.Target != "" {
 				rawType = mapping.Target
 			}
 			goBaseType, importPath := parseCustomType(rawType)
@@ -466,9 +466,11 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 				// 强制使用非指针类型作为装饰器/验证器的参数
 				argType := arg.Type
 				argType.ItemNotNull = true
+				goType := ToGoType(argType, ctx.Config, &ctx.ExtraImports, "", ctx.ModelMap)
 				info.Args = append(info.Args, ModelField{
-					Name: capitalize(arg.Name),
-					Type: ToGoType(argType, ctx.Config, &ctx.ExtraImports, "", ctx.ModelMap),
+					Name:   capitalize(arg.Name),
+					Type:   goType,
+					GoType: goType,
 				})
 			}
 			if decl.Decorator.IsDec {
@@ -504,7 +506,7 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 
 			// 🌟 奇迹时刻：自动进行 AST 物理分析、契约验证与 Target 类型智能推导！
 			if mapping != nil {
-				res, err := AnalyzeScalar(mapping.Model, baseType)
+				res, err := AnalyzeScalar(mapping.Model, baseType, conf.Generator.ScalarStyle)
 				if err != nil {
 					// ❌ 静态语义强校验报错！直接返回，优雅终止代码生成
 					return fmt.Errorf("自定义标量 '%s' 物理类型校验失败！\n%v", decl.Scalar.Name, err)
@@ -1420,6 +1422,22 @@ func addRenderFunc(ctx *DataContext, mime string) string {
 	return name
 }
 
+// replaceScalarType 将含有自定义标量名称的类型字符串替换为其底层的 BaseType，并去除 Go 物理包前缀（例如 scalars.IntTime -> Int）
+func replaceScalarType(rawType string, scalars map[string]*ScalarInfo) string {
+	if scalars == nil {
+		return rawType
+	}
+	res := rawType
+	for name, info := range scalars {
+		if info != nil && info.BaseType != "" {
+			res = strings.ReplaceAll(res, name, info.BaseType)
+		}
+	}
+	// 净化 Go 包名前缀，使前端文档纯净无污染
+	res = strings.ReplaceAll(res, "scalars.", "")
+	return res
+}
+
 // generateApiDocs 处理 API 文档的 JSON 和 HTML 生成逻辑
 func generateApiDocs(ctx *DataContext, targetDir string) error {
 	docsDir := filepath.Join(targetDir, "docs")
@@ -1427,20 +1445,56 @@ func generateApiDocs(ctx *DataContext, targetDir string) error {
 		return fmt.Errorf("创建文档输出目录失败: %v", err)
 	}
 
-	// 创建一个用于文档生成的上下文副本，以应用 DocCase 转换（保持数据源原始性，仅改变显示名）
+	// 1. 收集所有的 Wrapper 名称
+	wrappers := make(map[string]bool)
+	for _, m := range ctx.Models {
+		if m.IsWrapper {
+			wrappers[m.Name] = true
+		}
+	}
+
+	// 2. 深度克隆并补充 Error 版本的 Wrapper 模型（剥离含有泛型 T 等参数的字段，消除错误响应下的 data *T 杂音）
 	docCtx := *ctx
-	docCtx.Models = make([]*ModelInfo, len(ctx.Models))
-	for i, m := range ctx.Models {
+	var newModels []*ModelInfo
+	for _, m := range ctx.Models {
 		mCopy := *m
 		mCopy.Fields = make([]ModelField, len(m.Fields))
 		for j, f := range m.Fields {
 			fCopy := f
 			fCopy.Name = formatTagName(f.Name, ctx.Config.Generator.DocCase)
+			fCopy.Type = replaceScalarType(f.Type, ctx.Scalars)
+			fCopy.OriginalType = replaceScalarType(f.OriginalType, ctx.Scalars)
 			mCopy.Fields[j] = fCopy
 		}
-		docCtx.Models[i] = &mCopy
-	}
+		newModels = append(newModels, &mCopy)
 
+		if m.IsWrapper {
+			mError := mCopy
+			mError.Name = m.Name + "Error"
+			mError.IsWrapper = false
+			mError.TypeParams = nil
+			
+			// 过滤掉任何包含泛型类型参数（如 T）的字段，保持 Error Wrapper 绝对单纯
+			var errFields []ModelField
+			for _, f := range mError.Fields {
+				hasGeneric := false
+				for _, tp := range m.TypeParams {
+					if strings.Contains(f.OriginalType, tp) || strings.Contains(f.Type, tp) {
+						hasGeneric = true
+						break
+					}
+				}
+				if !hasGeneric {
+					errFields = append(errFields, f)
+				}
+			}
+			mError.Fields = errFields
+			newModels = append(newModels, &mError)
+		}
+	}
+	docCtx.Models = newModels
+
+	// 3. 克隆接口模块并将错误返回类型重定向到专属 Error 响应结构
 	docCtx.Modules = make([]ModuleInfo, len(ctx.Modules))
 	for i, mod := range ctx.Modules {
 		modCopy := mod
@@ -1450,10 +1504,23 @@ func generateApiDocs(ctx *DataContext, targetDir string) error {
 			groupCopy.Endpoints = make([]MethodInfo, len(group.Endpoints))
 			for k, method := range group.Endpoints {
 				methodCopy := method
+				methodCopy.ReturnType = replaceScalarType(method.ReturnType, ctx.Scalars)
+				methodCopy.ReturnTypeDSL = replaceScalarType(method.ReturnTypeDSL, ctx.Scalars)
+				methodCopy.ReturnTypeBase = replaceScalarType(method.ReturnTypeBase, ctx.Scalars)
+				methodCopy.InnerReturnType = replaceScalarType(method.InnerReturnType, ctx.Scalars)
+
+				// 重定向错误包装类型
+				if wrappers[methodCopy.ErrorTypeBase] {
+					oldBase := methodCopy.ErrorTypeBase
+					methodCopy.ErrorTypeBase = oldBase + "Error"
+					methodCopy.ErrorType = strings.ReplaceAll(methodCopy.ErrorType, oldBase, oldBase+"Error")
+				}
+
 				methodCopy.Args = make([]ArgumentInfo, len(method.Args))
 				for l, arg := range method.Args {
 					argCopy := arg
 					argCopy.Name = formatTagName(arg.Name, ctx.Config.Generator.DocCase)
+					argCopy.Type = replaceScalarType(arg.Type, ctx.Scalars)
 					methodCopy.Args[l] = argCopy
 				}
 				groupCopy.Endpoints[k] = methodCopy

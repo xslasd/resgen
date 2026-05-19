@@ -39,6 +39,12 @@ generator:
   # 默认成功返回 http 状态码
   default_ok_status: 200
 
+  # 自定义标量生成风格配置
+  # 可选风格:
+  #   - isolation: 方案 A (默认)。生成中间 DTO 与转换函数，物理层使用原生态 Target 类型 (如 time.Time)
+  #   - direct:    方案 B。物理对象中直接使用标量别名 (如 IntTime)，不生成冗余的 DTO，靠标量 JSON Marshaler 自动转换
+  scalar_style: "direct"
+
 # 标量类型自定义映射配置 (Scalars Custom Mapping)
 # 用于将 DSL 中定义的自定义标量 (scalar) 映射到 Go 物理包的实现类型。
 #

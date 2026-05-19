@@ -4,18 +4,19 @@ import (
 	"context"
 	"fmt"
 	"mime/multipart"
+	"time"
 
 	"github.com/xslasd/resgen/examples/resolver"
+	"github.com/xslasd/resgen/examples/scalars"
 
 	_ "embed"
-	"time"
 
 	"github.com/gin-gonic/gin"
 )
 
 // --- 1. 实现 ServerContext 适配器 ---
 type GinContext struct {
-	GC *gin.Context // 改为命名字段，避免嵌入带来的同名冲突
+	GC *gin.Context
 }
 
 func (c *GinContext) Bind(gc *gin.Context) resolver.ServerContext[*gin.Context] {
@@ -56,7 +57,6 @@ func (c *GinContext) Payload(source resolver.BodySource, dest any) error {
 func (c *GinContext) Field(source resolver.BodySource, name string, dest any) error {
 	switch string(source) {
 	case "form", "multipart":
-		// 如果是单个文件绑定
 		if d, ok := dest.(**multipart.FileHeader); ok {
 			f, err := c.GC.FormFile(name)
 			if err == nil {
@@ -64,7 +64,6 @@ func (c *GinContext) Field(source resolver.BodySource, name string, dest any) er
 			}
 			return err
 		}
-		// 如果是普通 Form 字段
 		val := c.GC.PostForm(name)
 		if d, ok := dest.(*string); ok {
 			*d = val
@@ -87,6 +86,10 @@ func (c *GinContext) RenderRaw(code int, contentType string, body []byte) {
 	c.GC.Data(code, contentType, body)
 }
 
+func (c *GinContext) RenderXml(code int, obj any) {
+	c.GC.XML(code, obj)
+}
+
 func (c *GinContext) SetHeader(name, value string) {
 	c.GC.Header(name, value)
 }
@@ -94,7 +97,6 @@ func (c *GinContext) SetHeader(name, value string) {
 func (c *GinContext) Context() context.Context {
 	return c.GC.Request.Context()
 }
-
 
 // --- 2. 实现 Responder 契约 ---
 type MyResponder struct{}
@@ -123,19 +125,26 @@ func (r *MyResponder) BindResData(ctx *gin.Context, data any, err error) resolve
 	return res
 }
 
+func (r *MyResponder) BindPageData(ctx *gin.Context, data any, err error) resolver.PageData {
+	res := resolver.PageData{
+		List:  data,
+		Total: 100,
+		Page:  1,
+	}
+	return res
+}
+
 // --- 3. 业务逻辑处理器实现 ---
-type UserHandler struct{}
 
-func (u *UserHandler) GetProfile(ctx context.Context) (*resolver.User, error) {
-	return &resolver.User{Username: "resgen_user"}, nil
-}
-func (u *UserHandler) Login(ctx context.Context, input *resolver.LoginArgs) (*resolver.Token, error) {
-	return &resolver.Token{Token: "abc"}, nil
+// AuthDemoHandler
+type AuthDemoHandler struct{}
+
+func (h *AuthDemoHandler) Register(ctx context.Context, input *resolver.RegisterInput) (*resolver.User, error) {
+	return &resolver.User{Id: 1, Username: input.Username, Email: input.Email}, nil
 }
 
-func (u *UserHandler) BindLogin(request resolver.ServerContextBase, input *resolver.LoginArgs) error {
+func (h *AuthDemoHandler) BindLogin(request resolver.ServerContextBase, input *resolver.LoginArgs) error {
 	fmt.Printf(">>> [Custom Bind] Login\n")
-	// 手动绑定
 	if val := request.GetQuery("username"); val != "" {
 		input.Username = &val
 	}
@@ -145,7 +154,7 @@ func (u *UserHandler) BindLogin(request resolver.ServerContextBase, input *resol
 	return nil
 }
 
-func (u *UserHandler) ValidateLogin(ctx *gin.Context, input *resolver.LoginArgs) error {
+func (h *AuthDemoHandler) ValidateLogin(ctx *gin.Context, input *resolver.LoginArgs) error {
 	fmt.Printf(">>> [Custom Validate] Login\n")
 	if input.Username == nil || *input.Username == "" {
 		return fmt.Errorf("username is required")
@@ -153,102 +162,239 @@ func (u *UserHandler) ValidateLogin(ctx *gin.Context, input *resolver.LoginArgs)
 	return nil
 }
 
-func (u *UserHandler) UserCopy(ctx context.Context, id string) (*resolver.User, error) {
-	return &resolver.User{Username: "copy_" + id}, nil
+func (h *AuthDemoHandler) Login(ctx context.Context, input *resolver.LoginArgs) (*resolver.Token, error) {
+	return &resolver.Token{Token: "mock-token-abc", ExpiresAt: int(time.Now().Add(time.Hour).Unix())}, nil
 }
 
-func (u *UserHandler) GetUsers(ctx context.Context, input *resolver.GetUsersArgs) (*[]*resolver.User, error) {
-	return &[]*resolver.User{{Username: "user1"}}, nil
-}
-func (u *UserHandler) GetUser(ctx context.Context, id *int) (*resolver.User, error) {
-	return &resolver.User{Id: *id}, nil
-}
-func (u *UserHandler) CreateUser(ctx context.Context, input *resolver.CreateUserInput) (*resolver.User, error) {
-	return &resolver.User{Username: input.Username}, nil
+func (h *AuthDemoHandler) GetMe(ctx context.Context) (*resolver.User, error) {
+	return &resolver.User{Id: 1, Username: "admin", Email: "admin@example.com"}, nil
 }
 
-func (u *UserHandler) OnInvoke_CheckOwner_UpdateUser(ctx *gin.Context, info resolver.MethodInfo, input *resolver.UpdateUserArgs) error {
+func (h *AuthDemoHandler) OnInvoke_CheckOwner_UpdateUser(ctx *gin.Context, info resolver.MethodInfo, input *resolver.UpdateInput) error {
 	fmt.Printf(">>> [Specialized Decorator] CheckOwner for UpdateUser\n")
 	return nil
 }
 
-func (u *UserHandler) UpdateUser(ctx context.Context, input *resolver.UpdateUserArgs) (*resolver.User, error) {
-	return &resolver.User{Username: "updated_user"}, nil
+func (h *AuthDemoHandler) UpdateUser(ctx context.Context, input *resolver.UpdateInput) (*resolver.User, error) {
+	username := "updated_user"
+	var email string
+	if input.Email != nil {
+		email = *input.Email
+	}
+	return &resolver.User{Id: input.Id, Username: username, Email: email}, nil
 }
 
-func (u *UserHandler) OnResponse_MaskEmail_UpdateUser(ctx *gin.Context, info resolver.MethodInfo, input *resolver.UpdateUserArgs, result *resolver.User, err error) (*resolver.User, error) {
+func (h *AuthDemoHandler) OnResponse_MaskEmail_UpdateUser(ctx *gin.Context, info resolver.MethodInfo, input *resolver.UpdateInput, result *resolver.User, err error) (*resolver.User, error) {
 	fmt.Printf("<<< [Specialized Decorator] MaskEmail for UpdateUser\n")
 	if result != nil {
 		result.Email = "****@example.com"
 	}
 	return result, err
 }
-func (u *UserHandler) UpdateProfile(ctx context.Context, input *resolver.ProfileUpdateInput) (*string, error) {
-	s := "ok"
-	return &s, nil
-}
-func (u *UserHandler) UploadAvatar(ctx context.Context, input *resolver.UploadAvatarInput) (*string, error) {
-	s := "uploaded"
-	return &s, nil
-}
-func (u *UserHandler) DeleteUser(ctx context.Context, id *int) (*string, error) {
-	s := "deleted"
-	return &s, nil
-}
-func (u *UserHandler) ExportUsers(ctx context.Context) (*string, error) {
-	s := "ID,Name,Email\n1,Alice,alice@example.com"
-	return &s, nil
-}
-func (u *UserHandler) TestValid(ctx context.Context, input *resolver.ValidGET) (any, error) {
-	return input, nil
-}
 
-// --- TaskCenter 业务逻辑 ---
-type TaskHandler struct{}
-
-func (t *TaskHandler) CreateTask(ctx context.Context, input *resolver.CreateTaskInput) (*string, error) {
-	s := "task created: " + input.Title
+func (h *AuthDemoHandler) DeleteUser(ctx context.Context, id *int) (*string, error) {
+	s := fmt.Sprintf("deleted user: %d", *id)
 	return &s, nil
 }
 
-func (t *TaskHandler) GetTasks(ctx context.Context, input *resolver.GetTasksInput) (*string, error) {
-	s := "task list"
+// WrapperDemoHandler
+type WrapperDemoHandler struct{}
+
+func (h *WrapperDemoHandler) GetArticle(ctx context.Context, id *int) (*resolver.Article, error) {
+	return &resolver.Article{Id: *id, Title: "Title", Content: "Content"}, nil
+}
+
+func (h *WrapperDemoHandler) ListArticles(ctx context.Context, input *resolver.ListArticlesArgs) (*[]*resolver.Article, error) {
+	list := []*resolver.Article{
+		{Id: 1, Title: "Article 1", Content: "Content 1"},
+		{Id: 2, Title: "Article 2", Content: "Content 2"},
+	}
+	return &list, nil
+}
+
+func (h *WrapperDemoHandler) CreateArticle(ctx context.Context, input *resolver.CreateArticleArgs) (*resolver.Article, error) {
+	return &resolver.Article{Id: 100, Title: input.Title, Content: input.Content}, nil
+}
+
+func (h *WrapperDemoHandler) GetArticleRaw(ctx context.Context, id *int) (*resolver.Article, error) {
+	return &resolver.Article{Id: *id, Title: "Raw Title", Content: "Raw Content"}, nil
+}
+
+// ScalarDemoHandler
+type ScalarDemoHandler struct{}
+
+func (h *ScalarDemoHandler) GetEventByTime(ctx context.Context, startTime *scalars.IntTime) (*resolver.Event, error) {
+	now := scalars.IntTime(time.Now())
+	return &resolver.Event{Id: 1, Name: "Time Event", StartTime: *startTime, EndTime: &now, CreatedAt: &now}, nil
+}
+
+func (h *ScalarDemoHandler) ListEvents(ctx context.Context, input *resolver.QueryEventsInput) (*[]*resolver.Event, error) {
+	now := scalars.IntTime(time.Now())
+	var start scalars.IntTime
+	if input.After != nil {
+		start = *input.After
+	} else {
+		start = now
+	}
+	list := []*resolver.Event{
+		{Id: 1, Name: "Event 1", StartTime: start, EndTime: &now, CreatedAt: &now},
+	}
+	return &list, nil
+}
+
+func (h *ScalarDemoHandler) CreateEvent(ctx context.Context, input *resolver.CreateEventInput) (*resolver.Event, error) {
+	now := scalars.IntTime(time.Now())
+	return &resolver.Event{Id: 2, Name: input.Name, StartTime: input.StartTime, EndTime: &input.EndTime, CreatedAt: &now}, nil
+}
+
+// ContentTypeDemoHandler
+type ContentTypeDemoHandler struct{}
+
+func (h *ContentTypeDemoHandler) SubmitJson(ctx context.Context, input *resolver.JsonInput) (*string, error) {
+	s := "json submitted: " + input.Title
 	return &s, nil
 }
 
-// --- ScalarCenter 业务逻辑 ---
-type ScalarHandler struct{}
-
-func (s *ScalarHandler) TestScalar(ctx context.Context, time *time.Time) (*resolver.ScalarOutput, error) {
-	return &resolver.ScalarOutput{Time: time}, nil
+func (h *ContentTypeDemoHandler) SubmitForm(ctx context.Context, input *resolver.FormInput) (*string, error) {
+	s := "form submitted: " + input.Name
+	return &s, nil
 }
 
-func (s *ScalarHandler) TestScalarBody(ctx context.Context, input *resolver.ScalarInput) (*resolver.ScalarOutput, error) {
-	return &resolver.ScalarOutput{Time: input.Body_time}, nil
+func (h *ContentTypeDemoHandler) SubmitMultipart(ctx context.Context, title string) (*string, error) {
+	s := "multipart submitted: " + title
+	return &s, nil
 }
 
-// 装饰器与验证器实现 (模拟)
+func (h *ContentTypeDemoHandler) ExportText(ctx context.Context) (*string, error) {
+	s := "raw text content"
+	return &s, nil
+}
+
+func (h *ContentTypeDemoHandler) ExportJson(ctx context.Context) (*resolver.Report, error) {
+	return &resolver.Report{Title: "JSON Report", Summary: "JSON Summary"}, nil
+}
+
+func (h *ContentTypeDemoHandler) ExportXml(ctx context.Context) (*resolver.Report, error) {
+	return &resolver.Report{Title: "XML Report", Summary: "XML Summary"}, nil
+}
+
+// StatusDemoHandler
+type StatusDemoHandler struct{}
+
+func (h *StatusDemoHandler) GetProduct(ctx context.Context, id *int) (*resolver.Product, error) {
+	return &resolver.Product{Id: *id, Name: "Product", Price: 9.9}, nil
+}
+
+func (h *StatusDemoHandler) CreateProduct(ctx context.Context, input *resolver.CreateProductInput) (*resolver.Product, error) {
+	return &resolver.Product{Id: 2, Name: input.Name, Price: input.Price}, nil
+}
+
+func (h *StatusDemoHandler) BatchUpdate(ctx context.Context, ids []int) (*string, error) {
+	s := fmt.Sprintf("updated products count: %d", len(ids))
+	return &s, nil
+}
+
+func (h *StatusDemoHandler) DeleteProduct(ctx context.Context, id *int) (*string, error) {
+	s := "deleted product"
+	return &s, nil
+}
+
+func (h *StatusDemoHandler) ListProducts(ctx context.Context, input *resolver.ListProductsArgs) ([]resolver.Product, error) {
+	return []resolver.Product{{Id: 1, Name: "P1", Price: 1.0}}, nil
+}
+
+func (h *StatusDemoHandler) GetRawProduct(ctx context.Context, id *int) (*resolver.Product, error) {
+	return &resolver.Product{Id: *id, Name: "Raw Product", Price: 10.0}, nil
+}
+
+func (h *StatusDemoHandler) GetRawProducts(ctx context.Context, page *int) (*[]*resolver.Product, error) {
+	list := []*resolver.Product{{Id: 1, Name: "Raw P1", Price: 2.0}}
+	return &list, nil
+}
+
+// FileDemoHandler
+type FileDemoHandler struct{}
+
+func (h *FileDemoHandler) UploadAvatar(ctx context.Context, input *resolver.UploadAvatarInput) (*resolver.UploadResult, error) {
+	size := 0
+	if input.Avatar != nil {
+		size = int(input.Avatar.Size)
+	}
+	return &resolver.UploadResult{
+		FileUrl:  "/uploads/avatar.png",
+		FileSize: size,
+		MimeType: "image/png",
+	}, nil
+}
+
+func (h *FileDemoHandler) UploadDocument(ctx context.Context, input *resolver.UploadDocumentInput) (*resolver.UploadResult, error) {
+	size := 0
+	if input.Document != nil {
+		size = int(input.Document.Size)
+	}
+	return &resolver.UploadResult{
+		FileUrl:  "/uploads/document.pdf",
+		FileSize: size,
+		MimeType: "application/pdf",
+	}, nil
+}
+
+func (h *FileDemoHandler) DownloadFile(ctx context.Context, id *int) (*string, error) {
+	s := fmt.Sprintf("file content of id %d", *id)
+	return &s, nil
+}
+
+func (h *FileDemoHandler) ExportCsv(ctx context.Context, ids *string) (*string, error) {
+	s := "id,name\n1,Alice"
+	return &s, nil
+}
+
+// 装饰器与验证器实现
 type MyDecorator struct{}
 
-func (d *MyDecorator) Auth(ctx *gin.Context, role string) error                       { return nil }
-func (d *MyDecorator) Middleware(ctx *gin.Context, names []string) error              { return nil }
-func (d *MyDecorator) LoginRequired(ctx *gin.Context, info resolver.MethodInfo) error { return nil }
+func (d *MyDecorator) Auth(ctx *gin.Context, info resolver.MethodInfo, Role string) error {
+	fmt.Printf(">>> [Decorator] Auth: %s\n", Role)
+	return nil
+}
+
+func (d *MyDecorator) LoginRequired(ctx *gin.Context, info resolver.MethodInfo) error {
+	fmt.Printf(">>> [Decorator] LoginRequired\n")
+	return nil
+}
 
 type MyValidator struct{}
 
-func (v *MyValidator) Required(ctx *gin.Context, fieldName string, value any) error { return nil }
-func (v *MyValidator) MinLen(ctx *gin.Context, fieldName string, value any, val int) error {
+func (v *MyValidator) Required(ctx *gin.Context, fieldName string, value any) error {
 	return nil
 }
-func (v *MyValidator) Min(ctx *gin.Context, fieldName string, value any, Len int) error { return nil }
-func (v *MyValidator) Max(ctx *gin.Context, fieldName string, value any, Len int) error { return nil }
-func (v *MyValidator) Email(ctx *gin.Context, fieldName string, value any) error        { return nil }
-func (v *MyValidator) Mobile(ctx *gin.Context, fieldName string, value any) error       { return nil }
-func (v *MyValidator) Phone(ctx *gin.Context, fieldName string, value any, msg *string) error {
+
+func (v *MyValidator) Email(ctx *gin.Context, fieldName string, value any) error {
 	return nil
 }
+
+func (v *MyValidator) Mobile(ctx *gin.Context, fieldName string, value any) error {
+	return nil
+}
+
+func (v *MyValidator) Min(ctx *gin.Context, fieldName string, value any, Len int) error {
+	return nil
+}
+
+func (v *MyValidator) Max(ctx *gin.Context, fieldName string, value any, Len int) error {
+	return nil
+}
+
 func (v *MyValidator) FileRule(ctx *gin.Context, fieldName string, value any, maxSize int, types []string, msg string) error {
-	file, ok := value.(*multipart.FileHeader)
+	var file multipart.FileHeader
+	var ok bool
+	if fileVal, okVal := value.(multipart.FileHeader); okVal {
+		file = fileVal
+		ok = true
+	} else if pFileVal, okPVal := value.(*multipart.FileHeader); okPVal && pFileVal != nil {
+		file = *pFileVal
+		ok = true
+	}
+
 	if !ok {
 		return nil
 	}
@@ -279,15 +425,6 @@ func (v *MyValidator) FileRule(ctx *gin.Context, fieldName string, value any, ma
 
 	return nil
 }
-func (v *MyValidator) EqField(ctx *gin.Context, fieldName string, value any, other any) error {
-	return nil
-}
-func (v *MyValidator) GtField(ctx *gin.Context, fieldName string, value any, other any) error {
-	return nil
-}
-func (v *MyValidator) GeField(ctx *gin.Context, fieldName string, value any, other any) error {
-	return nil
-}
 
 func main() {
 	r := gin.Default()
@@ -304,9 +441,12 @@ func main() {
 		BindValidator(&MyValidator{})
 
 	// 挂载业务模块
-	resolver.MountUserCenter(en, &UserHandler{})
-	resolver.MountTaskCenter(en, &TaskHandler{})
-	resolver.MountScalarCenter(en, &ScalarHandler{})
+	resolver.MountAuthDemo(en, &AuthDemoHandler{})
+	resolver.MountWrapperDemo(en, &WrapperDemoHandler{})
+	resolver.MountScalarDemo(en, &ScalarDemoHandler{})
+	resolver.MountContentTypeDemo(en, &ContentTypeDemoHandler{})
+	resolver.MountStatusDemo(en, &StatusDemoHandler{})
+	resolver.MountFileDemo(en, &FileDemoHandler{})
 
 	fmt.Println("Resgen Gin Example running on :8080")
 	r.Run(":8080")
