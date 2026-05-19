@@ -30,6 +30,12 @@
                 "scopeName": "source.resgen",
                 "path": "./syntaxes/resgen.tmLanguage.json"
             }
+        ],
+        "snippets": [
+            {
+                "language": "resgen",
+                "path": "./snippets/resgen.code-snippets"
+            }
         ]
     }
 }

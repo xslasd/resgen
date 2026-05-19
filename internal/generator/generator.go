@@ -17,6 +17,8 @@ import (
 	"golang.org/x/tools/imports"
 )
 
+const Version = "v0.3.1"
+
 //go:embed templates/engine.tmpl
 var engineTmpl string
 
@@ -345,6 +347,7 @@ type RenderFuncInfo struct {
 }
 
 type DataContext struct {
+	Version                     string                `json:"version"`
 	Package                     string                `json:"package"`
 	Info                        ApiInfo               `json:"info"` // OpenAPI info
 	Validators                  []MetaInfo            `json:"validators,omitempty"`
@@ -373,6 +376,7 @@ type BodySourceInfo struct {
 }
 
 type ModuleRenderContext struct {
+	Version      string
 	Package      string
 	Config       *config.Config
 	Module       ModuleInfo
@@ -393,6 +397,7 @@ func generateTags(fieldName string, conf *config.Config) string {
 
 func Generate(schema *parser.Schema, targetDir string, conf *config.Config) error {
 	ctx := &DataContext{
+		Version:  Version,
 		Package:  "resolver",
 		ModelMap: make(map[string]*ModelInfo),
 		Scalars:  make(map[string]*ScalarInfo),
@@ -593,7 +598,7 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 						}
 						return ""
 					}(),
-					BaseGoType:   func() string { if s := ctx.Scalars[field.Type.Name]; s != nil { return s.BaseType } else { return goType } }(),
+					BaseGoType:   func() string { if s := ctx.Scalars[field.Type.Name]; s != nil { return toGoPhysicalBaseType(s.BaseType) } else { return goType } }(),
 					OriginalType: field.Type.Name,
 					Tag:          generateTags(field.Name, ctx.Config),
 					Source:       "Body", // Default to Body
@@ -820,7 +825,7 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 							}
 							return ""
 						}(),
-						BaseGoType: func() string { if s := ctx.Scalars[arg.Type.Name]; s != nil { return s.BaseType } else { return goType } }(),
+						BaseGoType: func() string { if s := ctx.Scalars[arg.Type.Name]; s != nil { return toGoPhysicalBaseType(s.BaseType) } else { return goType } }(),
 					}
 					if method.Method == "GET" {
 						argInfo.Source = "Query"
@@ -1313,6 +1318,7 @@ func renderAll(ctx *DataContext, targetDir string) error {
 	}
 	for _, mod := range ctx.Modules {
 		modCtx := &ModuleRenderContext{
+			Version:      Version,
 			Package:      ctx.Package,
 			Config:       ctx.Config,
 			Module:       mod,

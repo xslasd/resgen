@@ -1,0 +1,180 @@
+{
+    "Module Declaration": {
+        "prefix": "module",
+        "body": [
+            "module ${1:ModuleName}",
+            "",
+            "$0"
+        ],
+        "description": "声明一个 Resgen 模块"
+    },
+    "Type Model Definition": {
+        "prefix": "type",
+        "body": [
+            "# ${2:Model description}",
+            "type ${1:ModelName} {",
+            "    id: Int!",
+            "    $0",
+            "}"
+        ],
+        "description": "定义一个普通输出模型"
+    },
+    "Input Model Definition": {
+        "prefix": "input",
+        "body": [
+            "# ${2:Input model description}",
+            "input ${1:InputName} {",
+            "    $0",
+            "}"
+        ],
+        "description": "定义一个输入模型"
+    },
+    "Wrapper Model Definition": {
+        "prefix": "wrap",
+        "body": [
+            "# ${2:Wrapper description}",
+            "wrap ${1:WrapperName}<T> {",
+            "    code: Int!",
+            "    msg:  String!",
+            "    data: T",
+            "}"
+        ],
+        "description": "定义一个泛型响应包装器"
+    },
+    "Scalar Custom Mapping": {
+        "prefix": "scalar",
+        "body": [
+            "# ${3:Scalar description}",
+            "scalar ${1:ScalarName}: ${2:Int}"
+        ],
+        "description": "定义一个自定义标量映射类型"
+    },
+    "Endpoint Group": {
+        "prefix": "group",
+        "body": [
+            "group ${1:/path} [wrap=${2:ResData}] {",
+            "    $0",
+            "}"
+        ],
+        "description": "定义一个接口路由组"
+    },
+    "GET Method Definition": {
+        "prefix": "get",
+        "body": [
+            "GET ${1:/path} => ${2:MethodName}(${3:args}): ${4:ReturnType}"
+        ],
+        "description": "定义一个 GET 接口端点"
+    },
+    "POST Method Definition": {
+        "prefix": "post",
+        "body": [
+            "POST ${1:/path} => ${2:MethodName}(${3:input: CreateInput}): ${4:ReturnType}"
+        ],
+        "description": "定义一个 POST 接口端点"
+    },
+    "PUT Method Definition": {
+        "prefix": "put",
+        "body": [
+            "PUT ${1:/path} => ${2:MethodName}(${3:input: UpdateInput}): ${4:ReturnType}"
+        ],
+        "description": "定义一个 PUT 接口端点"
+    },
+    "DELETE Method Definition": {
+        "prefix": "delete",
+        "body": [
+            "DELETE ${1:/path} => ${2:MethodName}(${3:id: Int @path}): ${4:ReturnType}"
+        ],
+        "description": "定义一个 DELETE 接口端点"
+    },
+    "PATCH Method Definition": {
+        "prefix": "patch",
+        "body": [
+            "PATCH ${1:/path} => ${2:MethodName}(${3:input: PatchInput}): ${4:ReturnType}"
+        ],
+        "description": "定义一个 PATCH 接口端点"
+    },
+    "Required Validator": {
+        "prefix": "@required",
+        "body": [
+            "@required"
+        ],
+        "description": "标记字段或参数必填"
+    },
+    "Path Param Decorator": {
+        "prefix": "@path",
+        "body": [
+            "@path"
+        ],
+        "description": "绑定为 URL 路径参数"
+    },
+    "Query Param Decorator": {
+        "prefix": "@query",
+        "body": [
+            "@query"
+        ],
+        "description": "绑定为 URL 查询参数"
+    },
+    "Header Param Decorator": {
+        "prefix": "@header",
+        "body": [
+            "@header"
+        ],
+        "description": "绑定为 HTTP 请求头参数"
+    },
+    "Form Param Decorator": {
+        "prefix": "@form",
+        "body": [
+            "@form"
+        ],
+        "description": "绑定为 HTTP 表单参数 (适用于 Multipart/Form 请求)"
+    },
+    "Custom Bind Directive": {
+        "prefix": "@customBind",
+        "body": [
+            "@customBind"
+        ],
+        "description": "接管参数绑定逻辑，由业务层在 Resolver 中手动实现 Bind 方法"
+    },
+    "Custom Validate Directive": {
+        "prefix": "@customValidate",
+        "body": [
+            "@customValidate"
+        ],
+        "description": "接管参数校验逻辑，由业务层在 Resolver 中手动实现 Validate 方法"
+    },
+    "Wrap None Meta": {
+        "prefix": "wrap-none",
+        "body": [
+            "wrap=none"
+        ],
+        "description": "彻底关闭接口或路由组的响应包装外壳 (直接返回原始业务数据)"
+    },
+    "ContentType Form Meta": {
+        "prefix": "ctype-form",
+        "body": [
+            "ctype=form"
+        ],
+        "description": "声明请求 Content-Type 为表单提交 (form)"
+    },
+    "ContentType Multipart Meta": {
+        "prefix": "ctype-multipart",
+        "body": [
+            "ctype=multipart"
+        ],
+        "description": "声明请求 Content-Type 为文件上传 (multipart)"
+    },
+    "ContentType JSON Meta": {
+        "prefix": "ctype-json",
+        "body": [
+            "ctype=json"
+        ],
+        "description": "声明请求 Content-Type 为 JSON (json)"
+    },
+    "HTTP 204 No Content Meta": {
+        "prefix": "state-204",
+        "body": [
+            "state=204, wrap=none"
+        ],
+        "description": "定义 204 No Content 成功状态码，并自动关闭包装器以返回空响应体"
+    }
+}

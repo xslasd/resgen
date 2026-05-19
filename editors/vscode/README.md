@@ -14,6 +14,7 @@
 - 🌐 **HTTP 语义支持**：高亮显示标准 HTTP 方法（`GET`, `POST`, `PUT`, `DELETE` 等）。
 - 🛡️ **修饰符与验证器**：清晰标记装饰器（`@auth`）与校验规则（`@minLen`）。
 - 📝 **注释与字符串**：完善的基础语法支持，让 DSL 编写更丝滑。
+- 🔥 **智能代码提示 (IntelliSense & Snippets)**：支持 `module`、`type`、`input`、`group`、各 HTTP 方法及 `@query` 等常用标签的一键 Tab 补全展开，大幅提高 API 设计效率！
 
 ## 安装指南
 

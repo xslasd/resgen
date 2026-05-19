@@ -6,6 +6,9 @@
     "patterns": [
         { "include": "#comments" },
         { "include": "#keywords" },
+        { "include": "#builtin-types" },
+        { "include": "#constants" },
+        { "include": "#meta-attributes" },
         { "include": "#strings" },
         { "include": "#numbers" },
         { "include": "#decorators" },
@@ -29,6 +32,34 @@
                 {
                     "name": "keyword.control.resgen",
                     "match": "\\b(GET|POST|PUT|DELETE|PATCH|get|post|put|delete|patch)\\b"
+                }
+            ]
+        },
+        "builtin-types": {
+            "patterns": [
+                {
+                    "name": "support.type.builtin.resgen",
+                    "match": "\\b(String|Int|Float|Boolean|Time|File|Any|Field)\\b"
+                }
+            ]
+        },
+        "constants": {
+            "patterns": [
+                {
+                    "name": "constant.language.resgen",
+                    "match": "\\b(none|json|form|multipart|xml|text)\\b"
+                }
+            ]
+        },
+        "meta-attributes": {
+            "patterns": [
+                {
+                    "match": "\\b(wrap|state|ctype|etype)\\b\\s*=",
+                    "captures": {
+                        "1": {
+                            "name": "support.constant.meta.resgen"
+                        }
+                    }
                 }
             ]
         },
