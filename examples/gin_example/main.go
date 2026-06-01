@@ -9,8 +9,6 @@ import (
 	"github.com/xslasd/resgen/examples/resolver"
 	"github.com/xslasd/resgen/examples/scalars"
 
-	_ "embed"
-
 	"github.com/gin-gonic/gin"
 )
 
@@ -427,12 +425,13 @@ func (v *MyValidator) FileRule(ctx *gin.Context, fieldName string, value any, ma
 }
 
 func main() {
+	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
-
 	// 初始化引擎
 	en := resolver.NewEngine[*GinContext]().
 		BindResponder(&MyResponder{}).
 		BindRegister(func(e *resolver.Engine[*GinContext], info resolver.MethodInfo, handler resolver.HandlerFunc[*GinContext]) {
+			fmt.Printf("%-6s %-30s --> %s \n", info.Method, "/api"+info.Path, info.HandlerPos)
 			r.Handle(info.Method, info.Path, func(ctx *gin.Context) {
 				handler(&GinContext{GC: ctx}, info)
 			})

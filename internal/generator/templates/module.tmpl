@@ -305,9 +305,14 @@ func (e *{{.Module.Name}}Executor[T, C]) mount() {
 		Name:   "{{.Name}}",
 		Path:   "{{.FullPath}}",
 	}
-	e.en.Register(info{{$epName}}, e.handle{{$epName}})
+	e.register(info{{$epName}}, e.handle{{$epName}})
 	{{- end}}
 	{{- end}}
+}
+
+func (e *{{.Module.Name}}Executor[T, C]) register(info MethodInfo, handler HandlerFunc[C]) {
+	info.HandlerPos = GetHandlerJumpPath(e.biz, info.Name)
+	e.en.Register(info, handler)
 }
 
 {{range .Module.Groups}}
