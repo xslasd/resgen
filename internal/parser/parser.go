@@ -41,7 +41,7 @@ func ParseSchema(paths ...string) (*Schema, error) {
 		fmt.Printf("Parsing schema file: %s\n", file)
 		
 		// 1. 预处理：提取注释
-		comments, err := collectComments(file)
+		comments, codeLines, err := collectComments(file)
 		if err != nil {
 			return nil, err
 		}
@@ -53,7 +53,7 @@ func ParseSchema(paths ...string) (*Schema, error) {
 		}
 
 		// 3. 将注释挂载到 AST 节点
-		attachCommentsToSchema(schema, comments)
+		attachCommentsToSchema(schema, comments, codeLines)
 
 		globalSchema.Declarations = append(globalSchema.Declarations, schema.Declarations...)
 	}
@@ -65,14 +65,15 @@ func ParseSchema(paths ...string) (*Schema, error) {
 	return globalSchema, nil
 }
 
-func collectComments(filename string) (map[int]string, error) {
+func collectComments(filename string) (map[int]string, map[int]bool, error) {
 	file, err := os.Open(filename)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer file.Close()
 
 	comments := make(map[int]string)
+	codeLines := make(map[int]bool)
 	scanner := bufio.NewScanner(file)
 	lineNum := 1
 	for scanner.Scan() {
@@ -80,13 +81,15 @@ func collectComments(filename string) (map[int]string, error) {
 		trimmed := strings.TrimSpace(line)
 		if strings.HasPrefix(trimmed, "#") {
 			comments[lineNum] = strings.TrimSpace(strings.TrimPrefix(trimmed, "#"))
+		} else if trimmed != "" {
+			codeLines[lineNum] = true
 		}
 		lineNum++
 	}
-	return comments, scanner.Err()
+	return comments, codeLines, scanner.Err()
 }
 
-func attachCommentsToSchema(s *Schema, comments map[int]string) {
+func attachCommentsToSchema(s *Schema, comments map[int]string, codeLines map[int]bool) {
 	for i := range s.Declarations {
 		decl := &s.Declarations[i]
 		line := decl.Pos.Line
@@ -98,7 +101,7 @@ func attachCommentsToSchema(s *Schema, comments map[int]string) {
 					sb.WriteString("\n")
 				}
 				sb.WriteString(txt)
-			} else {
+			} else if codeLines[l] {
 				// 如果某一行不是注释且不是空行，停止向上搜寻
 				break
 			}
@@ -130,7 +133,7 @@ func attachCommentsToSchema(s *Schema, comments map[int]string) {
 				ep := &decl.Group.Endpoints[j]
 				
 				// 收集 Endpoint 上方的所有连续单行注释
-				epLines := collectMultilineCommentsAbove(ep.Pos.Line, comments)
+				epLines := collectMultilineCommentsAbove(ep.Pos.Line, comments, codeLines)
 				epDoc, paramDocs := parseComments(epLines)
 				
 				ep.Doc = epDoc
@@ -152,12 +155,12 @@ func attachCommentsToSchema(s *Schema, comments map[int]string) {
 }
 
 // collectMultilineCommentsAbove 向上搜寻并收集某一位置上方的所有连续单行注释行（保持自上而下的正确顺序）
-func collectMultilineCommentsAbove(line int, comments map[int]string) []string {
+func collectMultilineCommentsAbove(line int, comments map[int]string, codeLines map[int]bool) []string {
 	var lines []string
 	for l := line - 1; l > 0; l-- {
 		if txt, ok := comments[l]; ok {
 			lines = append([]string{txt}, lines...)
-		} else {
+		} else if codeLines[l] {
 			break
 		}
 	}
@@ -256,9 +259,7 @@ func (s *Schema) Validate() error {
 	// 第一遍：收集所有定义的名称
 	for _, decl := range s.Declarations {
 		if decl.Module != nil {
-			if modules[decl.Module.Name] {
-				return fmt.Errorf("%s: duplicate module defined: %s", decl.Module.Pos, decl.Module.Name)
-			}
+			// 允许同名 module 跨文件定义，以支持拆分大 DSL 文件
 			modules[decl.Module.Name] = true
 		}
 		if decl.Model != nil {
@@ -357,6 +358,7 @@ var (
 		participle.Lexer(resgenLexer),
 		participle.Elide("Whitespace", "Comment"),
 		participle.Unquote("String"), 
+		participle.UseLookahead(5),
 	)
 )
 
@@ -369,3 +371,36 @@ func ParseFile(filename string) (*Schema, error) {
 	defer file.Close()
 	return Parser.Parse(filename, file)
 }
+
+// ParseFileContent 从内存中的字符串内容解析 Schema，并且把注释关联上去
+func ParseFileContent(filename, content string) (*Schema, error) {
+	comments, codeLines, err := collectCommentsFromString(content)
+	if err != nil {
+		return nil, err
+	}
+	schema, err := Parser.ParseString(filename, content)
+	if err != nil {
+		return nil, err
+	}
+	attachCommentsToSchema(schema, comments, codeLines)
+	return schema, nil
+}
+
+func collectCommentsFromString(content string) (map[int]string, map[int]bool, error) {
+	comments := make(map[int]string)
+	codeLines := make(map[int]bool)
+	scanner := bufio.NewScanner(strings.NewReader(content))
+	lineNum := 1
+	for scanner.Scan() {
+		line := scanner.Text()
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "#") {
+			comments[lineNum] = strings.TrimSpace(strings.TrimPrefix(trimmed, "#"))
+		} else if trimmed != "" {
+			codeLines[lineNum] = true
+		}
+		lineNum++
+	}
+	return comments, codeLines, scanner.Err()
+}
+

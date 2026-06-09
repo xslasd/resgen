@@ -8,3 +8,10 @@
 /dataSources.local.xml
 # 基于编辑器的 HTTP 客户端请求
 /httpRequests/
+
+*.exe
+/examples/resolver
+/examples/resolver_isolation
+/editors/vscode/dist/
+/editors/vscode/node_modules/
+/editors/vscode/package-lock.json

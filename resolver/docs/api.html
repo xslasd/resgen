@@ -1,0 +1,1198 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resgen API Documentation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace'],
+                    },
+                    colors: {
+                        primary: '#6366f1',
+                        secondary: '#a855f7',
+                        background: '#0f172a',
+                        surface: '#1e293b',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #0f172a; color: #f8fafc; scroll-behavior: smooth; }
+        .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .method-get { color: #10b981; background: rgba(16, 185, 129, 0.1); }
+        .method-post { color: #3b82f6; background: rgba(59, 130, 246, 0.1); }
+        .method-put { color: #f59e0b; background: rgba(245, 158, 11, 0.1); }
+        .method-delete { color: #ef4444; background: rgba(239, 68, 68, 0.1); }
+        .method-patch { color: #8b5cf6; background: rgba(139, 92, 246, 0.1); }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #475569; }
+        .tab-active { color: #fff; border-bottom: 2px solid #6366f1; }
+        pre { font-family: 'Fira Code', monospace; }
+        .animate-in { animation: fadeIn 0.4s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="font-sans antialiased text-slate-200 min-h-screen flex flex-col md:flex-row overflow-hidden bg-slate-950">
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="w-full md:w-80 glass z-30 md:relative md:flex flex-col h-screen transition-transform duration-300">
+        <div class="p-6 border-b border-slate-700/50">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center font-bold text-white shadow-lg shadow-primary/20">R</div>
+                <h1 class="text-xl font-bold tracking-tight">Resgen <span class="text-primary">Docs</span></h1>
+            </div>
+            <div class="mt-6 relative">
+                <input type="text" id="api-search" placeholder="Search APIs..." class="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-primary outline-none transition-all">
+            </div>
+        </div>
+        
+        <nav class="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-6" id="nav-content">
+            <!-- Navigation will be populated by JS -->
+        </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 h-screen overflow-y-auto custom-scrollbar relative bg-[radial-gradient(circle_at_top_right,rgba(99,102,241,0.05),transparent_40%)]">
+        <div id="content-view" class="max-w-5xl mx-auto p-4 md:p-12 space-y-12">
+            <!-- Details will be populated by JS -->
+             <div class="h-full flex flex-col items-center justify-center text-slate-500 py-32 animate-in">
+                <div class="w-24 h-24 rounded-3xl bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center mb-8 border border-white/5 shadow-2xl">
+                    <svg class="w-12 h-12 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                </div>
+                <div class="text-center space-y-4">
+                    <h2 class="text-2xl font-bold text-white tracking-tight">API Documentation</h2>
+                    <p class="text-slate-400 max-w-md">Select an endpoint from the sidebar to explore parameters, response schemas, and code examples.</p>
+                    <div class="pt-8 flex items-center justify-center gap-6" id="dashboard-stats">
+                        <div class="text-center">
+                            <div class="text-sm font-bold text-primary" id="stat-modules">-</div>
+                            <div class="text-[10px] uppercase tracking-widest text-slate-600">Modules</div>
+                        </div>
+                        <div class="w-px h-8 bg-slate-800"></div>
+                        <div class="text-center">
+                            <div class="text-sm font-bold text-primary" id="stat-endpoints">-</div>
+                            <div class="text-[10px] uppercase tracking-widest text-slate-600">Endpoints</div>
+                        </div>
+                        <div class="w-px h-8 bg-slate-800"></div>
+                        <div class="text-center">
+                            <div class="text-sm font-bold text-primary" id="stat-models">-</div>
+                            <div class="text-[10px] uppercase tracking-widest text-slate-600">Models</div>
+                        </div>
+                    </div>
+                </div>
+             </div>
+        </div>
+    </main>
+
+    <script>
+        // Data injected by Go
+        const apiData = {
+  "version": "v0.3.1",
+  "package": "resolver",
+  "info": {
+    "title": "Resgen Generated API",
+    "version": "1.0.0",
+    "description": "示例 2：装饰器与校验器\n展示：\n- 校验器定义与字段级使用\n- 装饰器的三个阶段（request / invoke / response）\n- global（全局）和 specialized（业务模块独立控制）两种作用域\n- @customBind / @customValidate 逻辑接管",
+    "baseUrl": "http://localhost:8080"
+  },
+  "validators": [
+    {
+      "name": "Required"
+    },
+    {
+      "name": "Email",
+      "doc": "── 校验器定义 ──────────────────────────────────────────",
+      "stage": "request",
+      "scope": "global"
+    },
+    {
+      "name": "Mobile",
+      "stage": "request",
+      "scope": "global"
+    },
+    {
+      "name": "Min",
+      "stage": "request",
+      "scope": "global",
+      "args": [
+        {
+          "name": "Len",
+          "type": "int",
+          "jsonName": "",
+          "originalType": ""
+        }
+      ]
+    },
+    {
+      "name": "Max",
+      "stage": "request",
+      "scope": "global",
+      "args": [
+        {
+          "name": "Len",
+          "type": "int",
+          "jsonName": "",
+          "originalType": ""
+        }
+      ]
+    }
+  ],
+  "modules": [
+    {
+      "name": "AuthDemo",
+      "groups": [
+        {
+          "name": "Auth",
+          "path": "/auth",
+          "endpoints": [
+            {
+              "name": "Register",
+              "doc": "注册：使用字段级校验器，请求 form 表单",
+              "method": "POST",
+              "path": "/register",
+              "fullPath": "/auth/register",
+              "inputName": "RegisterInput",
+              "returnType": "*ResData",
+              "returnTypeDSL": "ResData\u003cUser\u003e",
+              "innerReturnType": "*User",
+              "isReturnWrapped": true,
+              "isReturnArray": false,
+              "returnTypeBase": "ResData",
+              "errorType": "ResDataError",
+              "isErrorWrapped": true,
+              "errorTypeBase": "ResDataError",
+              "successStatus": 201,
+              "args": [
+                {
+                  "name": "input",
+                  "type": "RegisterInput",
+                  "source": "Body"
+                }
+              ],
+              "isArgsWrapped": false,
+              "contentType": "application/x-www-form-urlencoded",
+              "responseContentType": "application/json",
+              "errorContentType": "application/json"
+            },
+            {
+              "name": "Login",
+              "doc": "登录：完全接管绑定与校验逻辑（业务层手动处理）",
+              "method": "POST",
+              "path": "/login",
+              "fullPath": "/auth/login",
+              "inputName": "LoginArgs",
+              "returnType": "*ResData",
+              "returnTypeDSL": "ResData\u003cToken\u003e",
+              "innerReturnType": "*Token",
+              "isReturnWrapped": true,
+              "isReturnArray": false,
+              "returnTypeBase": "ResData",
+              "errorType": "ResDataError",
+              "isErrorWrapped": true,
+              "errorTypeBase": "ResDataError",
+              "successStatus": 200,
+              "args": [
+                {
+                  "name": "username",
+                  "type": "String",
+                  "source": "Body"
+                },
+                {
+                  "name": "password",
+                  "type": "String",
+                  "source": "Body"
+                }
+              ],
+              "isArgsWrapped": true,
+              "contentType": "application/json",
+              "responseContentType": "application/json",
+              "errorContentType": "application/json"
+            },
+            {
+              "name": "GetMe",
+              "doc": "获取当前用户：全局 loginRequired 装饰器在请求阶段拦截",
+              "method": "GET",
+              "path": "/me",
+              "fullPath": "/auth/me",
+              "returnType": "*ResData",
+              "returnTypeDSL": "ResData\u003cUser\u003e",
+              "innerReturnType": "*User",
+              "isReturnWrapped": true,
+              "isReturnArray": false,
+              "returnTypeBase": "ResData",
+              "errorType": "ResDataError",
+              "isErrorWrapped": true,
+              "errorTypeBase": "ResDataError",
+              "successStatus": 200,
+              "isArgsWrapped": false,
+              "contentType": "application/json",
+              "responseContentType": "application/json",
+              "errorContentType": "application/json"
+            },
+            {
+              "name": "UpdateUser",
+              "doc": "更新用户：\n- loginRequired（request 阶段，全局）：验证登录态\n- checkOwner（invoke 阶段，业务独立）：验证是否为资源拥有者\n- maskEmail（response 阶段，业务独立）：脱敏邮件地址后再返回",
+              "method": "POST",
+              "path": "/update",
+              "fullPath": "/auth/update",
+              "inputName": "UpdateInput",
+              "returnType": "*ResData",
+              "returnTypeDSL": "ResData\u003cUser\u003e",
+              "innerReturnType": "*User",
+              "isReturnWrapped": true,
+              "isReturnArray": false,
+              "returnTypeBase": "ResData",
+              "errorType": "ResDataError",
+              "isErrorWrapped": true,
+              "errorTypeBase": "ResDataError",
+              "successStatus": 200,
+              "args": [
+                {
+                  "name": "input",
+                  "type": "UpdateInput",
+                  "source": "Body"
+                }
+              ],
+              "isArgsWrapped": false,
+              "contentType": "application/json",
+              "responseContentType": "application/json",
+              "errorContentType": "application/json"
+            },
+            {
+              "name": "DeleteUser",
+              "doc": "管理员接口：需要特定角色，组合多个全局装饰器",
+              "method": "DELETE",
+              "path": "/:id",
+              "fullPath": "/auth/:id",
+              "returnType": "*ResData",
+              "returnTypeDSL": "ResData\u003cString\u003e",
+              "innerReturnType": "*string",
+              "isReturnWrapped": true,
+              "isReturnArray": false,
+              "returnTypeBase": "ResData",
+              "errorType": "ResDataError",
+              "isErrorWrapped": true,
+              "errorTypeBase": "ResDataError",
+              "successStatus": 200,
+              "args": [
+                {
+                  "name": "id",
+                  "type": "Int",
+                  "source": "Path"
+                }
+              ],
+              "isArgsWrapped": false,
+              "contentType": "application/json",
+              "responseContentType": "application/json",
+              "errorContentType": "application/json"
+            }
+          ]
+        }
+      ],
+      "models": null,
+      "specializedDecorators": [
+        {
+          "name": "CheckOwner",
+          "doc": "特化调用前拦截：仅由当前 Resolver 独立实现（如资源归属校验）",
+          "stage": "invoke",
+          "isSpecialized": true,
+          "methodName": "UpdateUser",
+          "inputType": "UpdateInput",
+          "returnType": "*User"
+        },
+        {
+          "name": "MaskEmail",
+          "doc": "特化响应后处理：仅由当前 Resolver 独立实现（如数据脱敏）",
+          "stage": "response",
+          "isSpecialized": true,
+          "methodName": "UpdateUser",
+          "inputType": "UpdateInput",
+          "returnType": "*User"
+        }
+      ]
+    }
+  ],
+  "models": [
+    {
+      "name": "ResData",
+      "doc": "1. 通用 JSON 响应包装器",
+      "module": "Default",
+      "isInput": false,
+      "isWrapper": true,
+      "typeParams": [
+        "T"
+      ],
+      "fields": [
+        {
+          "name": "code",
+          "type": "int",
+          "jsonName": "code",
+          "originalType": "Int",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        },
+        {
+          "name": "msg",
+          "type": "string",
+          "jsonName": "msg",
+          "originalType": "String",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        },
+        {
+          "name": "data",
+          "type": "*T",
+          "jsonName": "data",
+          "originalType": "T"
+        }
+      ]
+    },
+    {
+      "name": "ResDataError",
+      "doc": "1. 通用 JSON 响应包装器",
+      "module": "Default",
+      "isInput": false,
+      "isWrapper": false,
+      "fields": [
+        {
+          "name": "code",
+          "type": "int",
+          "jsonName": "code",
+          "originalType": "Int",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        },
+        {
+          "name": "msg",
+          "type": "string",
+          "jsonName": "msg",
+          "originalType": "String",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "User",
+      "doc": "数据模型",
+      "module": "AuthDemo",
+      "isInput": false,
+      "isWrapper": false,
+      "fields": [
+        {
+          "name": "id",
+          "type": "int",
+          "jsonName": "id",
+          "originalType": "Int",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        },
+        {
+          "name": "username",
+          "type": "string",
+          "jsonName": "username",
+          "originalType": "String",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        },
+        {
+          "name": "email",
+          "type": "string",
+          "jsonName": "email",
+          "originalType": "String",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Token",
+      "module": "AuthDemo",
+      "isInput": false,
+      "isWrapper": false,
+      "fields": [
+        {
+          "name": "token",
+          "type": "string",
+          "jsonName": "token",
+          "originalType": "String",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        },
+        {
+          "name": "expires_at",
+          "type": "int",
+          "jsonName": "expiresAt",
+          "originalType": "Int",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "RegisterInput",
+      "module": "AuthDemo",
+      "isInput": true,
+      "isWrapper": false,
+      "fields": [
+        {
+          "name": "username",
+          "type": "string",
+          "jsonName": "username",
+          "originalType": "String",
+          "validators": [
+            {
+              "name": "Required"
+            },
+            {
+              "name": "Min",
+              "args": [
+                {
+                  "name": "Len",
+                  "type": "",
+                  "jsonName": "",
+                  "originalType": "",
+                  "value": "3"
+                }
+              ]
+            },
+            {
+              "name": "Max",
+              "args": [
+                {
+                  "name": "Len",
+                  "type": "",
+                  "jsonName": "",
+                  "originalType": "",
+                  "value": "20"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "email",
+          "type": "string",
+          "jsonName": "email",
+          "originalType": "String",
+          "validators": [
+            {
+              "name": "Required"
+            },
+            {
+              "name": "Email",
+              "doc": "── 校验器定义 ──────────────────────────────────────────"
+            }
+          ]
+        },
+        {
+          "name": "mobile",
+          "type": "string",
+          "jsonName": "mobile",
+          "originalType": "String",
+          "validators": [
+            {
+              "name": "Required"
+            },
+            {
+              "name": "Mobile"
+            }
+          ]
+        },
+        {
+          "name": "password",
+          "type": "string",
+          "jsonName": "password",
+          "originalType": "String",
+          "validators": [
+            {
+              "name": "Required"
+            },
+            {
+              "name": "Min",
+              "args": [
+                {
+                  "name": "Len",
+                  "type": "",
+                  "jsonName": "",
+                  "originalType": "",
+                  "value": "8"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "UpdateInput",
+      "module": "AuthDemo",
+      "isInput": true,
+      "isWrapper": false,
+      "fields": [
+        {
+          "name": "id",
+          "type": "int",
+          "jsonName": "id",
+          "originalType": "Int",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        },
+        {
+          "name": "email",
+          "type": "*string",
+          "jsonName": "email",
+          "originalType": "String",
+          "validators": [
+            {
+              "name": "Email",
+              "doc": "── 校验器定义 ──────────────────────────────────────────"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "LoginArgs",
+      "module": "AuthDemo",
+      "isInput": true,
+      "isWrapper": false,
+      "fields": [
+        {
+          "name": "username",
+          "type": "String",
+          "jsonName": "username",
+          "originalType": "String"
+        },
+        {
+          "name": "password",
+          "type": "String",
+          "jsonName": "password",
+          "originalType": "String"
+        }
+      ]
+    }
+  ],
+  "scalars": {
+    "IntTime": {
+      "name": "IntTime",
+      "doc": "2. 自定义标量：网络传输层使用 Int（int64）",
+      "baseType": "Int",
+      "goType": "scalars.IntTime"
+    }
+  }
+};
+
+        function init() {
+            renderSidebar();
+            renderDashboardStats();
+            
+            document.getElementById('api-search').addEventListener('input', (e) => {
+                renderSidebar(e.target.value);
+            });
+        }
+
+        function renderDashboardStats() {
+            if (!apiData) return;
+            const modules = apiData.modules.length;
+            const endpoints = apiData.modules.reduce((acc, m) => acc + m.groups.reduce((g_acc, g) => g_acc + g.endpoints.length, 0), 0);
+            const models = apiData.models ? apiData.models.length : 0;
+            
+            const mEl = document.getElementById('stat-modules');
+            const eEl = document.getElementById('stat-endpoints');
+            const mdEl = document.getElementById('stat-models');
+            
+            if (mEl) mEl.innerText = modules;
+            if (eEl) eEl.innerText = endpoints;
+            if (mdEl) mdEl.innerText = models;
+        }
+
+        let toggledModules = new Set(apiData.modules.map(m => m.name));
+        let activeEndpointId = null;
+        let currentView = 'apis'; // 'apis', 'validators'
+
+        function renderSidebar(search = '') {
+            const nav = document.getElementById('nav-content');
+            nav.innerHTML = '';
+            
+            search = search.toLowerCase();
+
+            // --- Primary Menu ---
+            const menu = document.createElement('div');
+            menu.className = 'space-y-1 mb-8';
+            
+            const createMenuItem = (id, label, icon, color, onClick) => {
+                const isActive = currentView === id;
+                const btn = document.createElement('button');
+                btn.className = `w-full text-left px-4 py-3 rounded-xl text-sm transition-all flex items-center gap-3 group font-bold tracking-tight ${isActive ? `bg-${color}-500/20 text-${color}-400 border border-${color}-500/30 ring-1 ring-${color}-500/20` : 'hover:bg-slate-800/50 text-slate-400'}`;
+                btn.onclick = () => {
+                    currentView = id;
+                    onClick();
+                    renderSidebar(search);
+                };
+                btn.innerHTML = `${icon} <span>${label}</span>`;
+                return btn;
+            };
+
+            nav.appendChild(createMenuItem('validators', 'Validator Guide', 
+                `<svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>`,
+                'indigo', 
+                showValidators
+            ));
+
+            nav.appendChild(createMenuItem('apis', 'API All',
+                `<svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>`,
+                'indigo',
+                () => { if (!activeEndpointId || activeEndpointId === 'validators') activeEndpointId = null; }
+            ));
+
+            if (currentView !== 'apis') return;
+
+            // --- API Modules ---
+            const apiHeader = document.createElement('div');
+            apiHeader.className = 'mt-8 mb-3 px-2 flex items-center justify-between border-t border-slate-800/30 pt-6';
+            apiHeader.innerHTML = `
+                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">多配方功能</span>
+                <div class="flex gap-3">
+                   <button onclick="expandAll()" class="text-[9px] text-slate-500 hover:text-primary transition-colors">展开</button>
+                   <button onclick="collapseAll()" class="text-[9px] text-slate-500 hover:text-primary transition-colors">折叠</button>
+                </div>
+            `;
+            nav.appendChild(apiHeader);
+
+            apiData.modules.forEach(mod => {
+                const modFilter = mod.groups.some(group => 
+                    group.endpoints.some(ep => ep.name.toLowerCase().includes(search) || ep.fullPath.toLowerCase().includes(search))
+                );
+
+                if (search && !modFilter) return;
+
+                const modSection = document.createElement('div');
+                modSection.className = 'mb-1';
+                
+                const isToggled = toggledModules.has(mod.name) || (search && modFilter);
+                
+                const header = document.createElement('button');
+                header.className = 'w-full flex items-center justify-between px-3 py-2 text-[11px] font-bold text-slate-400/80 uppercase tracking-wider hover:text-white transition-colors group';
+                header.onclick = () => toggleModule(mod.name);
+                header.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <svg class="w-2.5 h-2.5 transition-transform ${isToggled ? 'rotate-90' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+                        <span>${mod.name}</span>
+                    </div>
+                `;
+                modSection.appendChild(header);
+
+                if (isToggled) {
+                    mod.groups.forEach(group => {
+                        const groupDiv = document.createElement('div');
+                        groupDiv.className = 'mt-0.5 ml-2 space-y-px border-l border-slate-800/40';
+                        
+                        group.endpoints.forEach(ep => {
+                            if (search && !ep.name.toLowerCase().includes(search) && !ep.fullPath.toLowerCase().includes(search)) return;
+
+                            const epId = `${mod.name}.${group.name}.${ep.name}`;
+                            const isActive = activeEndpointId === epId;
+
+                            const btn = document.createElement('button');
+                            btn.className = `w-full text-left px-4 py-1.5 rounded-md text-[12px] transition-all flex items-center gap-3 group ${isActive ? 'bg-indigo-500/10 text-indigo-400' : 'text-slate-500 hover:text-slate-300'}`;
+                            btn.onclick = () => {
+                                activeEndpointId = epId;
+                                showEndpoint(mod.name, group.name, ep);
+                                renderSidebar(search);
+                            };
+                            
+                            const methodStyle = `method-${ep.method.toLowerCase()}`;
+                            btn.innerHTML = `
+                                <span class="text-[8px] font-black w-9 py-0.5 rounded-[3px] text-center uppercase opacity-80 ${methodStyle}">${ep.method}</span>
+                                <span class="truncate flex-1 transition-all group-hover:translate-x-0.5 font-medium">${ep.name}</span>
+                            `;
+                            groupDiv.appendChild(btn);
+                        });
+                        
+                        if (groupDiv.children.length > 0) {
+                            modSection.appendChild(groupDiv);
+                        }
+                    });
+                }
+                
+                nav.appendChild(modSection);
+            });
+        }
+
+        function toggleModule(name) {
+            if (toggledModules.has(name)) toggledModules.delete(name);
+            else toggledModules.add(name);
+            renderSidebar(document.getElementById('api-search').value);
+        }
+
+        function expandAll() {
+            apiData.modules.forEach(m => toggledModules.add(m.name));
+            renderSidebar(document.getElementById('api-search').value);
+        }
+
+        function collapseAll() {
+            toggledModules.clear();
+            renderSidebar(document.getElementById('api-search').value);
+        }
+
+        function showValidators() {
+            currentView = 'validators';
+            const view = document.getElementById('content-view');
+            let html = `
+                <div class="space-y-8 animate-in">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-xl bg-indigo-500/20 flex items-center justify-center border border-indigo-500/20 shadow-lg shadow-indigo-500/10">
+                            <svg class="w-6 h-6 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                        </div>
+                        <div>
+                            <h1 class="text-4xl font-bold text-white tracking-tight">Validator Guide</h1>
+                            <p class="text-slate-400 mt-1">Reference for all business constraints and validation rules defined in the API</p>
+                        </div>
+                    </div>
+
+                    <div class="overflow-hidden rounded-2xl border border-slate-700/50 glass shadow-2xl">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-slate-800/50 text-slate-400 font-bold uppercase text-[10px] tracking-widest">
+                                <tr>
+                                    <th class="p-4 w-1/3 text-indigo-400 border-b border-white/5">Validator Signature</th>
+                                    <th class="p-4 w-2/3 border-b border-white/5">Description</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-white/5 cursor-default">
+                                ${(apiData.validators || []).filter(v => v.name !== 'Required').map(v => `
+                                    <tr class="hover:bg-white/[0.02] transition-colors">
+                                        <td class="p-4 font-mono font-bold text-indigo-400">
+                                            ${v.name}${v.args && v.args.length > 0 ? `(${v.args.map(a => `<span class="text-slate-500">${a.name}:</span> <span class="text-indigo-300/80">${a.type}</span>`).join(', ')})` : ''}
+                                        </td>
+                                        <td class="p-4 text-slate-300 leading-relaxed">${v.doc || '<span class="text-slate-600 italic">No description provided</span>'}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            view.innerHTML = html;
+        }
+
+        function showEndpoint(modName, groupName, ep) {
+            const view = document.getElementById('content-view');
+            
+            let html = `
+                <div class="space-y-4 animate-in">
+                    <nav class="text-xs text-slate-500 flex items-center gap-2">
+                        <span class="hover:text-primary transition-colors cursor-pointer">${modName}</span>
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+                        <span class="hover:text-primary transition-colors cursor-pointer">${groupName}</span>
+                    </nav>
+                    <div class="flex items-center gap-4">
+                        <h1 class="text-4xl font-bold text-white tracking-tight">${ep.name}</h1>
+                        <span class="px-3 py-1 rounded bg-slate-800 text-xs font-black uppercase border border-white/5 method-${ep.method.toLowerCase()} shadow-xl">${ep.method}</span>
+                    </div>
+                    ${ep.doc ? `<p class="text-slate-400 text-lg border-l-4 border-primary/50 pl-6 py-2 italic bg-slate-800/20 rounded-r-lg">${ep.doc.replace(/\n/g, '<br>')}</p>` : ''}
+                </div>
+
+                <div class="glass rounded-2xl p-8 space-y-6 shadow-2xl relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -mr-32 -mt-32 transition-colors group-hover:bg-primary/10"></div>
+                    <div class="flex flex-col md:flex-row items-center justify-between border-b border-white/5 pb-6 gap-4">
+                        <div class="flex flex-col gap-1 w-full">
+                            <span class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Base Invocation URL</span>
+                            <div class="flex items-center gap-2 text-xl overflow-hidden">
+                                <span class="font-mono text-primary truncate">${apiData.info.baseUrl || 'http://localhost:8080'}${ep.fullPath}</span>
+                            </div>
+                        </div>
+                        <button onclick="copyToClipboard('${apiData.info.baseUrl || ''}${ep.fullPath}')" class="w-full md:w-auto px-6 py-2.5 rounded-xl bg-white/5 hover:bg-primary hover:text-white text-xs font-bold text-slate-300 transition-all border border-white/5 flex items-center justify-center gap-2 shadow-lg active:scale-95">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
+                            Copy Endpoint
+                        </button>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-4 md:gap-8 pt-2 text-xs">
+                        <div class="flex items-center gap-3">
+                            <span class="w-2.5 h-2.5 rounded-full bg-primary animate-pulse shadow-[0_0_8px_rgba(99,102,241,0.5)]"></span>
+                            <span class="text-slate-400">Request: <b class="text-slate-200 font-mono bg-slate-900/80 px-2 py-0.5 rounded border border-white/5">${ep.contentType}</b></span>
+                        </div>
+                        <div class="flex items-center gap-3 border-l border-white/10 pl-6">
+                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
+                            <span class="text-slate-400">Success Response: <b class="text-slate-200 font-mono bg-slate-900/80 px-2 py-0.5 rounded border border-white/5">${ep.responseContentType || 'application/json'}</b></span>
+                        </div>
+                        ${ep.errorContentType && ep.errorContentType !== ep.responseContentType ? `
+                        <div class="flex items-center gap-3 border-l border-white/10 pl-6">
+                            <span class="w-2.5 h-2.5 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]"></span>
+                            <span class="text-slate-400">Error Response: <b class="text-slate-200 font-mono bg-slate-900/80 px-2 py-0.5 rounded border border-white/5">${ep.errorContentType}</b></span>
+                        </div>
+                        ` : ''}
+                        ${ep.isArgsWrapped ? '<div class="text-indigo-400 border border-indigo-500/30 bg-indigo-500/5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-tighter ml-auto shadow-inner">Wrapped Payload Mode</div>' : ''}
+                    </div>
+                </div>
+
+                <section class="space-y-6">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xl font-bold flex items-center gap-3 text-white">
+                            <div class="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center text-primary">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 4.5v15m7.5-7.5H3.5"/></svg>
+                            </div>
+                            Parameters
+                        </h3>
+                    </div>
+                    <div class="overflow-hidden rounded-2xl border border-white/5 glass shadow-xl">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-slate-800/80 text-slate-500 font-bold uppercase text-[10px] tracking-widest">
+                                <tr>
+                                    <th class="p-4">Source</th>
+                                    <th class="p-4">Name</th>
+                                    <th class="p-4">Type</th>
+                                    <th class="p-4">Constraints</th>
+                                    <th class="p-4">Description</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-white/5" id="params-body">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <section class="space-y-6">
+                    <h3 class="text-xl font-bold flex items-center gap-3 text-white">
+                        <div class="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-400">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+                        </div>
+                        Response
+                    </h3>
+                    <div class="glass rounded-2xl p-8 space-y-8 shadow-xl">
+                        <div class="flex items-center justify-between">
+                            <span class="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-black uppercase tracking-widest border border-emerald-500/20">${ep.successStatus || 200} Status</span>
+                            <span class="text-[10px] text-slate-600 font-mono">${ep.responseContentType || 'application/json'}</span>
+                        </div>
+                         <div id="resp-section" class="hidden space-y-4">
+                            <p class="text-xs text-slate-500 font-bold uppercase tracking-widest">Structure Fields</p>
+                            <div id="resp-grid" class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                <div id="resp-success-container">
+                                    <div class="overflow-hidden rounded-xl border border-white/5 bg-slate-900/30">
+                                        <table class="w-full text-left text-xs">
+                                            <tbody class="divide-y divide-white/5" id="resp-body"></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                <div id="resp-error-container" class="hidden"></div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="space-y-6">
+                    <h3 class="text-xl font-bold flex items-center gap-3 text-white">
+                        <div class="w-8 h-8 rounded-lg bg-orange-500/20 flex items-center justify-center text-orange-400">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+                        </div>
+                        Code Example
+                    </h3>
+                    <div class="glass rounded-2xl shadow-xl overflow-hidden border border-white/5">
+                        <div class="flex border-b border-white/5 bg-slate-900/50">
+                            <button onclick="switchTab('curl')" id="tab-curl" class="px-6 py-4 text-xs font-bold uppercase tracking-widest text-slate-500 hover:text-white transition-all tab-active">curl</button>
+                            <button onclick="switchTab('js')" id="tab-js" class="px-6 py-4 text-xs font-bold uppercase tracking-widest text-slate-500 hover:text-white transition-all">Javascript</button>
+                        </div>
+                        <div class="p-6">
+                            <div id="code-curl" class="code-block animate-in">
+                                <pre class="text-slate-300 text-xs leading-relaxed overflow-x-auto custom-scrollbar p-2 whitespace-pre-wrap">${generateCurl(ep)}</pre>
+                            </div>
+                            <div id="code-js" class="code-block hidden animate-in">
+                                <pre class="text-slate-300 text-xs leading-relaxed overflow-x-auto custom-scrollbar p-2 whitespace-pre-wrap">${generateJS(ep)}</pre>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            `;
+
+            view.innerHTML = html;
+            renderParams(ep);
+            renderResponse(ep);
+        }
+
+        function renderParams(ep) {
+            const tbody = document.getElementById('params-body');
+            if (!tbody) return;
+            let rows = '';
+
+            if (!ep.isArgsWrapped && ep.inputName) {
+                const model = apiData.models.find(m => m.name === ep.inputName);
+                if (model) {
+                    const defaultSource = (ep.args && ep.args[0]) ? ep.args[0].source : 'Body';
+                    model.fields.forEach(f => {
+                        rows += renderRow({
+                            name: f.name,
+                            type: f.type,
+                            source: defaultSource,
+                            validators: f.validators,
+                            doc: f.doc
+                        }, 0);
+                    });
+                }
+            } else if (ep.args) {
+                ep.args.forEach(arg => {
+                    rows += renderRow(arg, 0);
+                });
+            }
+
+            tbody.innerHTML = rows || '<tr><td colspan="5" class="p-8 text-center text-slate-600 italic">No parameters required</td></tr>';
+        }
+
+        function parseType(typeStr) {
+            if (!typeStr) return { base: '', args: [] };
+            let clean = typeStr.replace(/[*\[\]<>!]/g, '');
+            let match = typeStr.match(/([a-zA-Z0-9_]+)[<\[](.*)[>\]]/);
+            if (match) {
+                return {
+                    base: match[1],
+                    args: match[2].split(',').map(s => s.trim()),
+                    full: typeStr
+                };
+            }
+            return { base: clean, args: [], full: typeStr };
+        }
+
+        function renderResponse(ep) {
+            const section = document.getElementById('resp-section');
+            const successContainer = document.getElementById('resp-success-container');
+            const errorContainer = document.getElementById('resp-error-container');
+            const respGrid = document.getElementById('resp-grid');
+
+            if (!section || !successContainer || !errorContainer || !respGrid) return;
+            
+            section.classList.remove('hidden');
+
+            const typeStr = ep.returnTypeDSL || ep.returnType;
+            const typeInfo = parseType(typeStr);
+            
+            // --- Success Section ---
+            successContainer.innerHTML = `
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px] font-black uppercase border border-emerald-500/20">Success</span>
+                    <span class="text-[10px] text-slate-500 font-mono italic">${ep.responseContentType || 'application/json'}</span>
+                </div>
+                <div class="overflow-hidden rounded-xl border border-white/5 bg-slate-900/30">
+                    <table class="w-full text-left text-xs">
+                        <tbody class="divide-y divide-white/5">
+                            ${renderTypeStructure(typeInfo.base, typeInfo)}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+            // --- Error Section (Optional) ---
+            if (ep.isErrorWrapped || (ep.errorContentType && ep.errorContentType !== ep.responseContentType)) {
+                const errorMime = ep.errorContentType || ep.responseContentType || 'application/json';
+                errorContainer.classList.remove('hidden');
+                errorContainer.innerHTML = `
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="px-2 py-0.5 rounded bg-rose-500/10 text-rose-400 text-[10px] font-black uppercase border border-rose-500/20">Error Response</span>
+                        <span class="text-[10px] text-slate-500 font-mono italic">${errorMime}</span>
+                    </div>
+                    <div class="overflow-hidden rounded-xl border border-rose-500/10 bg-slate-900/30">
+                        <table class="w-full text-left text-xs">
+                            <tbody class="divide-y divide-white/5">
+                                ${ep.isErrorWrapped ? renderTypeStructure(ep.errorTypeBase, null) : 
+                                    `<tr><td class="p-4 text-slate-500 italic">No specific structure, status code indicates error</td></tr>`
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                respGrid.classList.add('lg:grid-cols-2');
+            } else {
+                errorContainer.classList.add('hidden');
+                respGrid.classList.remove('lg:grid-cols-2');
+            }
+        }
+
+        function renderTypeStructure(baseType, typeInfo) {
+            const model = apiData.models.find(m => m.name === baseType);
+            if (model) {
+                let rows = '';
+                model.fields.forEach(f => {
+                    let displayType = f.type;
+                    if (typeInfo && model.typeParams && model.typeParams.length > 0) {
+                        model.typeParams.forEach((param, idx) => {
+                            const cleanFieldType = f.type.replace(/[*\[\]]/g, '');
+                            if (cleanFieldType === param && typeInfo.args[idx]) {
+                                displayType = f.type.replace(param, typeInfo.args[idx]);
+                            }
+                        });
+                    }
+
+                    rows += renderRow({
+                        name: f.name,
+                        type: displayType,
+                        doc: f.doc
+                    }, 0, true);
+                });
+                return rows;
+            } else {
+                return renderRow({
+                    name: '-',
+                    type: baseType || 'Any',
+                    doc: 'Direct return'
+                }, 0, true);
+            }
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.code-block').forEach(b => b.classList.add('hidden'));
+            document.getElementById(`code-${tab}`).classList.remove('hidden');
+            
+            document.getElementById('tab-curl').classList.remove('tab-active');
+            document.getElementById('tab-js').classList.remove('tab-active');
+            document.getElementById(`tab-${tab}`).classList.add('tab-active');
+        }
+        function getQueryParams(ep) {
+            const params = [];
+            if (!ep.isArgsWrapped && ep.inputName) {
+                const model = apiData.models.find(m => m.name === ep.inputName);
+                if (model) {
+                    const source = (ep.args && ep.args[0]) ? ep.args[0].source : 'Body';
+                    if (source === 'Query') {
+                        model.fields.forEach(f => params.push(`${f.jsonName || f.name}=...`));
+                    }
+                }
+            } else if (ep.args) {
+                ep.args.forEach(arg => {
+                    if (arg.source === 'Query') params.push(`${arg.name}=...`);
+                });
+            }
+            return params.length > 0 ? '?' + params.join('&') : '';
+        }
+
+        function generateCurl(ep) {
+            const baseUrl = apiData.info.baseUrl || 'http://localhost:8080';
+            const url = `${baseUrl}${ep.fullPath}${getQueryParams(ep)}`;
+            let curl = `curl -X ${ep.method} "${url}"`;
+            if (ep.method !== 'GET') {
+                curl += ` \\\n  -H "Content-Type: ${ep.contentType}"`;
+                if (ep.args && ep.args.some(a => a.source === 'Body')) {
+                    curl += ` \\\n  -d '{ ... }'`;
+                }
+            }
+            return curl;
+        }
+
+        function generateJS(ep) {
+            const baseUrl = apiData.info.baseUrl || 'http://localhost:8080';
+            const url = `${baseUrl}${ep.fullPath}${getQueryParams(ep)}`;
+            let js = `fetch("${url}", {\n  method: "${ep.method}",\n`;
+            if (ep.method !== 'GET') {
+                js += `  headers: {\n    "Content-Type": "${ep.contentType}"\n  },\n`;
+                if (ep.args && ep.args.some(a => a.source === 'Body')) {
+                    js += `  body: JSON.stringify({ ... })\n`;
+                }
+            }
+            js += `}).then(res => res.json());`;
+            return js;
+        }
+
+        function renderRow(arg, depth = 0, hideSource = false) {
+            const padding = depth * 16;
+            const isRequired = arg.validators && arg.validators.some(v => v.name === 'Required');
+            const displayValidators = arg.validators ? arg.validators.filter(v => v.name !== 'Required') : [];
+            const displayType = (arg.type.endsWith('!') || !isRequired) ? arg.type : `${arg.type}!`;
+
+            let row = `
+                <tr class="${depth > 0 ? 'bg-white/[0.01]' : ''} group/row transition-colors hover:bg-white/[0.02]">
+                    ${hideSource ? '' : `<td class="p-4 font-mono text-[9px] font-black uppercase text-slate-600">${arg.source || 'Body'}</td>`}
+                    <td class="p-4 font-bold text-slate-300">
+                        <div style="padding-left: ${padding}px" class="flex items-center gap-2">
+                            ${depth > 0 ? '<svg class="w-3 h-3 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>' : ''}
+                            <span class="text-slate-200">${arg.name}</span>
+                        </div>
+                    </td>
+                    <td class="p-4 font-mono text-xs text-secondary/80">${displayType}</td>
+                    ${hideSource ? '' : `<td class="p-4 whitespace-nowrap">${renderValidators(displayValidators)}</td>`}
+                    <td class="p-4 text-xs text-slate-500 leading-relaxed max-w-xs">${arg.doc || '-'}</td>
+                </tr>
+            `;
+
+            const cleanType = arg.type.replace(/[*\[\]]/g, '');
+            const model = apiData.models.find(m => m.name === cleanType);
+            if (model && (depth < 4)) { 
+                model.fields.forEach(f => {
+                    row += renderRow({
+                        name: f.name,
+                        type: f.type,
+                        source: arg.source || 'Body',
+                        validators: f.validators,
+                        doc: f.doc
+                    }, depth + 1, hideSource);
+                });
+            }
+            return row;
+        }
+
+        function renderValidators(validators) {
+            if (!validators || validators.length === 0) return '<span class="text-slate-800">-</span>';
+            return validators.map(v => {
+                const argsTxt = (v.args && v.args.length > 0) 
+                    ? `<span class="text-[10px] text-indigo-300/60 font-mono font-medium ml-1">(${v.args.map(a => a.value).join(', ')})</span>` 
+                    : '';
+                return `
+                    <div class="inline-flex items-center px-2 py-0.5 rounded-md bg-indigo-500/10 border border-indigo-500/20 hover:bg-indigo-500/20 transition-all cursor-help group/badge mb-1 last:mb-0 mr-1" title="${v.doc || 'Validation rule'}">
+                        <span class="text-[9px] font-black uppercase text-indigo-400 shadow-sm">${v.name}</span>
+                        ${argsTxt}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                const toast = document.createElement('div');
+                toast.className = 'fixed bottom-8 right-8 bg-indigo-600 text-white px-6 py-3 rounded-2xl shadow-2xl animate-in z-50 font-bold flex items-center gap-3';
+                toast.innerHTML = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg> Copied to clipboard!`;
+                document.body.appendChild(toast);
+                setTimeout(() => toast.remove(), 2000);
+            });
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>

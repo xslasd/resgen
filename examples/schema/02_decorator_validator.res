@@ -14,6 +14,8 @@ validator mobile
 validator min(len: Int!)
 validator max(len: Int!)
 
+
+
 # ── 装饰器定义（阶段 + 作用域）─────────────────────────
 # 全局请求拦截：所有模块共用（如 JWT 鉴权）
 decorator auth(role: String!) [stage=request, scope=global]
