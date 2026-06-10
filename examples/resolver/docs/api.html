@@ -97,7 +97,7 @@
     <script>
         // Data injected by Go
         const apiData = {
-  "version": "v0.3.1",
+  "version": "v0.3.3",
   "package": "resolver",
   "info": {
     "title": "Resgen Generated API",
@@ -111,7 +111,7 @@
     },
     {
       "name": "Email",
-      "doc": "── 校验器定义 ──────────────────────────────────────────",
+      "doc": "公共定义（ResData）已在 00_common.res 中声明，此处直接使用\n── 校验器定义 ──────────────────────────────────────────",
       "stage": "request",
       "scope": "global"
     },
@@ -200,7 +200,6 @@
               "args": [
                 {
                   "name": "id",
-                  "doc": "ArticleID",
                   "type": "Int",
                   "source": "Path"
                 }
@@ -222,6 +221,40 @@
               "innerReturnType": "*[]*Article",
               "isReturnWrapped": true,
               "isReturnArray": true,
+              "returnTypeBase": "ResData",
+              "errorType": "ResDataError",
+              "isErrorWrapped": true,
+              "errorTypeBase": "ResDataError",
+              "successStatus": 200,
+              "args": [
+                {
+                  "name": "page",
+                  "type": "Int",
+                  "source": "Query"
+                },
+                {
+                  "name": "size",
+                  "type": "Int",
+                  "source": "Query"
+                }
+              ],
+              "isArgsWrapped": true,
+              "contentType": "application/json",
+              "responseContentType": "application/json",
+              "errorContentType": "application/json"
+            },
+            {
+              "name": "ListArticlesV2",
+              "doc": "返回通用列表/分页响应：ResData\u003cListRes\u003cArticle\u003e\u003e",
+              "method": "GET",
+              "path": "/list/v2",
+              "fullPath": "/articles/list/v2",
+              "inputName": "ListArticlesV2Args",
+              "returnType": "*ResData",
+              "returnTypeDSL": "ResData\u003cListResArticle\u003e",
+              "innerReturnType": "*ListResArticle",
+              "isReturnWrapped": true,
+              "isReturnArray": false,
               "returnTypeBase": "ResData",
               "errorType": "ResDataError",
               "isErrorWrapped": true,
@@ -309,6 +342,24 @@
                   "source": "Path"
                 }
               ],
+              "isArgsWrapped": false,
+              "contentType": "application/json",
+              "responseContentType": "application/json",
+              "errorContentType": "application/json"
+            },
+            {
+              "name": "Logout",
+              "doc": "无返回值接口测试",
+              "method": "POST",
+              "path": "/logout",
+              "fullPath": "/articles/logout",
+              "returnType": "",
+              "isReturnWrapped": false,
+              "isReturnArray": false,
+              "errorType": "ResDataError",
+              "isErrorWrapped": true,
+              "errorTypeBase": "ResDataError",
+              "successStatus": 200,
               "isArgsWrapped": false,
               "contentType": "application/json",
               "responseContentType": "application/json",
@@ -1183,6 +1234,60 @@
       ]
     },
     {
+      "name": "ListRes",
+      "doc": "3. 通用列表/分页响应包装器",
+      "module": "Default",
+      "isInput": false,
+      "isWrapper": true,
+      "typeParams": [
+        "T"
+      ],
+      "fields": [
+        {
+          "name": "rows",
+          "type": "[]T",
+          "jsonName": "rows",
+          "originalType": "T",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        },
+        {
+          "name": "total",
+          "type": "int",
+          "jsonName": "total",
+          "originalType": "Int",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ListResError",
+      "doc": "3. 通用列表/分页响应包装器",
+      "module": "Default",
+      "isInput": false,
+      "isWrapper": false,
+      "fields": [
+        {
+          "name": "total",
+          "type": "int",
+          "jsonName": "total",
+          "originalType": "Int",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Article",
       "doc": "数据模型",
       "module": "WrapperDemo",
@@ -1403,7 +1508,7 @@
             },
             {
               "name": "Email",
-              "doc": "── 校验器定义 ──────────────────────────────────────────"
+              "doc": "公共定义（ResData）已在 00_common.res 中声明，此处直接使用\n── 校验器定义 ──────────────────────────────────────────"
             }
           ]
         },
@@ -1471,7 +1576,7 @@
           "validators": [
             {
               "name": "Email",
-              "doc": "── 校验器定义 ──────────────────────────────────────────"
+              "doc": "公共定义（ResData）已在 00_common.res 中声明，此处直接使用\n── 校验器定义 ──────────────────────────────────────────"
             }
           ]
         }
@@ -2044,7 +2149,58 @@
       ]
     },
     {
+      "name": "ListResArticle",
+      "doc": "3. 通用列表/分页响应包装器 (单态化展开自 ListRes\u003cArticle\u003e)",
+      "module": "FileDemo",
+      "isInput": false,
+      "isWrapper": false,
+      "fields": [
+        {
+          "name": "rows",
+          "type": "[]Article",
+          "jsonName": "rows",
+          "originalType": "Article",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        },
+        {
+          "name": "total",
+          "type": "int",
+          "jsonName": "total",
+          "originalType": "Int",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "ListArticlesArgs",
+      "module": "WrapperDemo",
+      "isInput": true,
+      "isWrapper": false,
+      "fields": [
+        {
+          "name": "page",
+          "type": "Int",
+          "jsonName": "page",
+          "originalType": "Int"
+        },
+        {
+          "name": "size",
+          "type": "Int",
+          "jsonName": "size",
+          "originalType": "Int"
+        }
+      ]
+    },
+    {
+      "name": "ListArticlesV2Args",
       "module": "WrapperDemo",
       "isInput": true,
       "isWrapper": false,

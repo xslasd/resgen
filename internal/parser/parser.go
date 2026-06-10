@@ -78,10 +78,12 @@ func collectComments(filename string) (map[int]string, map[int]bool, error) {
 	lineNum := 1
 	for scanner.Scan() {
 		line := scanner.Text()
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "#") {
-			comments[lineNum] = strings.TrimSpace(strings.TrimPrefix(trimmed, "#"))
-		} else if trimmed != "" {
+		code, comment, hasComment := splitLineComment(line)
+		trimmedCode := strings.TrimSpace(code)
+		if hasComment {
+			comments[lineNum] = comment
+		}
+		if trimmedCode != "" {
 			codeLines[lineNum] = true
 		}
 		lineNum++
@@ -96,14 +98,15 @@ func attachCommentsToSchema(s *Schema, comments map[int]string, codeLines map[in
 		// 寻找节点上方的注释块
 		var sb strings.Builder
 		for l := line - 1; l > 0; l-- {
+			if codeLines[l] {
+				// 如果某一行是代码行，停止向上搜寻
+				break
+			}
 			if txt, ok := comments[l]; ok {
 				if sb.Len() > 0 {
 					sb.WriteString("\n")
 				}
 				sb.WriteString(txt)
-			} else if codeLines[l] {
-				// 如果某一行不是注释且不是空行，停止向上搜寻
-				break
 			}
 		}
 		// 翻转顺序（因为是向上搜寻的）
@@ -118,13 +121,21 @@ func attachCommentsToSchema(s *Schema, comments map[int]string, codeLines map[in
 
 		if decl.Module != nil { decl.Module.Doc = doc }
 		if decl.Scalar != nil { decl.Scalar.Doc = doc }
-		if decl.Decorator != nil { decl.Decorator.Doc = doc }
+		if decl.Decorator != nil {
+			decl.Decorator.Doc = doc
+			if txt, ok := comments[decl.Decorator.Pos.Line]; ok {
+				decl.Decorator.TrailingDoc = txt
+			}
+		}
 		if decl.Model != nil { 
 			decl.Model.Doc = doc 
 			// 递归处理子字段
 			for j := range decl.Model.Properties {
 				p := &decl.Model.Properties[j]
-				p.Doc = findImmediateComment(p.Pos.Line, comments)
+				p.Doc = findImmediateComment(p.Pos.Line, comments, codeLines)
+				if txt, ok := comments[p.Pos.Line]; ok {
+					p.TrailingDoc = txt
+				}
 			}
 		}
 		if decl.Group != nil { 
@@ -137,6 +148,9 @@ func attachCommentsToSchema(s *Schema, comments map[int]string, codeLines map[in
 				epDoc, paramDocs := parseComments(epLines)
 				
 				ep.Doc = epDoc
+				if txt, ok := comments[ep.Pos.Line]; ok {
+					ep.TrailingDoc = txt
+				}
 				
 				for k := range ep.Args {
 					a := &ep.Args[k]
@@ -144,7 +158,7 @@ func attachCommentsToSchema(s *Schema, comments map[int]string, codeLines map[in
 					if pd, ok := paramDocs[a.Name]; ok {
 						a.Doc = pd
 					} else if a.Pos.Line > ep.Pos.Line {
-						a.Doc = findImmediateComment(a.Pos.Line, comments)
+						a.Doc = findImmediateComment(a.Pos.Line, comments, codeLines)
 					} else {
 						a.Doc = ""
 					}
@@ -158,10 +172,11 @@ func attachCommentsToSchema(s *Schema, comments map[int]string, codeLines map[in
 func collectMultilineCommentsAbove(line int, comments map[int]string, codeLines map[int]bool) []string {
 	var lines []string
 	for l := line - 1; l > 0; l-- {
+		if codeLines[l] {
+			break
+		}
 		if txt, ok := comments[l]; ok {
 			lines = append([]string{txt}, lines...)
-		} else if codeLines[l] {
-			break
 		}
 	}
 	return lines
@@ -236,7 +251,10 @@ func isValidIdentifier(s string) bool {
 	return true
 }
 
-func findImmediateComment(line int, comments map[int]string) string {
+func findImmediateComment(line int, comments map[int]string, codeLines map[int]bool) string {
+	if codeLines[line-1] {
+		return ""
+	}
 	if txt, ok := comments[line-1]; ok {
 		return txt
 	}
@@ -308,8 +326,10 @@ func (s *Schema) Validate() error {
 				routes[routeKey] = ep.Name
 
 				// 返回类型校验
-				if err := validateTypeRef(ep.ReturnType, models, baseTypes, nil); err != nil {
-					return fmt.Errorf("%s: endpoint %s: return type %v", ep.Pos, ep.Name, err)
+				if ep.ReturnType != nil {
+					if err := validateTypeRef(*ep.ReturnType, models, baseTypes, nil); err != nil {
+						return fmt.Errorf("%s: endpoint %s: return type %v", ep.Pos, ep.Name, err)
+					}
 				}
 
 				// 参数类型校验
@@ -393,14 +413,41 @@ func collectCommentsFromString(content string) (map[int]string, map[int]bool, er
 	lineNum := 1
 	for scanner.Scan() {
 		line := scanner.Text()
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "#") {
-			comments[lineNum] = strings.TrimSpace(strings.TrimPrefix(trimmed, "#"))
-		} else if trimmed != "" {
+		code, comment, hasComment := splitLineComment(line)
+		trimmedCode := strings.TrimSpace(code)
+		if hasComment {
+			comments[lineNum] = comment
+		}
+		if trimmedCode != "" {
 			codeLines[lineNum] = true
 		}
 		lineNum++
 	}
 	return comments, codeLines, scanner.Err()
+}
+
+// splitLineComment 分离一行中的代码与尾部注释，忽略双引号字符串中的 '#'
+func splitLineComment(line string) (code string, comment string, hasComment bool) {
+	inString := false
+	escape := false
+	for i := 0; i < len(line); i++ {
+		char := line[i]
+		if escape {
+			escape = false
+			continue
+		}
+		if char == '\\' {
+			escape = true
+			continue
+		}
+		if char == '"' {
+			inString = !inString
+			continue
+		}
+		if char == '#' && !inString {
+			return line[:i], strings.TrimSpace(line[i+1:]), true
+		}
+	}
+	return line, "", false
 }
 

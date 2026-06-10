@@ -352,7 +352,7 @@ func findIdentifierAt(schema *parser.Schema, line, col int) string {
 						return foundIdent
 					}
 				}
-				if visitTypeRef(ep.ReturnType) {
+				if ep.ReturnType != nil && visitTypeRef(*ep.ReturnType) {
 					return foundIdent
 				}
 				for _, arg := range ep.Args {

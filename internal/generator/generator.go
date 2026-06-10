@@ -17,7 +17,7 @@ import (
 	"golang.org/x/tools/imports"
 )
 
-const Version = "v0.3.1"
+const Version = "v0.3.4"
 
 //go:embed templates/engine.tmpl
 var engineTmpl string
@@ -115,7 +115,6 @@ func metaGetBool(entries []parser.MetaEntry, key string) (bool, bool) {
 // ToGoType 将 DSL 的类型引用转换为 Go 类型字符串
 func ToGoType(t parser.TypeRef, conf *config.Config, extraImports *[]string, context string, modelMap map[string]*ModelInfo) string {
 
-
 	if conf != nil && conf.Scalars != nil {
 		if mapping, ok := conf.Scalars[t.Name]; ok && mapping.Model != "" {
 			rawType := mapping.Model
@@ -129,8 +128,6 @@ func ToGoType(t parser.TypeRef, conf *config.Config, extraImports *[]string, con
 			return applyTypeModifiers(goBaseType, t)
 		}
 	}
-
-
 
 	goBaseType := t.Name
 	switch t.Name {
@@ -221,22 +218,22 @@ func applyTypeModifiers(base string, t parser.TypeRef) string {
 }
 
 type ModelField struct {
-	Name         string     `json:"name"`
-	Doc          string     `json:"doc,omitempty"`
-	Type         string     `json:"type"`
-	GoType       string     `json:"-"`
-	BaseGoType   string     `json:"-"`
-	IsScalar     bool       `json:"-"`
-	JSONName     string     `json:"jsonName"`
-	OriginalType string     `json:"originalType"`
-	GoValue      string     `json:"value,omitempty"`
-	Validators   []MetaInfo `json:"validators,omitempty"`
-	Tag          string     `json:"-"`
-	Source       string     `json:"-"` // Added: Path, Query, Header, Body
-	RefModel     *ModelInfo `json:"-"`
-	GoTypeDTO    string     `json:"-"`
-	IsArray      bool       `json:"-"`
-	IsPointer    bool       `json:"-"`
+	Name                  string     `json:"name"`
+	Doc                   string     `json:"doc,omitempty"`
+	Type                  string     `json:"type"`
+	GoType                string     `json:"-"`
+	BaseGoType            string     `json:"-"`
+	IsScalar              bool       `json:"-"`
+	JSONName              string     `json:"jsonName"`
+	OriginalType          string     `json:"originalType"`
+	GoValue               string     `json:"value,omitempty"`
+	Validators            []MetaInfo `json:"validators,omitempty"`
+	Tag                   string     `json:"-"`
+	Source                string     `json:"-"` // Added: Path, Query, Header, Body
+	RefModel              *ModelInfo `json:"-"`
+	GoTypeDTO             string     `json:"-"`
+	IsArray               bool       `json:"-"`
+	IsPointer             bool       `json:"-"`
 	IsArrayElementPointer bool       `json:"-"`
 	ScalarModel           string     `json:"-"`
 }
@@ -316,16 +313,16 @@ type MethodInfo struct {
 }
 
 type ArgumentInfo struct {
-	Name       string     `json:"name"`
-	Doc        string     `json:"doc,omitempty"`
-	Type       string     `json:"type"`
-	GoType     string     `json:"-"`
-	BaseGoType   string     `json:"-"`
-	IsScalar     bool       `json:"-"`
-	GoName     string     `json:"-"`
-	Source     string     `json:"source"`
-	Validators []MetaInfo `json:"validators,omitempty"`
-	RefModel   *ModelInfo `json:"-"`
+	Name        string     `json:"name"`
+	Doc         string     `json:"doc,omitempty"`
+	Type        string     `json:"type"`
+	GoType      string     `json:"-"`
+	BaseGoType  string     `json:"-"`
+	IsScalar    bool       `json:"-"`
+	GoName      string     `json:"-"`
+	Source      string     `json:"source"`
+	Validators  []MetaInfo `json:"validators,omitempty"`
+	RefModel    *ModelInfo `json:"-"`
 	ScalarModel string     `json:"-"`
 }
 
@@ -347,20 +344,20 @@ type RenderFuncInfo struct {
 }
 
 type DataContext struct {
-	Version                     string                `json:"version"`
-	Package                     string                `json:"package"`
-	Info                        ApiInfo               `json:"info"` // OpenAPI info
-	Validators                  []MetaInfo            `json:"validators,omitempty"`
-	Decorators                  []MetaInfo            `json:"-"`
-	Modules                     []ModuleInfo          `json:"modules"`
-	Models                      []*ModelInfo          `json:"models"`
-	ModelMap                    map[string]*ModelInfo `json:"-"`
+	Version                     string                 `json:"version"`
+	Package                     string                 `json:"package"`
+	Info                        ApiInfo                `json:"info"` // OpenAPI info
+	Validators                  []MetaInfo             `json:"validators,omitempty"`
+	Decorators                  []MetaInfo             `json:"-"`
+	Modules                     []ModuleInfo           `json:"modules"`
+	Models                      []*ModelInfo           `json:"models"`
+	ModelMap                    map[string]*ModelInfo  `json:"-"`
 	Scalars                     map[string]*ScalarInfo `json:"scalars,omitempty"`
-	Config                      *config.Config        `json:"-"`
-	BodySources                 []BodySourceInfo      `json:"-"`
-	ExtraImports                []string              `json:"-"`
-	RenderFuncs                 []RenderFuncInfo      `json:"-"` // 收集用到的所有渲染函数
-	ModuleSpecializedDecorators map[string][]MetaInfo `json:"-"` // 按模块收集特化装饰器
+	Config                      *config.Config         `json:"-"`
+	BodySources                 []BodySourceInfo       `json:"-"`
+	ExtraImports                []string               `json:"-"`
+	RenderFuncs                 []RenderFuncInfo       `json:"-"` // 收集用到的所有渲染函数
+	ModuleSpecializedDecorators map[string][]MetaInfo  `json:"-"` // 按模块收集特化装饰器
 }
 
 type ApiInfo struct {
@@ -395,7 +392,149 @@ func generateTags(fieldName string, conf *config.Config) string {
 	return "`" + strings.Join(tags, " ") + "`"
 }
 
+func monomorphizeAST(schema *parser.Schema, defaultWrap string) {
+	// 1. 构建 ModelDecl 的 Map，用于查找模板定义
+	modelDeclMap := make(map[string]*parser.ModelDecl)
+	for _, decl := range schema.Declarations {
+		if decl.Model != nil {
+			modelDeclMap[decl.Model.Name] = decl.Model
+		}
+	}
+
+	generated := make(map[string]bool)
+
+	var monomorphizeTypeRef func(t *parser.TypeRef, isTopLevelReturnType bool)
+	monomorphizeTypeRef = func(t *parser.TypeRef, isTopLevelReturnType bool) {
+		if t == nil {
+			return
+		}
+
+		// 深度优先，先递归单态化子泛型实参
+		for i := range t.TypeArgs {
+			monomorphizeTypeRef(&t.TypeArgs[i], false)
+		}
+
+		// 如果当前节点包含泛型实参，且不是最外层被剥离的 wrapper
+		isWrapper := false
+		if model, ok := modelDeclMap[t.Name]; ok && (model.Keyword == "wrap" || t.Name == defaultWrap) {
+			isWrapper = true
+		}
+
+		if len(t.TypeArgs) > 0 && !(isTopLevelReturnType && isWrapper) {
+			origModel, ok := modelDeclMap[t.Name]
+			if !ok {
+				return
+			}
+
+			// 生成单态化名称，例如 ListResRoleInfo
+			monoName := t.Name
+			for _, arg := range t.TypeArgs {
+				monoName += capitalize(arg.Name)
+			}
+
+			if !generated[monoName] {
+				generated[monoName] = true
+
+				newModel := &parser.ModelDecl{
+					Pos:        origModel.Pos,
+					Doc:        origModel.Doc + fmt.Sprintf(" (单态化展开自 %s)", formatTypeRef(*t)),
+					Directives: origModel.Directives,
+					Keyword:    "type", // 单态化后均转为普通 type 结构体
+					Name:       monoName,
+					TypeParams: nil,
+				}
+
+				// 映射泛型参数
+				paramMap := make(map[string]parser.TypeRef)
+				for idx, paramName := range origModel.TypeParams {
+					if idx < len(t.TypeArgs) {
+						paramMap[paramName] = t.TypeArgs[idx]
+					}
+				}
+
+				// 拷贝并替换属性的泛型类型
+				for _, prop := range origModel.Properties {
+					newProp := prop
+
+					var replaceType func(tr *parser.TypeRef)
+					replaceType = func(tr *parser.TypeRef) {
+						if tr == nil {
+							return
+						}
+						if argRef, isGeneric := paramMap[tr.Name]; isGeneric {
+							tr.Name = argRef.Name
+							tr.TypeArgs = argRef.TypeArgs
+							if argRef.IsArray {
+								tr.IsArray = true
+							}
+							if argRef.ItemNotNull {
+								tr.ItemNotNull = true
+							}
+							if argRef.ArrNotNull {
+								tr.ArrNotNull = true
+							}
+						}
+						for i := range tr.TypeArgs {
+							replaceType(&tr.TypeArgs[i])
+						}
+					}
+
+					replaceType(&newProp.Type)
+
+					// 递归单态化属性类型（例如 rows: TreeNode<T> 展开为 rows: TreeNodeRoleInfo）
+					monomorphizeTypeRef(&newProp.Type, false)
+
+					newModel.Properties = append(newModel.Properties, newProp)
+				}
+
+				// 注入到 schema 声明中
+				schema.Declarations = append(schema.Declarations, parser.Declaration{
+					Pos:   newModel.Pos,
+					Model: newModel,
+				})
+				modelDeclMap[monoName] = newModel
+			}
+
+			// 将当前 TypeRef 修改为指向单态化后的新类型
+			t.Name = monoName
+			t.TypeArgs = nil
+		}
+	}
+
+	// 遍历原有的所有声明，处理其中的类型引用
+	numDecls := len(schema.Declarations)
+	for i := 0; i < numDecls; i++ {
+		decl := &schema.Declarations[i]
+
+		if decl.Model != nil {
+			// 对 Model 的属性字段进行单态化扫描
+			for j := range decl.Model.Properties {
+				monomorphizeTypeRef(&decl.Model.Properties[j].Type, false)
+			}
+		}
+
+		if decl.Group != nil {
+			// 对 API 端点进行单态化扫描
+			for j := range decl.Group.Endpoints {
+				ep := &decl.Group.Endpoints[j]
+				if ep.ReturnType != nil {
+					monomorphizeTypeRef(ep.ReturnType, true)
+				}
+				for k := range ep.Args {
+					monomorphizeTypeRef(&ep.Args[k].Type, false)
+				}
+			}
+		}
+	}
+}
+
 func Generate(schema *parser.Schema, targetDir string, conf *config.Config) error {
+	defaultWrap := "ResData"
+	if conf.Generator.DefaultWrap != "" {
+		defaultWrap = conf.Generator.DefaultWrap
+	}
+	monomorphizeAST(schema, defaultWrap)
+
 	ctx := &DataContext{
 		Version:  Version,
 		Package:  "resolver",
@@ -585,12 +724,12 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 					}
 				}
 				m.Fields = append(m.Fields, ModelField{
-					Name:         capitalize(field.Name),
-					JSONName:     field.Name,
-					Doc:          field.Doc,
-					Type:         fieldType,
-					GoType:       goType,
-					IsScalar:     ctx.Scalars[field.Type.Name] != nil,
+					Name:     capitalize(field.Name),
+					JSONName: field.Name,
+					Doc:      field.Doc,
+					Type:     fieldType,
+					GoType:   goType,
+					IsScalar: ctx.Scalars[field.Type.Name] != nil,
 					ScalarModel: func() string {
 						if s, ok := ctx.Config.Scalars[field.Type.Name]; ok && s.Model != "" {
 							base, _ := parseCustomType(s.Model)
@@ -598,7 +737,13 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 						}
 						return ""
 					}(),
-					BaseGoType:   func() string { if s := ctx.Scalars[field.Type.Name]; s != nil { return toGoPhysicalBaseType(s.BaseType) } else { return goType } }(),
+					BaseGoType: func() string {
+						if s := ctx.Scalars[field.Type.Name]; s != nil {
+							return toGoPhysicalBaseType(s.BaseType)
+						} else {
+							return goType
+						}
+					}(),
 					OriginalType: field.Type.Name,
 					Tag:          generateTags(field.Name, ctx.Config),
 					Source:       "Body", // Default to Body
@@ -728,21 +873,24 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 				}
 			}
 			for _, ep := range decl.Group.Endpoints {
-				fullReturnType := ToGoType(ep.ReturnType, ctx.Config, &ctx.ExtraImports, ep.Name+".Return", ctx.ModelMap)
-				innerReturnType := fullReturnType
-
+				var fullReturnType string
+				var innerReturnType string
 				isReturnWrapped := false
 				returnTypeBase := ""
 				isReturnArray := false
-				if baseModel, ok := ctx.ModelMap[ep.ReturnType.Name]; ok && baseModel.IsWrapper {
-					isReturnWrapped = true
-					returnTypeBase = baseModel.Name
-					if len(ep.ReturnType.TypeArgs) > 0 {
-						innerReturnType = ToGoType(ep.ReturnType.TypeArgs[0], ctx.Config, &ctx.ExtraImports, ep.Name+".InnerReturn", ctx.ModelMap)
-						isReturnArray = ep.ReturnType.TypeArgs[0].IsArray
+				if ep.ReturnType != nil {
+					fullReturnType = ToGoType(*ep.ReturnType, ctx.Config, &ctx.ExtraImports, ep.Name+".Return", ctx.ModelMap)
+					innerReturnType = fullReturnType
+					if baseModel, ok := ctx.ModelMap[ep.ReturnType.Name]; ok && baseModel.IsWrapper {
+						isReturnWrapped = true
+						returnTypeBase = baseModel.Name
+						if len(ep.ReturnType.TypeArgs) > 0 {
+							innerReturnType = ToGoType(ep.ReturnType.TypeArgs[0], ctx.Config, &ctx.ExtraImports, ep.Name+".InnerReturn", ctx.ModelMap)
+							isReturnArray = ep.ReturnType.TypeArgs[0].IsArray
+						}
+					} else {
+						isReturnArray = ep.ReturnType.IsArray
 					}
-				} else {
-					isReturnArray = ep.ReturnType.IsArray
 				}
 
 				// 从接口级 ResponseMeta 读取 wrap/state；接口优先于组级
@@ -772,28 +920,33 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 				}
 
 				method := MethodInfo{
-					Name:            ep.Name,
-					Doc:             ep.Doc,
-					Method:          strings.ToUpper(ep.Method),
-					Path:            ep.Path,
-					FullPath:        decl.Group.Path + ep.Path,
-					ReturnType:      fullReturnType,
-					ReturnTypeDSL:   formatTypeRef(ep.ReturnType),
+					Name:       ep.Name,
+					Doc:        ep.Doc,
+					Method:     strings.ToUpper(ep.Method),
+					Path:       ep.Path,
+					FullPath:   decl.Group.Path + ep.Path,
+					ReturnType: fullReturnType,
+					ReturnTypeDSL: func() string {
+						if ep.ReturnType != nil {
+							return formatTypeRef(*ep.ReturnType)
+						}
+						return ""
+					}(),
 					InnerReturnType: innerReturnType,
 					IsReturnWrapped: isReturnWrapped,
 					ReturnTypeBase:  returnTypeBase,
 					InnerReturnModel: func() *ModelInfo {
-						if isReturnWrapped && len(ep.ReturnType.TypeArgs) > 0 {
+						if ep.ReturnType != nil && isReturnWrapped && len(ep.ReturnType.TypeArgs) > 0 {
 							return ctx.ModelMap[ep.ReturnType.TypeArgs[0].Name]
 						}
 						return nil
 					}(),
-					ErrorType:       errorType,
-					IsErrorWrapped:  isErrorWrapped,
-					ErrorTypeBase:   errorTypeBase,
-					IsReturnArray:   isReturnArray,
-					SuccessStatus:   successStatus,
-					IsArgsWrapped:   true,
+					ErrorType:      errorType,
+					IsErrorWrapped: isErrorWrapped,
+					ErrorTypeBase:  errorTypeBase,
+					IsReturnArray:  isReturnArray,
+					SuccessStatus:  successStatus,
+					IsArgsWrapped:  true,
 				}
 
 				// 响应 MIME 类型：优先接口 ResponseMeta[ctype]，无则 fallback 到 default_content_type
@@ -825,7 +978,13 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 							}
 							return ""
 						}(),
-						BaseGoType: func() string { if s := ctx.Scalars[arg.Type.Name]; s != nil { return toGoPhysicalBaseType(s.BaseType) } else { return goType } }(),
+						BaseGoType: func() string {
+							if s := ctx.Scalars[arg.Type.Name]; s != nil {
+								return toGoPhysicalBaseType(s.BaseType)
+							} else {
+								return goType
+							}
+						}(),
 					}
 					if method.Method == "GET" {
 						argInfo.Source = "Query"
@@ -915,7 +1074,7 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 				}
 				if returnModel, ok := ctx.ModelMap[method.InnerReturnType]; ok {
 					method.ReturnModel = returnModel
-				} else {
+				} else if ep.ReturnType != nil {
 					// InnerReturnType is the go type name, maybe pointer. We should use ep.ReturnType.Name for lookup
 					if returnModel, ok := ctx.ModelMap[ep.ReturnType.Name]; ok {
 						method.ReturnModel = returnModel
@@ -1479,7 +1638,7 @@ func generateApiDocs(ctx *DataContext, targetDir string) error {
 			mError.Name = m.Name + "Error"
 			mError.IsWrapper = false
 			mError.TypeParams = nil
-			
+
 			// 过滤掉任何包含泛型类型参数（如 T）的字段，保持 Error Wrapper 绝对单纯
 			var errFields []ModelField
 			for _, f := range mError.Fields {

@@ -36,12 +36,13 @@ type ScalarDecl struct {
 
 // MetaDecl 涵盖了 validator 和 decorator
 type MetaDecl struct {
-	Pos     lexer.Position
-	Doc     string
-	IsDec   bool        `( @"decorator" | "validator" )`
-	Name    string      `"@"? @Ident`
-	Args    []ArgDecl   `("(" @@ ("," @@)* ")")?`
-	Meta    []MetaEntry `("[" @@ ("," @@)* "]")?`
+	Pos         lexer.Position
+	Doc         string
+	TrailingDoc string
+	IsDec       bool        `( @"decorator" | "validator" )`
+	Name        string      `"@"? @Ident`
+	Args        []ArgDecl   `("(" @@ ("," @@)* ")")?`
+	Meta        []MetaEntry `("[" @@ ("," @@)* "]")?`
 }
 
 // ModelDecl 涵盖了 `type User { ... }` 和 `input CreateUserInput { ... }`
@@ -56,11 +57,12 @@ type ModelDecl struct {
 }
 
 type FieldDecl struct {
-	Pos        lexer.Position
-	Doc        string
-	Name       string           `@Ident ":"`
-	Type       TypeRef          `@@`
-	Directives []DirectiveUsage `@@*`
+	Pos         lexer.Position
+	Doc         string
+	TrailingDoc string
+	Name        string           `@Ident ":"`
+	Type        TypeRef          `@@`
+	Directives  []DirectiveUsage `@@*`
 }
 
 // MetaEntry 表示方括号中的键值对, 如 [ctype=form, state=201, wrap=ResData]
@@ -101,14 +103,15 @@ type GroupDecl struct {
 type EndpointDecl struct {
 	Pos          lexer.Position
 	Doc          string
+	TrailingDoc  string
 	Directives   []DirectiveUsage `@@*`
 	Method       string           `@( "GET" | "POST" | "PUT" | "DELETE" | "PATCH" | "get" | "post" | "put" | "delete" | "patch" )`
 	Path         string           `@RoutePath`
 	RequestMeta  []MetaEntry      `("[" @@ ("," @@)* "]")?`
 	Name         string           `"=>" @Ident`
 	Args         []ArgDecl        `"(" (@@ ("," @@)*)? ")"`
-	ReturnType   TypeRef          `":" @@`
-	ResponseMeta []MetaEntry      `("[" @@ ("," @@)* "]")?`
+	ReturnType   *TypeRef          `(":" @@)?`
+	ResponseMeta []MetaEntry       `("[" @@ ("," @@)* "]")?`
 }
 
 type ArgDecl struct {

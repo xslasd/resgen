@@ -127,9 +127,50 @@ request.RenderJson(204, result)
 - **`ctype`**: 指定成功响应的 Content-Type 类型（映射到 context 不同的渲染函数，如 `json`, `text`, `xml`, `multipart` 等）。
 - **`etype`**: 指定错误响应的包装格式。这实现了“成功时直接返回纯原始文件流，失败时退化为标准 JSON 统一结构报错”的弹性设计。
 
-## 5. API 文档展示
+## 7. API 文档展示
 
 Resgen 的交互式文档会自动解析响应结构：
 - **泛型还原**：文档会显示 `ResData<User>` 而非模糊的 JSON。
 - **字段展开**：展示包装器及其内部业务模型的完整字段列表。
 - **状态码标注**：基于 `[state=...]` 元数据清晰标注预期成功状态码。
+
+---
+
+## 8. 嵌套泛型与单态化展开 (Nested Generics & Monomorphization)
+
+为了防止像传统生成工具那样定义大量重复的列表响应模型，Resgen 支持在 Schema 返回声明中使用 **嵌套的泛型包装器**（即双重 `wrap`），最典型的是结合分页包装器使用：
+
+```graphql
+# 1. 定义外层统一包装器
+wrap ResData<T> {
+    code: Int!
+    msg: String!
+    data: T
+}
+
+# 2. 定义内层分页列表包装器
+wrap ListRes<T> {
+    rows: [T!]!
+    total: Int!
+}
+
+# 3. 接口直接声明双重嵌套泛型
+group /articles [wrap=ResData] {
+    GET /list => ListArticles(page: Int, size: Int): ResData<ListRes<Article>>
+}
+```
+
+### 🧬 编译期单态化展开 (Monomorphization)
+在生成 Go 代码时，编译器会自动识别非顶层 wrapper 的嵌套泛型，并对其执行**单态化平铺展开**：
+1. **自动生成具体 struct**：编译器会自动生成一个平铺的、带有实际泛型参数具体化的 struct。例如，根据 `ListRes<Article>` 自动生成非泛型的结构体：
+   ```go
+   type ListResArticle struct {
+       Rows  []Article `json:"rows"`
+       Total int       `json:"total"`
+   }
+   ```
+2. **强类型方法签名推导**：业务层接口 `Resolver` 对应方法的返回签名会被智能替换为该具体结构体的指针，保留最优的类型安全：
+   ```go
+   ListArticles(ctx context.Context, input *ListArticlesArgs) (*ListResArticle, error)
+   ```
+3. **外层 Wrapper 自动脱壳**：顶层的统一响应包装器 `ResData` 依然在 Executor 处理函数中被自动剥离，在渲染响应时由 `Responder.BindResData` 底层装回。因此，您在业务逻辑中只需返回列表和总条数，而无需操心外壳的渲染。

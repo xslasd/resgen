@@ -247,9 +247,13 @@ type {{.Module.Name}}Resolver[T any] interface {
 	Validate{{.Name}}(ctx T, input *{{.InputName}}) error
 	{{- end}}
 	// {{.Name}} {{.Method}} {{.FullPath}}
+	{{- if .ReturnType}}
 	{{.Name}}(ctx context.Context{{if .HasInput}}, input *{{.InputName}}{{else if and .Args (not .IsArgsWrapped)}}{{range .Args}}, {{.Name}} {{.GoType}}{{end}}{{end}}) ({{.InnerReturnType}}, error)
+	{{- else}}
+	{{.Name}}(ctx context.Context{{if .HasInput}}, input *{{.InputName}}{{else if and .Args (not .IsArgsWrapped)}}{{range .Args}}, {{.Name}} {{.GoType}}{{end}}{{end}}) error
+	{{- end}}
 	{{- range .ResponseDecorators}}{{if .IsSpecialized}}
-	OnResponse_{{.Name}}_{{$ep.Name}}(ctx T, info MethodInfo {{- if $ep.HasInput}}, input *{{.InputType}}{{end}}, result {{.ReturnType}}, err error {{- range .Args}}, {{.Name}} {{.GoType}} {{- end}}) ({{.ReturnType}}, error)
+	OnResponse_{{.Name}}_{{$ep.Name}}(ctx T, info MethodInfo {{- if $ep.HasInput}}, input *{{.InputType}}{{end}} {{- if .ReturnType}}, result {{.ReturnType}} {{- end}}, err error {{- range .Args}}, {{.Name}} {{.GoType}} {{- end}}) ({{if .ReturnType}}{{.ReturnType}}, {{end}}error)
 	{{- end}}{{end}}
 	{{- end}}
 	{{- end}}
@@ -448,10 +452,14 @@ func (e *{{$.Module.Name}}Executor[T, C]) handle{{.Name}}(request C, info Method
 	}
 	{{- end}}
 	{{- end}}
+	{{- if .ReturnType}}
 	result, err := e.biz.{{.Name}}(request.Context() {{- if .InputName}}, &input{{else if and .Args (not .IsArgsWrapped)}}{{range .Args}}, {{.Name}}Val{{end}}{{end}})
+	{{- else}}
+	err := e.biz.{{.Name}}(request.Context() {{- if .InputName}}, &input{{else if and .Args (not .IsArgsWrapped)}}{{range .Args}}, {{.Name}}Val{{end}}{{end}})
+	{{- end}}
 	{{- range .ResponseDecorators}}
 	{{- if not .IsSpecialized}}
-	if res, rerr := e.d.{{.Name}}(native, info {{- if $ep.HasInput}}, &input{{else}}, nil{{end}}, result, err {{range .Args}}, {{.GoValue}}{{end}}); rerr != nil {
+	if res, rerr := e.d.{{.Name}}(native, info {{- if $ep.HasInput}}, &input{{else}}, nil{{end}}, {{- if $ep.ReturnType}} result {{- else}} nil {{- end}}, err {{range .Args}}, {{.GoValue}}{{end}}); rerr != nil {
 		{{- if $ep.IsReturnWrapped}}
 		request.Render{{$ep.ErrorRenderFunc}}(e.r.ErrorToStatus(native, rerr), e.r.Bind{{$ep.ReturnTypeBase}}(native, nil, rerr))
 		{{- else if $ep.IsErrorWrapped}}
@@ -461,11 +469,15 @@ func (e *{{$.Module.Name}}Executor[T, C]) handle{{.Name}}(request C, info Method
 		{{- end}}
 		return
 	} else {
+		{{- if $ep.ReturnType}}
 		result, _ = res.({{$ep.InnerReturnType}})
+		{{- end}}
 		err = rerr
 	}
 	{{- else}}
-	if res, rerr := e.biz.OnResponse_{{.Name}}_{{$ep.Name}}(native, info {{- if $ep.HasInput}}, &input{{end}}, result, err {{range .Args}}, {{.GoValue}}{{end}}); rerr != nil {
+	if {{- if $ep.ReturnType}} res, rerr := e.biz.OnResponse_{{.Name}}_{{$ep.Name}}(native, info {{- if $ep.HasInput}}, &input{{end}}, result, err {{range .Args}}, {{.GoValue}}{{end}}); rerr != nil {
+		{{- else}} rerr := e.biz.OnResponse_{{.Name}}_{{$ep.Name}}(native, info {{- if $ep.HasInput}}, &input{{end}}, err {{range .Args}}, {{.GoValue}}{{end}}); rerr != nil {
+		{{- end}}
 		{{- if $ep.IsReturnWrapped}}
 		request.Render{{$ep.ErrorRenderFunc}}(e.r.ErrorToStatus(native, rerr), e.r.Bind{{$ep.ReturnTypeBase}}(native, nil, rerr))
 		{{- else if $ep.IsErrorWrapped}}
@@ -475,7 +487,9 @@ func (e *{{$.Module.Name}}Executor[T, C]) handle{{.Name}}(request C, info Method
 		{{- end}}
 		return
 	} else {
+		{{- if $ep.ReturnType}}
 		result = res
+		{{- end}}
 		err = rerr
 	}
 	{{- end}}
@@ -490,6 +504,7 @@ func (e *{{$.Module.Name}}Executor[T, C]) handle{{.Name}}(request C, info Method
 		{{- end}}
 		return
 	}
+	{{- if .ReturnType}}
 	{{- $targetModel := .ReturnModel -}}
 	{{- if and .IsReturnWrapped .InnerReturnModel -}}
 		{{- $targetModel = .InnerReturnModel -}}
@@ -541,6 +556,9 @@ func (e *{{$.Module.Name}}Executor[T, C]) handle{{.Name}}(request C, info Method
 	{{- else}}
 	request.Render{{.ResponseRenderFunc}}({{.SuccessStatus}}, result)
 	{{- end}}
+	{{- end}}
+	{{- else}}
+	request.Render{{.ResponseRenderFunc}}({{.SuccessStatus}}, nil)
 	{{- end}}
 }
 

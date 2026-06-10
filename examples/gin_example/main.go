@@ -195,6 +195,8 @@ func (h *AuthDemoHandler) DeleteUser(ctx context.Context, id *int) (*string, err
 	return &s, nil
 }
 
+var _ resolver.WrapperDemoResolver[any] = (*WrapperDemoHandler)(nil)
+
 // WrapperDemoHandler
 type WrapperDemoHandler struct{}
 
@@ -210,12 +212,27 @@ func (h *WrapperDemoHandler) ListArticles(ctx context.Context, input *resolver.L
 	return &list, nil
 }
 
+func (h *WrapperDemoHandler) ListArticlesV2(ctx context.Context, input *resolver.ListArticlesV2Args) (*resolver.ListResArticle, error) {
+	list := []resolver.Article{
+		{Id: 1, Title: "Article 1 (V2)", Content: "Content 1 (V2)"},
+		{Id: 2, Title: "Article 2 (V2)", Content: "Content 2 (V2)"},
+	}
+	return &resolver.ListResArticle{
+		Rows:  list,
+		Total: 2,
+	}, nil
+}
+
 func (h *WrapperDemoHandler) CreateArticle(ctx context.Context, input *resolver.CreateArticleArgs) (*resolver.Article, error) {
 	return &resolver.Article{Id: 100, Title: input.Title, Content: input.Content}, nil
 }
 
 func (h *WrapperDemoHandler) GetArticleRaw(ctx context.Context, id *int) (*resolver.Article, error) {
 	return &resolver.Article{Id: *id, Title: "Raw Title", Content: "Raw Content"}, nil
+}
+
+func (h *WrapperDemoHandler) Logout(ctx context.Context) error {
+	return nil
 }
 
 // ScalarDemoHandler
@@ -431,7 +448,7 @@ func main() {
 	en := resolver.NewEngine[*GinContext]().
 		BindResponder(&MyResponder{}).
 		BindRegister(func(e *resolver.Engine[*GinContext], info resolver.MethodInfo, handler resolver.HandlerFunc[*GinContext]) {
-			fmt.Printf("%-6s %-30s --> %s \n", info.Method, "/api"+info.Path, info.HandlerPos)
+			fmt.Printf("%-6s %-30s --> %s \n", info.Method, info.Path, info.HandlerPos)
 			r.Handle(info.Method, info.Path, func(ctx *gin.Context) {
 				handler(&GinContext{GC: ctx}, info)
 			})

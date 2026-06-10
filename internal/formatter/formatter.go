@@ -87,7 +87,12 @@ func (f *Formatter) formatDecl(decl parser.Declaration, w io.Writer, depth int) 
 			metaStr = "[" + strings.Join(metas, ", ") + "]"
 		}
 
-		fmt.Fprintf(w, "%s%s %s%s%s\n", indent, kw, name, argsStr, metaStr)
+		trailingStr := ""
+		if d.TrailingDoc != "" {
+			trailingStr = " # " + d.TrailingDoc
+		}
+
+		fmt.Fprintf(w, "%s%s %s%s%s%s\n", indent, kw, name, argsStr, metaStr, trailingStr)
 	}
 
 	if decl.Model != nil {
@@ -105,10 +110,9 @@ func (f *Formatter) formatDecl(decl parser.Declaration, w io.Writer, depth int) 
 		}
 
 		fmt.Fprintf(w, "%s%s %s%s {\n", indent, m.Keyword, m.Name, typeParamsStr)
-		for _, prop := range m.Properties {
-			if prop.Doc != "" {
-				_, _ = io.WriteString(w, f.formatDoc(prop.Doc, indent+strings.Repeat(" ", f.IndentWidth)))
-			}
+		maxContentLen := 0
+		typeAndDirsList := make([]string, len(m.Properties))
+		for idx, prop := range m.Properties {
 			var dirs []string
 			for _, dir := range prop.Directives {
 				dirs = append(dirs, f.formatDirective(dir))
@@ -117,12 +121,33 @@ func (f *Formatter) formatDecl(decl parser.Declaration, w io.Writer, depth int) 
 			if len(dirs) > 0 {
 				dirsStr = " " + strings.Join(dirs, " ")
 			}
-			fmt.Fprintf(w, "%s%s%s: %s%s\n", 
+			typeAndDirs := f.formatTypeRef(prop.Type) + dirsStr
+			typeAndDirsList[idx] = typeAndDirs
+
+			contentLen := len(prop.Name) + 2 + len(typeAndDirs)
+			if contentLen > maxContentLen {
+				maxContentLen = contentLen
+			}
+		}
+
+		for idx, prop := range m.Properties {
+			if prop.Doc != "" {
+				_, _ = io.WriteString(w, f.formatDoc(prop.Doc, indent+strings.Repeat(" ", f.IndentWidth)))
+			}
+			
+			typeAndDirs := typeAndDirsList[idx]
+			content := prop.Name + ": " + typeAndDirs
+			
+			trailingStr := ""
+			if prop.TrailingDoc != "" {
+				padding := strings.Repeat(" ", maxContentLen-len(content))
+				trailingStr = padding + " # " + prop.TrailingDoc
+			}
+			
+			fmt.Fprintf(w, "%s%s%s\n", 
 				indent+strings.Repeat(" ", f.IndentWidth), 
-				prop.Name, 
-				"", // 原先可能有空格，现在规范为无空格
-				f.formatTypeRef(prop.Type), 
-				dirsStr,
+				content, 
+				trailingStr,
 			)
 		}
 		fmt.Fprintf(w, "%s}\n", indent)
@@ -183,15 +208,24 @@ func (f *Formatter) formatDecl(decl parser.Declaration, w io.Writer, depth int) 
 				respMetaStr = " [" + strings.Join(metas, ", ") + "]"
 			}
 
-			fmt.Fprintf(w, "%s%s %s%s => %s(%s): %s%s\n",
+			trailingStr := ""
+			if ep.TrailingDoc != "" {
+				trailingStr = " # " + ep.TrailingDoc
+			}
+			returnTypeStr := ""
+			if ep.ReturnType != nil {
+				returnTypeStr = ": " + f.formatTypeRef(*ep.ReturnType)
+			}
+			fmt.Fprintf(w, "%s%s %s%s => %s(%s)%s%s%s\n",
 				indent+strings.Repeat(" ", f.IndentWidth),
 				strings.ToUpper(ep.Method),
 				ep.Path,
 				reqMetaStr,
 				ep.Name,
 				argsStr,
-				f.formatTypeRef(ep.ReturnType),
+				returnTypeStr,
 				respMetaStr,
+				trailingStr,
 			)
 		}
 		fmt.Fprintf(w, "%s}\n", indent)
