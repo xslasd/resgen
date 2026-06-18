@@ -17,7 +17,7 @@ import (
 	"golang.org/x/tools/imports"
 )
 
-const Version = "v0.3.4"
+const Version = "v0.4.0"
 
 //go:embed templates/engine.tmpl
 var engineTmpl string
@@ -1006,7 +1006,7 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 
 					for _, d := range arg.Directives {
 						switch strings.ToLower(d.Name) {
-						case "path", "query", "header", "form":
+						case "path", "query", "header":
 							argInfo.Source = capitalize(d.Name)
 						case "required":
 							continue
@@ -1143,24 +1143,45 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 
 				// 请求 Content-Type：RequestMeta[ctype] > 自动推断（含文件检测）> 默认
 				sourceSymbol := ""
+				ctypeExplicit := false // 用户是否明确指定了 ctype
 				if v, ok := metaGet(ep.RequestMeta, "ctype"); ok {
 					sourceSymbol = v
+					ctypeExplicit = true
 				}
-				if sourceSymbol == "" || sourceSymbol == "json" {
-					m := method.Method
-					if m == "POST" || m == "PUT" || m == "PATCH" {
-						hasFile := false
-						for _, arg := range method.Args {
-							if arg.Type == "*multipart.FileHeader" || (arg.RefModel != nil && hasFileInModel(arg.RefModel, ctx.ModelMap)) {
-								hasFile = true
-								break
-							}
+
+				m := method.Method
+				if m == "POST" || m == "PUT" || m == "PATCH" {
+					// 检测 input 中是否含有 File 字段（File 字段必须使用 multipart）
+					hasFile := false
+					for _, arg := range method.Args {
+						// arg.GoType 是 Go 物理类型（如 "*multipart.FileHeader"），覆盖顶层和 input struct 场景
+						if strings.Contains(arg.GoType, "multipart.FileHeader") {
+							hasFile = true
 						}
+						if arg.RefModel != nil && hasFileInModel(arg.RefModel, ctx.ModelMap) {
+							hasFile = true
+						}
+					}
+
+					if ctypeExplicit {
+						// 用户明确指定了 ctype，校验与 File 字段的兼容性
+						ctypeLower := strings.ToLower(sourceSymbol)
+						isJsonCtype := ctypeLower == "json" || ctypeLower == "application/json"
+						isFormCtype := ctypeLower == "form" || ctypeLower == "application/x-www-form-urlencoded"
+						if isJsonCtype && hasFile {
+							return fmt.Errorf("语义错误：接口 [%s %s] 的 input 中包含 File 字段，不能与 ctype=json 同时使用。File 字段必须通过 multipart/form-data 传输，请将 ctype 改为 multipart", ep.Method, ep.Path)
+						}
+						if isFormCtype && hasFile {
+							return fmt.Errorf("语义错误：接口 [%s %s] 的 input 中包含 File 字段，不能与 ctype=form（application/x-www-form-urlencoded）同时使用。文件上传必须使用 multipart/form-data，请将 ctype 改为 multipart", ep.Method, ep.Path)
+						}
+					} else {
+						// 用户未指定 ctype，自动推断：有 File 字段则升级为 multipart
 						if hasFile {
 							sourceSymbol = "multipart"
 						}
 					}
 				}
+
 				if sourceSymbol == "" {
 					sourceSymbol = conf.Generator.DefaultContentType
 				}

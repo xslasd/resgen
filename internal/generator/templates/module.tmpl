@@ -558,7 +558,11 @@ func (e *{{$.Module.Name}}Executor[T, C]) handle{{.Name}}(request C, info Method
 	{{- end}}
 	{{- end}}
 	{{- else}}
+	{{- if $.Config.Generator.DefaultWrap}}
+	request.Render{{.ResponseRenderFunc}}({{.SuccessStatus}}, e.r.Bind{{$.Config.Generator.DefaultWrap}}(native, nil, nil))
+	{{- else}}
 	request.Render{{.ResponseRenderFunc}}({{.SuccessStatus}}, nil)
+	{{- end}}
 	{{- end}}
 }
 
@@ -609,8 +613,33 @@ func (e *{{$.Module.Name}}Executor[T, C]) bind{{.Name}}(request C, input *{{.Inp
 	{{- end}}
 	{{- end}}
 	{{- else}}
+	{{- $inputModel := (index .Args 0).RefModel}}
+	{{- range $inputModel.Fields}}
+	{{- if ne .Source "Body"}}
+	{{- $extractFunc := "GetQuery" -}}
+	{{- if eq .Source "Path"}}{{$extractFunc = "GetPath"}}{{end}}
+	{{- if eq .Source "Header"}}{{$extractFunc = "GetHeader"}}{{end}}
+	{{- if .IsScalar}}
+	if val := request.{{$extractFunc}}("{{.JSONName}}"); val != "" {
+		var tmp {{.ScalarModel}}
+		if err := tmp.FromParam(request.Native(), val); err != nil { return err }
+		{{- if HasPrefix .GoType "*" }}
+		targetVal := {{slice .GoType 1}}(tmp)
+		input.{{.Name}} = &targetVal
+		{{- else}}
+		input.{{.Name}} = {{.GoType}}(tmp)
+		{{- end}}
+	}
+	{{- else}}
+	if val := request.{{$extractFunc}}("{{.JSONName}}"); val != "" {
+		{{ParseParam (printf "input.%s" .Name) "val" .GoType}}
+	}
+	{{- end}}
+	{{- end}}
+	{{- end}}
 	{{- if eq .Method "GET"}}
-	{{- range (index .Args 0).RefModel.Fields}}
+	{{- range $inputModel.Fields}}
+	{{- if eq .Source "Body"}}
 	{{- if .IsScalar}}
 	if val := request.GetQuery("{{.JSONName}}"); val != "" {
 		var tmp {{.ScalarModel}}
@@ -626,6 +655,7 @@ func (e *{{$.Module.Name}}Executor[T, C]) bind{{.Name}}(request C, input *{{.Inp
 	if val := request.GetQuery("{{.JSONName}}"); val != "" {
 		{{ParseParam (printf "input.%s" .Name) "val" .GoType}}
 	}
+	{{- end}}
 	{{- end}}
 	{{- end}}
 	{{- end}}

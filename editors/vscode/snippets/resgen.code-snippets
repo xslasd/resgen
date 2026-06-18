@@ -121,13 +121,6 @@
         ],
         "description": "绑定为 HTTP 请求头参数"
     },
-    "Form Param Decorator": {
-        "prefix": "@form",
-        "body": [
-            "@form"
-        ],
-        "description": "绑定为 HTTP 表单参数 (适用于 Multipart/Form 请求)"
-    },
     "Custom Bind Directive": {
         "prefix": "@customBind",
         "body": [

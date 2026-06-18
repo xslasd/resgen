@@ -182,11 +182,16 @@ GET /users/:id => GetUser(id: Int @path): User
 - `@path`: 路径参数
 - `@query`: 查询参数
 - `@header`: 请求头
-- `@form`: 表单字段
 - `@customBind`: **逻辑接管绑定**。跳过自动生成代码的绑定逻辑，在 Resolver 中生成 `BindXXX` 方法供手动实现（适用于 Multipart 复杂处理或自定义解析）。
 - 默认逻辑：
   - `GET` 方法：参数默认绑定到 `Query`。
-  - `POST/PUT/PATCH` 方法：参数默认绑定到 `Body` (JSON) 或 Form。
+  - `POST/PUT/PATCH` 方法：Body 字段的序列化格式由接口的 `ctype` 统一决定（`json`/`form`/`multipart`），**无需在字段上逐个标注**。
+
+> [!NOTE]
+> `@path`/`@query`/`@header` 字段可以出现在 `input` 结构体字段中，也可以直接作为顶层参数。
+> `File` 类型字段会自动推断为 multipart 传输，若未指定 `ctype`，生成器会自动将接口的 `ctype` 升级为 `multipart`；
+> 若明确指定了 `ctype=json` 或 `ctype=form` 但 input 中含有 `File` 字段，生成器会在生成阶段报错。
+
 
 ### 参数规范
 - **GET 扁平化**：针对 `GET` 接口，如果参数是结构体，Resgen 会自动将其字段展开为顶层查询参数（如 `?page=1&size=10`）。
