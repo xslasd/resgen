@@ -29,8 +29,10 @@ input QueryEventsInput {
 
 group /events [wrap=ResData] {
     # 标量作为路径参数（@path），由 FromParam 处理字符串解析
+    @auth("events:get")
     GET /:startTime => GetEventByTime(startTime: IntTime @path): ResData<Event>
     # 标量作为 Query 参数，GET 请求自动展开
+    @auth("events:list")
     GET /list => ListEvents(input: QueryEventsInput): ResData<[Event]>
     # 标量在请求 Body 中，由序列化层（isolation 模式用 FromValue，direct 模式由用户控制）处理
     POST /create => CreateEvent(input: CreateEventInput): ResData<Event> [state=201]

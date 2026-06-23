@@ -294,6 +294,7 @@ type MethodInfo struct {
 	IsErrorWrapped     bool           `json:"isErrorWrapped"`
 	ErrorTypeBase      string         `json:"errorTypeBase,omitempty"`
 	SuccessStatus      int            `json:"successStatus"`
+	Permission         string         `json:"permission,omitempty"`
 	RequestDecorators  []MetaInfo     `json:"-"`
 	InvokeDecorators   []MetaInfo     `json:"-"`
 	ResponseDecorators []MetaInfo     `json:"-"`
@@ -1087,6 +1088,7 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 
 				for _, d := range filteredDirectives {
 					nameLower := strings.ToLower(d.Name)
+
 					if nameLower == "custombind" {
 						method.CustomBind = true
 						continue
@@ -1105,6 +1107,45 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 					dInfo, ok := decoratorMap[nameLower]
 					if !ok {
 						continue
+					}
+
+					// 提取配置的权限装饰器中的权限标识
+					authDec := strings.TrimPrefix(ctx.Config.Generator.AuthDecorator, "@")
+					if authDec != "" && strings.EqualFold(d.Name, authDec) {
+						permissionVal := ""
+						authParam := strings.TrimPrefix(ctx.Config.Generator.AuthParamName, "@")
+
+						if authParam != "" {
+							// 寻找匹配指定参数名的参数值，同时兼容没有写参数名的位置参数
+							for idx, arg := range d.Args {
+								paramName := arg.Name
+								if paramName == "" && idx < len(dInfo.Args) {
+									paramName = dInfo.Args[idx].Name
+								}
+
+								if strings.EqualFold(paramName, authParam) {
+									if arg.Value.String != nil {
+										permissionVal = *arg.Value.String
+									} else if arg.Value.Ident != nil {
+										permissionVal = *arg.Value.Ident
+									}
+									break
+								}
+							}
+						} else {
+							// 若未配置参数名，默认取第一个参数
+							if len(d.Args) > 0 {
+								arg := d.Args[0]
+								if arg.Value.String != nil {
+									permissionVal = *arg.Value.String
+								} else if arg.Value.Ident != nil {
+									permissionVal = *arg.Value.Ident
+								}
+							}
+						}
+						if permissionVal != "" {
+							method.Permission = permissionVal
+						}
 					}
 
 					meta := MetaInfo{

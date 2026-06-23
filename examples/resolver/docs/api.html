@@ -97,7 +97,7 @@
     <script>
         // Data injected by Go
         const apiData = {
-  "version": "v0.3.3",
+  "version": "v0.4.0",
   "package": "resolver",
   "info": {
     "title": "Resgen Generated API",
@@ -506,6 +506,7 @@
               "isErrorWrapped": true,
               "errorTypeBase": "ResDataError",
               "successStatus": 200,
+              "permission": "admin",
               "args": [
                 {
                   "name": "id",
@@ -566,6 +567,7 @@
               "isErrorWrapped": true,
               "errorTypeBase": "ResDataError",
               "successStatus": 200,
+              "permission": "events:get",
               "args": [
                 {
                   "name": "start_time",
@@ -595,6 +597,7 @@
               "isErrorWrapped": true,
               "errorTypeBase": "ResDataError",
               "successStatus": 200,
+              "permission": "events:list",
               "args": [
                 {
                   "name": "input",
@@ -762,6 +765,7 @@
               "isErrorWrapped": true,
               "errorTypeBase": "ResDataError",
               "successStatus": 200,
+              "permission": "export:*",
               "isArgsWrapped": false,
               "contentType": "application/json",
               "responseContentType": "text/plain",
@@ -782,6 +786,7 @@
               "isErrorWrapped": true,
               "errorTypeBase": "ResDataError",
               "successStatus": 200,
+              "permission": "export:*",
               "isArgsWrapped": false,
               "contentType": "application/json",
               "responseContentType": "application/json",
@@ -802,6 +807,7 @@
               "isErrorWrapped": true,
               "errorTypeBase": "ResDataError",
               "successStatus": 200,
+              "permission": "export:*",
               "isArgsWrapped": false,
               "contentType": "application/json",
               "responseContentType": "application/xml",
@@ -2413,6 +2419,7 @@
                             btn.innerHTML = `
                                 <span class="text-[8px] font-black w-9 py-0.5 rounded-[3px] text-center uppercase opacity-80 ${methodStyle}">${ep.method}</span>
                                 <span class="truncate flex-1 transition-all group-hover:translate-x-0.5 font-medium">${ep.name}</span>
+                                ${ep.permission ? `<svg class="w-3.5 h-3.5 text-amber-500/70 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" title="Required Permission: ${ep.permission}"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>` : ''}
                             `;
                             groupDiv.appendChild(btn);
                         });
@@ -2496,6 +2503,14 @@
                     <div class="flex items-center gap-4">
                         <h1 class="text-4xl font-bold text-white tracking-tight">${ep.name}</h1>
                         <span class="px-3 py-1 rounded bg-slate-800 text-xs font-black uppercase border border-white/5 method-${ep.method.toLowerCase()} shadow-xl">${ep.method}</span>
+                        ${ep.permission ? `
+                            <div class="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20 select-none border border-amber-400/30" title="Required Permission">
+                                <svg class="w-3.5 h-3.5 text-slate-950" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                                </svg>
+                                <span class="text-xs font-black font-mono tracking-wide">${ep.permission}</span>
+                            </div>
+                        ` : ''}
                     </div>
                     ${ep.doc ? `<p class="text-slate-400 text-lg border-l-4 border-primary/50 pl-6 py-2 italic bg-slate-800/20 rounded-r-lg">${ep.doc.replace(/\n/g, '<br>')}</p>` : ''}
                 </div>

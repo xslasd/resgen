@@ -32,6 +32,7 @@ group /content [wrap=ResData] {
 }
 
 # ── GET 接口的响应 Content-Type ──────────────────────────
+@auth("export:*")
 group /export {
     # 响应为纯文本，错误时退化为 JSON（错误使用 ResData 包装）
     GET /text => ExportText(): String [ctype=text, etype=json, wrap=ResData]

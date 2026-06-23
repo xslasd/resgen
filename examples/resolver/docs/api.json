@@ -1,5 +1,5 @@
 {
-  "version": "v0.3.3",
+  "version": "v0.4.0",
   "package": "resolver",
   "info": {
     "title": "Resgen Generated API",
@@ -408,6 +408,7 @@
               "isErrorWrapped": true,
               "errorTypeBase": "ResDataError",
               "successStatus": 200,
+              "permission": "admin",
               "args": [
                 {
                   "name": "id",
@@ -468,6 +469,7 @@
               "isErrorWrapped": true,
               "errorTypeBase": "ResDataError",
               "successStatus": 200,
+              "permission": "events:get",
               "args": [
                 {
                   "name": "start_time",
@@ -497,6 +499,7 @@
               "isErrorWrapped": true,
               "errorTypeBase": "ResDataError",
               "successStatus": 200,
+              "permission": "events:list",
               "args": [
                 {
                   "name": "input",
@@ -664,6 +667,7 @@
               "isErrorWrapped": true,
               "errorTypeBase": "ResDataError",
               "successStatus": 200,
+              "permission": "export:*",
               "isArgsWrapped": false,
               "contentType": "application/json",
               "responseContentType": "text/plain",
@@ -684,6 +688,7 @@
               "isErrorWrapped": true,
               "errorTypeBase": "ResDataError",
               "successStatus": 200,
+              "permission": "export:*",
               "isArgsWrapped": false,
               "contentType": "application/json",
               "responseContentType": "application/json",
@@ -704,6 +709,7 @@
               "isErrorWrapped": true,
               "errorTypeBase": "ResDataError",
               "successStatus": 200,
+              "permission": "export:*",
               "isArgsWrapped": false,
               "contentType": "application/json",
               "responseContentType": "application/xml",

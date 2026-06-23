@@ -26,6 +26,8 @@ type GeneratorConfig struct {
 	DefaultWrap        string            `yaml:"default_wrap"`
 	DefaultOkStatus    int               `yaml:"default_ok_status"`
 	ScalarStyle        string            `yaml:"scalar_style"` // isolation (默认) | direct
+	AuthDecorator      string            `yaml:"auth_decorator"`
+	AuthParamName      string            `yaml:"auth_param_name"`
 }
 
 type TagConfig struct {

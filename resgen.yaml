@@ -44,6 +44,15 @@ generator:
   #   - isolation: 方案 A (默认)。生成中间 DTO 与转换函数，物理层使用原生态 Target 类型 (如 time.Time)
   #   - direct:    方案 B。物理对象中直接使用标量别名 (如 IntTime)，不生成冗余的 DTO，靠标量 JSON Marshaler 自动转换
   scalar_style: "direct"
+  # 权限标识提取配置
+  # 用于在生成 API 契约文档（api.json / api.html）时，将特定的权限装饰器自动提取为标准统一的 permission 属性。
+  #
+  # - auth_decorator: 指定代表权限的装饰器名称 (例如 "auth" 或 "permission")，前缀 @ 可省略。
+  # - auth_param_name: 权限装饰器中代表权限码的形参名称 (例如 "role" 或 "code")。
+  #   - 若指定了此项：生成器会在对应接口绑定的该装饰器参数中查找，兼容命名参数 @auth(role="admin") 与位置参数 @auth("admin") 的位置对齐提取。
+  #   - 若未指定此项：默认将该装饰器在位置 0 的第一个参数值提取为权限码。
+  auth_decorator: "auth"
+  auth_param_name: "role"
 
 # 标量类型自定义映射配置 (Scalars Custom Mapping)
 # 用于将 DSL 中定义的自定义标量 (scalar) 映射到 Go 物理包的实现类型。
