@@ -671,6 +671,10 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 			if decl.Scalar.Base != "" {
 				baseType = decl.Scalar.Base
 			}
+			
+			if baseType == "File" {
+				return fmt.Errorf("语义错误：自定义标量 '%s' 不能继承自 File 类型。File 是专用于文件上传的内置数据流类型，无法作为标量基础类型使用", decl.Scalar.Name)
+			}
 
 			// 🌟 奇迹时刻：自动进行 AST 物理分析、契约验证与 Target 类型智能推导！
 			if mapping != nil {
@@ -707,6 +711,9 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 				ParamName: decl.Union.ParamName,
 			}
 			for _, c := range decl.Union.Cases {
+				if c.Type == "File" {
+					return fmt.Errorf("语义错误：联合类型 '%s' 的分支 '%s' 不能使用 File 类型。文件流无法在多态 JSON 中进行序列化与反序列化", decl.Union.Name, c.Key)
+				}
 				goType := c.Type
 				if c.Type != "Any" {
 					goType = ToGoType(parser.TypeRef{Name: c.Type}, ctx.Config, &ctx.ExtraImports, "", ctx.ModelMap)
@@ -858,6 +865,25 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 		}
 	}
 
+	// 验证所有联合类型的声明是否合法 (判别器类型必须是受限的基础类型或自定义标量)
+	for _, u := range ctx.Unions {
+		isValid := false
+		switch u.ParamName {
+		case "String", "Int", "Float", "Boolean":
+			isValid = true
+		default:
+			if s := ctx.Scalars[u.ParamName]; s != nil {
+				// 自定义标量的基底类型不能是 Any（无法作为判别器）
+				if !strings.EqualFold(s.BaseType, "Any") {
+					isValid = true
+				}
+			}
+		}
+		if !isValid {
+			return fmt.Errorf("联合类型 %s 声明的判别器类型 %s 不合法，必须为 String, Int, Float, Boolean 或不基于 Any 的自定义 scalar 类型", u.Name, u.ParamName)
+		}
+	}
+
 	// 多态 Union 约束验证
 	for _, m := range ctx.Models {
 		if !m.HasUnion {
@@ -870,11 +896,17 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 					if pf.Name == f.UnionParamGoName {
 						// 判别器类型应该为可序列化为字符串的基础类型
 						switch pf.BaseGoType {
-						case "string", "int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64", "float32", "float64", "bool", "any":
+						case "string", "int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64", "float32", "float64", "bool":
 							// 合法
 						default:
 							return fmt.Errorf("模型 %s 的多态联合类型字段 %s 依赖的判别器字段 %s 必须为基础类型 (当前为 %s)", m.Name, f.Name, f.UnionParamGoName, pf.BaseGoType)
 						}
+						
+						// 强类型比对：判别器字段的类型必须与联合类型定义时要求的类型一致
+						if !strings.EqualFold(pf.OriginalType, f.UnionModel.ParamName) {
+							return fmt.Errorf("模型 %s 的多态联合类型字段 %s 依赖的判别器字段 %s 类型不匹配：期望 %s，实际为 %s", m.Name, f.Name, f.UnionParamGoName, f.UnionModel.ParamName, pf.OriginalType)
+						}
+						
 						found = true
 						break
 					}

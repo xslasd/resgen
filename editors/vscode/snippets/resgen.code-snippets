@@ -49,6 +49,17 @@
         ],
         "description": "定义一个自定义标量映射类型"
     },
+    "Union Type Definition": {
+        "prefix": "union",
+        "body": [
+            "# ${3:Union description}",
+            "union ${1:UnionName}(${2:String}) {",
+            "    \"${4:key}\": ${5:Type}",
+            "    default: Any",
+            "}"
+        ],
+        "description": "定义一个联合多态类型"
+    },
     "Endpoint Group": {
         "prefix": "group",
         "body": [

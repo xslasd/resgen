@@ -97,7 +97,7 @@
     <script>
         // Data injected by Go
         const apiData = {
-  "version": "v0.4.0",
+  "version": "v0.4.1",
   "package": "resolver",
   "info": {
     "title": "Resgen Generated API",
@@ -506,7 +506,6 @@
               "isErrorWrapped": true,
               "errorTypeBase": "ResDataError",
               "successStatus": 200,
-              "permission": "admin",
               "args": [
                 {
                   "name": "id",
@@ -567,7 +566,6 @@
               "isErrorWrapped": true,
               "errorTypeBase": "ResDataError",
               "successStatus": 200,
-              "permission": "events:get",
               "args": [
                 {
                   "name": "start_time",
@@ -597,7 +595,6 @@
               "isErrorWrapped": true,
               "errorTypeBase": "ResDataError",
               "successStatus": 200,
-              "permission": "events:list",
               "args": [
                 {
                   "name": "input",
@@ -765,7 +762,6 @@
               "isErrorWrapped": true,
               "errorTypeBase": "ResDataError",
               "successStatus": 200,
-              "permission": "export:*",
               "isArgsWrapped": false,
               "contentType": "application/json",
               "responseContentType": "text/plain",
@@ -786,7 +782,6 @@
               "isErrorWrapped": true,
               "errorTypeBase": "ResDataError",
               "successStatus": 200,
-              "permission": "export:*",
               "isArgsWrapped": false,
               "contentType": "application/json",
               "responseContentType": "application/json",
@@ -807,7 +802,6 @@
               "isErrorWrapped": true,
               "errorTypeBase": "ResDataError",
               "successStatus": 200,
-              "permission": "export:*",
               "isArgsWrapped": false,
               "contentType": "application/json",
               "responseContentType": "application/xml",
@@ -1159,6 +1153,45 @@
               "isArgsWrapped": false,
               "contentType": "application/json",
               "responseContentType": "text/plain",
+              "errorContentType": "application/json"
+            }
+          ]
+        },
+        {
+          "name": "Posts",
+          "path": "/posts",
+          "endpoints": [
+            {
+              "name": "CreatePost",
+              "doc": "创建帖子接口",
+              "method": "POST",
+              "path": "/",
+              "fullPath": "/posts/",
+              "inputName": "CreatePostInput",
+              "returnType": "any",
+              "returnTypeDSL": "Any",
+              "innerReturnType": "any",
+              "isReturnWrapped": false,
+              "isReturnArray": false,
+              "errorType": "ResDataError",
+              "isErrorWrapped": true,
+              "errorTypeBase": "ResDataError",
+              "successStatus": 200,
+              "args": [
+                {
+                  "name": "input",
+                  "type": "CreatePostInput",
+                  "source": "Body",
+                  "validators": [
+                    {
+                      "name": "Required"
+                    }
+                  ]
+                }
+              ],
+              "isArgsWrapped": false,
+              "contentType": "application/json",
+              "responseContentType": "application/json",
               "errorContentType": "application/json"
             }
           ]
@@ -1619,7 +1652,7 @@
         },
         {
           "name": "start_time",
-          "type": "Int",
+          "type": "time.Time",
           "jsonName": "startTime",
           "originalType": "Int",
           "validators": [
@@ -1630,13 +1663,13 @@
         },
         {
           "name": "end_time",
-          "type": "*Int",
+          "type": "*time.Time",
           "jsonName": "endTime",
           "originalType": "Int"
         },
         {
           "name": "created_at",
-          "type": "*Int",
+          "type": "*time.Time",
           "jsonName": "createdAt",
           "originalType": "Int"
         }
@@ -1661,7 +1694,7 @@
         },
         {
           "name": "start_time",
-          "type": "Int",
+          "type": "time.Time",
           "jsonName": "startTime",
           "originalType": "Int",
           "validators": [
@@ -1672,7 +1705,7 @@
         },
         {
           "name": "end_time",
-          "type": "Int",
+          "type": "time.Time",
           "jsonName": "endTime",
           "originalType": "Int",
           "validators": [
@@ -1691,13 +1724,13 @@
       "fields": [
         {
           "name": "after",
-          "type": "*Int",
+          "type": "*time.Time",
           "jsonName": "after",
           "originalType": "Int"
         },
         {
           "name": "before",
-          "type": "*Int",
+          "type": "*time.Time",
           "jsonName": "before",
           "originalType": "Int"
         },
@@ -2155,6 +2188,104 @@
       ]
     },
     {
+      "name": "UnionArticle",
+      "module": "FileDemo",
+      "isInput": false,
+      "isWrapper": false,
+      "fields": [
+        {
+          "name": "title",
+          "type": "string",
+          "jsonName": "title",
+          "originalType": "String",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        },
+        {
+          "name": "content",
+          "type": "string",
+          "jsonName": "content",
+          "originalType": "String",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "UnionVideo",
+      "module": "FileDemo",
+      "isInput": false,
+      "isWrapper": false,
+      "fields": [
+        {
+          "name": "title",
+          "type": "string",
+          "jsonName": "title",
+          "originalType": "String",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        },
+        {
+          "name": "url",
+          "type": "string",
+          "jsonName": "url",
+          "originalType": "String",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        },
+        {
+          "name": "duration",
+          "type": "int",
+          "jsonName": "duration",
+          "originalType": "Int",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "CreatePostInput",
+      "module": "FileDemo",
+      "isInput": true,
+      "isWrapper": false,
+      "fields": [
+        {
+          "name": "type",
+          "doc": "1. 判别器字段（这里它的类型是 UnionKind，符合 ContentPayload 的要求）",
+          "type": "String",
+          "jsonName": "type",
+          "originalType": "String",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        },
+        {
+          "name": "payload",
+          "doc": "2. 联合类型字段，通过 (type) 显式关联同级的判别器字段",
+          "type": "*ContentPayload",
+          "jsonName": "payload",
+          "originalType": "ContentPayload"
+        }
+      ]
+    },
+    {
       "name": "ListResArticle",
       "doc": "3. 通用列表/分页响应包装器 (单态化展开自 ListRes\u003cArticle\u003e)",
       "module": "FileDemo",
@@ -2292,8 +2423,40 @@
       "doc": "2. 自定义标量：网络传输层使用 Int（int64）",
       "baseType": "Int",
       "goType": "scalars.IntTime"
+    },
+    "UnionKind": {
+      "name": "UnionKind",
+      "baseType": "String",
+      "goType": "UnionKind"
     }
-  }
+  },
+  "unions": [
+    {
+      "name": "ContentPayload",
+      "doc": "定义一个联合类型，预期判别器字段的类型必须为 String",
+      "paramName": "UnionKind",
+      "cases": [
+        {
+          "isDefault": false,
+          "key": "article",
+          "type": "UnionArticle",
+          "goType": "*UnionArticle"
+        },
+        {
+          "isDefault": false,
+          "key": "video",
+          "type": "UnionVideo",
+          "goType": "*UnionVideo"
+        },
+        {
+          "isDefault": true,
+          "key": "",
+          "type": "Any",
+          "goType": "any"
+        }
+      ]
+    }
+  ]
 };
 
         function init() {
@@ -2353,10 +2516,18 @@
                 showValidators
             ));
 
+            if (apiData.unions && apiData.unions.length > 0) {
+                nav.appendChild(createMenuItem('unions', 'Union Types', 
+                    `<svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>`,
+                    'amber', 
+                    showUnions
+                ));
+            }
+
             nav.appendChild(createMenuItem('apis', 'API All',
                 `<svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>`,
                 'indigo',
-                () => { if (!activeEndpointId || activeEndpointId === 'validators') activeEndpointId = null; }
+                () => { if (!activeEndpointId || activeEndpointId === 'validators' || activeEndpointId === 'unions') activeEndpointId = null; }
             ));
 
             if (currentView !== 'apis') return;
@@ -2480,6 +2651,60 @@
                                             ${v.name}${v.args && v.args.length > 0 ? `(${v.args.map(a => `<span class="text-slate-500">${a.name}:</span> <span class="text-indigo-300/80">${a.type}</span>`).join(', ')})` : ''}
                                         </td>
                                         <td class="p-4 text-slate-300 leading-relaxed">${v.doc || '<span class="text-slate-600 italic">No description provided</span>'}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            view.innerHTML = html;
+        }
+
+        function showUnions() {
+            currentView = 'unions';
+            const view = document.getElementById('content-view');
+            let html = `
+                <div class="space-y-8 animate-in">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center border border-amber-500/20 shadow-lg shadow-amber-500/10">
+                            <svg class="w-6 h-6 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                        </div>
+                        <div>
+                            <h1 class="text-4xl font-bold text-white tracking-tight">Union Types</h1>
+                            <p class="text-slate-400 mt-1">Reference for all polymorphic union types in the API</p>
+                        </div>
+                    </div>
+
+                    <div class="overflow-hidden rounded-2xl border border-slate-700/50 glass shadow-2xl">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-slate-800/50 text-slate-400 font-bold uppercase text-[10px] tracking-widest">
+                                <tr>
+                                    <th class="p-4 w-1/4 text-amber-400 border-b border-white/5">Union Name</th>
+                                    <th class="p-4 w-1/4 border-b border-white/5">Discriminator</th>
+                                    <th class="p-4 w-1/2 border-b border-white/5">Cases</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-white/5 cursor-default">
+                                ${(apiData.unions || []).map(u => `
+                                    <tr class="hover:bg-white/[0.02] transition-colors">
+                                        <td class="p-4 font-mono font-bold text-amber-400">
+                                            ${u.name}
+                                            ${u.doc ? `<div class="text-xs text-slate-500 mt-1 font-sans font-normal">${u.doc}</div>` : ''}
+                                        </td>
+                                        <td class="p-4 text-slate-300 font-mono text-xs">${u.paramName}</td>
+                                        <td class="p-4">
+                                            <div class="space-y-1">
+                                                ${u.cases.map(c => `
+                                                    <div class="flex items-center gap-2 text-xs">
+                                                        <span class="font-mono text-slate-400 bg-slate-900 px-1 rounded">${c.key}</span>
+                                                        <span class="text-slate-500">→</span>
+                                                        <span class="font-mono text-indigo-300">${c.type}</span>
+                                                        ${c.isDefault ? '<span class="text-[9px] font-bold uppercase text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded">Default</span>' : ''}
+                                                    </div>
+                                                `).join('')}
+                                            </div>
+                                        </td>
                                     </tr>
                                 `).join('')}
                             </tbody>
@@ -2729,7 +2954,8 @@
         }
 
         function renderTypeStructure(baseType, typeInfo) {
-            const model = apiData.models.find(m => m.name === baseType);
+            const model = apiData.models && apiData.models.find(m => m.name === baseType);
+            const union = apiData.unions && apiData.unions.find(u => u.name === baseType);
             if (model) {
                 let rows = '';
                 model.fields.forEach(f => {
@@ -2750,6 +2976,12 @@
                     }, 0, true);
                 });
                 return rows;
+            } else if (union) {
+                return renderRow({
+                    name: '-',
+                    type: baseType,
+                    doc: 'Union type'
+                }, 0, true);
             } else {
                 return renderRow({
                     name: '-',
@@ -2834,7 +3066,8 @@
             `;
 
             const cleanType = arg.type.replace(/[*\[\]]/g, '');
-            const model = apiData.models.find(m => m.name === cleanType);
+            const model = apiData.models && apiData.models.find(m => m.name === cleanType);
+            const union = apiData.unions && apiData.unions.find(u => u.name === cleanType);
             if (model && (depth < 4)) { 
                 model.fields.forEach(f => {
                     row += renderRow({
@@ -2843,6 +3076,15 @@
                         source: arg.source || 'Body',
                         validators: f.validators,
                         doc: f.doc
+                    }, depth + 1, hideSource);
+                });
+            } else if (union && (depth < 4)) {
+                union.cases.forEach(c => {
+                    row += renderRow({
+                        name: c.key,
+                        type: c.type,
+                        source: arg.source || 'Body',
+                        doc: c.isDefault ? 'Default Case' : ''
                     }, depth + 1, hideSource);
                 });
             }

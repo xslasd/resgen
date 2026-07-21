@@ -5,6 +5,8 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -57,25 +59,35 @@ func RunServer(version string) {
 
 	handler.TextDocumentDidOpen = func(context *glsp.Context, params *protocol.DidOpenTextDocumentParams) error {
 		filesMu.Lock()
-		defer filesMu.Unlock()
 		files[params.TextDocument.URI] = params.TextDocument.Text
+		filesMu.Unlock()
+		
+		go publishDiagnostics(context, params.TextDocument.URI, params.TextDocument.Text)
 		return nil
 	}
 
 	handler.TextDocumentDidChange = func(context *glsp.Context, params *protocol.DidChangeTextDocumentParams) error {
 		filesMu.Lock()
-		defer filesMu.Unlock()
+		var text string
 		if len(params.ContentChanges) > 0 {
 			switch change := params.ContentChanges[0].(type) {
 			case protocol.TextDocumentContentChangeEventWhole:
 				files[params.TextDocument.URI] = change.Text
+				text = change.Text
 			case protocol.TextDocumentContentChangeEvent:
 				files[params.TextDocument.URI] = change.Text
+				text = change.Text
 			case map[string]any:
-				if text, ok := change["text"].(string); ok {
-					files[params.TextDocument.URI] = text
+				if t, ok := change["text"].(string); ok {
+					files[params.TextDocument.URI] = t
+					text = t
 				}
 			}
+		}
+		filesMu.Unlock()
+		
+		if text != "" {
+			go publishDiagnostics(context, params.TextDocument.URI, text)
 		}
 		return nil
 	}
@@ -370,4 +382,96 @@ func findIdentifierAt(schema *parser.Schema, line, col int) string {
 	}
 
 	return foundIdent
+}
+
+func publishDiagnostics(context *glsp.Context, uri, content string) {
+	filename := uriToPath(uri)
+	_, err := parser.ParseFileContent(filename, content)
+	var diagnostics []protocol.Diagnostic
+
+	if err != nil {
+		errStr := err.Error()
+		re := regexp.MustCompile(`^.*?:(\d+):(\d+):\s*(.*)`)
+		matches := re.FindStringSubmatch(errStr)
+
+		var line, col uint32
+		msg := errStr
+		if len(matches) == 4 {
+			if l, e := strconv.ParseUint(matches[1], 10, 32); e == nil {
+				line = uint32(l)
+			}
+			if c, e := strconv.ParseUint(matches[2], 10, 32); e == nil {
+				col = uint32(c)
+			}
+			msg = matches[3]
+		}
+		
+		if line > 0 {
+			line-- 
+		}
+		if col > 0 {
+			col--
+		}
+
+		severity := protocol.DiagnosticSeverityError
+		source := "resgen"
+		diagnostics = append(diagnostics, protocol.Diagnostic{
+			Range: protocol.Range{
+				Start: protocol.Position{Line: line, Character: col},
+				End:   protocol.Position{Line: line, Character: col + 1},
+			},
+			Severity: &severity,
+			Source:   &source,
+			Message:  msg,
+		})
+	} else if schema != nil {
+		severity := protocol.DiagnosticSeverityError
+		source := "resgen"
+		for _, decl := range schema.Declarations {
+			if decl.Scalar != nil {
+				if decl.Scalar.Base == "File" {
+					diagnostics = append(diagnostics, protocol.Diagnostic{
+						Range: protocol.Range{
+							Start: protocol.Position{Line: uint32(decl.Scalar.Pos.Line - 1), Character: uint32(decl.Scalar.Pos.Column - 1)},
+							End:   protocol.Position{Line: uint32(decl.Scalar.Pos.Line - 1), Character: uint32(decl.Scalar.Pos.Column + len(decl.Scalar.Name))},
+						},
+						Severity: &severity,
+						Source:   &source,
+						Message:  fmt.Sprintf("语义错误：自定义标量 '%s' 不能继承自 File 类型", decl.Scalar.Name),
+					})
+				}
+			}
+			if decl.Union != nil {
+				for _, c := range decl.Union.Cases {
+					if c.Type == "File" {
+						diagnostics = append(diagnostics, protocol.Diagnostic{
+							Range: protocol.Range{
+								Start: protocol.Position{Line: uint32(c.Pos.Line - 1), Character: uint32(c.Pos.Column - 1)},
+								End:   protocol.Position{Line: uint32(c.Pos.Line - 1), Character: uint32(c.Pos.Column + len(c.Type))},
+							},
+							Severity: &severity,
+							Source:   &source,
+							Message:  fmt.Sprintf("语义错误：联合类型分支 '%s' 不能使用 File 类型", c.Key),
+						})
+					}
+				}
+				if strings.EqualFold(decl.Union.ParamName, "Any") {
+					diagnostics = append(diagnostics, protocol.Diagnostic{
+						Range: protocol.Range{
+							Start: protocol.Position{Line: uint32(decl.Union.Pos.Line - 1), Character: uint32(decl.Union.Pos.Column - 1)},
+							End:   protocol.Position{Line: uint32(decl.Union.Pos.Line - 1), Character: uint32(decl.Union.Pos.Column + len(decl.Union.Name))},
+						},
+						Severity: &severity,
+						Source:   &source,
+						Message:  fmt.Sprintf("语义错误：联合类型 '%s' 的判别器不能为 Any（必须为 String, Int, Float, Boolean 或自定义标量）", decl.Union.Name),
+					})
+				}
+			}
+		}
+	}
+
+	context.Notify(protocol.ServerTextDocumentPublishDiagnostics, protocol.PublishDiagnosticsParams{
+		URI:         uri,
+		Diagnostics: diagnostics,
+	})
 }

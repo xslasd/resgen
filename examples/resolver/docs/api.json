@@ -1,5 +1,5 @@
 {
-  "version": "v0.4.0",
+  "version": "v0.4.1",
   "package": "resolver",
   "info": {
     "title": "Resgen Generated API",
@@ -408,7 +408,6 @@
               "isErrorWrapped": true,
               "errorTypeBase": "ResDataError",
               "successStatus": 200,
-              "permission": "admin",
               "args": [
                 {
                   "name": "id",
@@ -469,7 +468,6 @@
               "isErrorWrapped": true,
               "errorTypeBase": "ResDataError",
               "successStatus": 200,
-              "permission": "events:get",
               "args": [
                 {
                   "name": "start_time",
@@ -499,7 +497,6 @@
               "isErrorWrapped": true,
               "errorTypeBase": "ResDataError",
               "successStatus": 200,
-              "permission": "events:list",
               "args": [
                 {
                   "name": "input",
@@ -667,7 +664,6 @@
               "isErrorWrapped": true,
               "errorTypeBase": "ResDataError",
               "successStatus": 200,
-              "permission": "export:*",
               "isArgsWrapped": false,
               "contentType": "application/json",
               "responseContentType": "text/plain",
@@ -688,7 +684,6 @@
               "isErrorWrapped": true,
               "errorTypeBase": "ResDataError",
               "successStatus": 200,
-              "permission": "export:*",
               "isArgsWrapped": false,
               "contentType": "application/json",
               "responseContentType": "application/json",
@@ -709,7 +704,6 @@
               "isErrorWrapped": true,
               "errorTypeBase": "ResDataError",
               "successStatus": 200,
-              "permission": "export:*",
               "isArgsWrapped": false,
               "contentType": "application/json",
               "responseContentType": "application/xml",
@@ -1061,6 +1055,45 @@
               "isArgsWrapped": false,
               "contentType": "application/json",
               "responseContentType": "text/plain",
+              "errorContentType": "application/json"
+            }
+          ]
+        },
+        {
+          "name": "Posts",
+          "path": "/posts",
+          "endpoints": [
+            {
+              "name": "CreatePost",
+              "doc": "创建帖子接口",
+              "method": "POST",
+              "path": "/",
+              "fullPath": "/posts/",
+              "inputName": "CreatePostInput",
+              "returnType": "any",
+              "returnTypeDSL": "Any",
+              "innerReturnType": "any",
+              "isReturnWrapped": false,
+              "isReturnArray": false,
+              "errorType": "ResDataError",
+              "isErrorWrapped": true,
+              "errorTypeBase": "ResDataError",
+              "successStatus": 200,
+              "args": [
+                {
+                  "name": "input",
+                  "type": "CreatePostInput",
+                  "source": "Body",
+                  "validators": [
+                    {
+                      "name": "Required"
+                    }
+                  ]
+                }
+              ],
+              "isArgsWrapped": false,
+              "contentType": "application/json",
+              "responseContentType": "application/json",
               "errorContentType": "application/json"
             }
           ]
@@ -1521,7 +1554,7 @@
         },
         {
           "name": "start_time",
-          "type": "Int",
+          "type": "time.Time",
           "jsonName": "startTime",
           "originalType": "Int",
           "validators": [
@@ -1532,13 +1565,13 @@
         },
         {
           "name": "end_time",
-          "type": "*Int",
+          "type": "*time.Time",
           "jsonName": "endTime",
           "originalType": "Int"
         },
         {
           "name": "created_at",
-          "type": "*Int",
+          "type": "*time.Time",
           "jsonName": "createdAt",
           "originalType": "Int"
         }
@@ -1563,7 +1596,7 @@
         },
         {
           "name": "start_time",
-          "type": "Int",
+          "type": "time.Time",
           "jsonName": "startTime",
           "originalType": "Int",
           "validators": [
@@ -1574,7 +1607,7 @@
         },
         {
           "name": "end_time",
-          "type": "Int",
+          "type": "time.Time",
           "jsonName": "endTime",
           "originalType": "Int",
           "validators": [
@@ -1593,13 +1626,13 @@
       "fields": [
         {
           "name": "after",
-          "type": "*Int",
+          "type": "*time.Time",
           "jsonName": "after",
           "originalType": "Int"
         },
         {
           "name": "before",
-          "type": "*Int",
+          "type": "*time.Time",
           "jsonName": "before",
           "originalType": "Int"
         },
@@ -2057,6 +2090,104 @@
       ]
     },
     {
+      "name": "UnionArticle",
+      "module": "FileDemo",
+      "isInput": false,
+      "isWrapper": false,
+      "fields": [
+        {
+          "name": "title",
+          "type": "string",
+          "jsonName": "title",
+          "originalType": "String",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        },
+        {
+          "name": "content",
+          "type": "string",
+          "jsonName": "content",
+          "originalType": "String",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "UnionVideo",
+      "module": "FileDemo",
+      "isInput": false,
+      "isWrapper": false,
+      "fields": [
+        {
+          "name": "title",
+          "type": "string",
+          "jsonName": "title",
+          "originalType": "String",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        },
+        {
+          "name": "url",
+          "type": "string",
+          "jsonName": "url",
+          "originalType": "String",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        },
+        {
+          "name": "duration",
+          "type": "int",
+          "jsonName": "duration",
+          "originalType": "Int",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "CreatePostInput",
+      "module": "FileDemo",
+      "isInput": true,
+      "isWrapper": false,
+      "fields": [
+        {
+          "name": "type",
+          "doc": "1. 判别器字段（这里它的类型是 UnionKind，符合 ContentPayload 的要求）",
+          "type": "String",
+          "jsonName": "type",
+          "originalType": "String",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        },
+        {
+          "name": "payload",
+          "doc": "2. 联合类型字段，通过 (type) 显式关联同级的判别器字段",
+          "type": "*ContentPayload",
+          "jsonName": "payload",
+          "originalType": "ContentPayload"
+        }
+      ]
+    },
+    {
       "name": "ListResArticle",
       "doc": "3. 通用列表/分页响应包装器 (单态化展开自 ListRes\u003cArticle\u003e)",
       "module": "FileDemo",
@@ -2194,6 +2325,38 @@
       "doc": "2. 自定义标量：网络传输层使用 Int（int64）",
       "baseType": "Int",
       "goType": "scalars.IntTime"
+    },
+    "UnionKind": {
+      "name": "UnionKind",
+      "baseType": "String",
+      "goType": "UnionKind"
     }
-  }
+  },
+  "unions": [
+    {
+      "name": "ContentPayload",
+      "doc": "定义一个联合类型，预期判别器字段的类型必须为 String",
+      "paramName": "UnionKind",
+      "cases": [
+        {
+          "isDefault": false,
+          "key": "article",
+          "type": "UnionArticle",
+          "goType": "*UnionArticle"
+        },
+        {
+          "isDefault": false,
+          "key": "video",
+          "type": "UnionVideo",
+          "goType": "*UnionVideo"
+        },
+        {
+          "isDefault": true,
+          "key": "",
+          "type": "Any",
+          "goType": "any"
+        }
+      ]
+    }
+  ]
 }

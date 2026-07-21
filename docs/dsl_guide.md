@@ -114,19 +114,52 @@ input CreateUserInput {
 ```
 
 ### 联合类型 (Unions)
-使用 `union` 关键字定义多态类型。可在括号内声明该联合类型所预期的判别器基础类型（如 `String`、`Int` 等，主要用于文档提示和基础类型约束）。
+使用 `union` 关键字定义多态（多态 JSON）类型。`union` 后的括号内声明该联合类型在反序列化时，预期的**判别器（Discriminator）数据类型**，这是一种强类型的约束设计。
 
-```go
+⚠️ **判别器类型的白名单限制**：
+判别器的数据类型被极其严格地限制为只能是以下基础标量类型：
+- `String`
+- `Int`
+- `Float`
+- `Boolean`
+- 以及您通过 `scalar` 关键字定义的**自定义标量**（如 `scalar UnionKind: String`）
+  > 注意：如果您的自定义标量是继承自动态类型 `Any`（如 `scalar DynamicData: Any`），那么它**绝对不能**用作联合类型的判别器，编译器将直接报错拦截！因为无法对动态对象执行稳定的 Switch 判别。
+
+🌟 **典型业务场景**：
+在现代 API 设计中，联合类型是解决**“异构数据多态传输”**的终极武器，它能彻底消灭后端庞大臃肿、充满无数 `nil` 和可选字段的“上帝结构体”，让每种数据严丝合缝地拥有自己的独立定义。典型场景包括：
+- **异构消息流/信息流**：如聊天记录中的消息，可能是纯文本（`TextMsg`），可能是图片（`ImageMsg` 包含长宽比例），可能是语音（`VoiceMsg` 包含时长），它们在同一个列表中展示，但承载的内容结构截然不同。
+- **Webhook 事件网关**：统一的一个对外 Webhook 接收接口，根据事件 `action` 的不同，传入的 `payload` 可能是订单对象，也可能是用户对象。
+- **动态表单与低代码渲染**：接口返回一系列表单组件，输入框组件包含 `placeholder`，而下拉框组件包含 `options` 选项数组，它们的配置项完全不互通。
+
+```graphql
+# 定义一个联合类型，预期判别器的数据类型必须为 String
 union ContentPayload(String) {
-    "article" => Article
-    "video"   => Video
-    default   => Any
+    "article": Article
+    "video": Video
+    default: Any
+}
+```
+
+> [!WARNING]
+> **禁止使用 File 类型**：联合类型的分支中**绝对禁止**使用 `File` 数据流类型（例如 `"file": File`）。因为文件流无法在 JSON 多态结构中进行序列化与反序列化，编译器遇到时会直接报错拦截。
+
+#### 在模型中使用联合类型
+当在 `input` 模型中使用联合类型时，**必须**在同一模型中显式声明判别器字段，并在声明联合类型字段时通过括号 `(字段名)` 将其与该判别器绑定。
+并且，该判别器字段的数据类型必须与 `union` 声明时的类型参数完全一致！
+
+```graphql
+input CreatePostInput {
+    # 1. 判别器字段（这里它的类型是 String，符合 ContentPayload 的要求）
+    type: String!
+    
+    # 2. 联合类型字段，通过 (type) 显式关联同级的判别器字段
+    payload: ContentPayload(type)
 }
 ```
 
 - **类型映射**：联合类型在生成的 Go 代码中统一体现为 `any`（空接口），提供最大的动态灵活性。
 - **解析器**：Resgen 会为每个 `union` 自动生成 `Resolve<UnionName>(disc string, rawData any) (any, error)` 工厂方法。
-- **自动绑定**：如果在 `input` 模型中引用了联合类型字段，且请求 Body 中同时包含对应的 `标识字段` 值，代码生成器会自动在 `bind` 函数中注入并调用对应的 `Resolve` 函数，将底层 `map[string]any` 转换为具体的强类型结构体指针。
+- **全自动多态绑定**：在代码生成时，Resgen 编译器会进行约束校验。运行期 `bind` 函数会自动提取 JSON 中的判别器值（即 `type` 的值），然后调用 `ResolveContentPayload`，将底层的 `map[string]any` 完美转换为对应的 `*Article` 或 `*Video` 强类型指针注入到 Payload 中！
 
 ### 响应包装器 (Wrappers)
 使用 `wrap` 关键字定义通用的响应格式，支持泛型 `T`。
@@ -390,18 +423,34 @@ DSL 的生成行为可以通过项目根目录下的 `resgen.yaml` 进行深度�
 ### DSL 语法
 
 ```graphql
-# 声明一个名为 IntTime 的自定义标量，网络传输层使用 Int (int64)
+# 1. 带基础类型的标量声明（网络传输层使用 Int/int64）
 scalar IntTime: Int
+
+# 2. 省略基础类型的标量声明（默认使用 String/string 作为网络传输层基础类型）
+scalar UnionKind
+
+# 3. 逃生舱标量声明（当网络层是完全动态结构的 JSON 对象时，可继承自 Any）
+scalar DynamicData: Any
 ```
 
-然后即可在模型与接口中直接使用：
+> [!WARNING]
+> **禁止继承 File 类型**：自定义标量**绝对不能**继承自 `File` 类型（例如 `scalar MyFile: File`）。`File` 是专用于 `multipart/form-data` 文件上传的内置数据流类型，不支持作为标量的底层网络传输基础。
+
+然后即可在模型、接口、以及**联合类型（Union）判别器**中直接使用：
 
 ```graphql
 type ScalarOutput {
     createdAt: IntTime
 }
 
+# 🌟 作为 Union 判别器的强类型约束
+union ContentPayload(UnionKind) {
+    "article": Article
+    "video": Video
+}
+
 group /api [wrap=ResData] {
+    # 作为路由参数时，标量必须在 Go 侧实现 FromParam 接口
     GET /items/:time => GetItem(time: IntTime @path): ScalarOutput
 }
 ```

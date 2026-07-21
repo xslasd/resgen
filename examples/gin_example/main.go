@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/xslasd/resgen/examples/resolver"
-	"github.com/xslasd/resgen/examples/scalars"
 
 	"github.com/gin-gonic/gin"
 )
@@ -238,14 +237,14 @@ func (h *WrapperDemoHandler) Logout(ctx context.Context) error {
 // ScalarDemoHandler
 type ScalarDemoHandler struct{}
 
-func (h *ScalarDemoHandler) GetEventByTime(ctx context.Context, startTime *scalars.IntTime) (*resolver.Event, error) {
-	now := scalars.IntTime(time.Now())
+func (h *ScalarDemoHandler) GetEventByTime(ctx context.Context, startTime *time.Time) (*resolver.Event, error) {
+	now := time.Now()
 	return &resolver.Event{Id: 1, Name: "Time Event", StartTime: *startTime, EndTime: &now, CreatedAt: &now}, nil
 }
 
 func (h *ScalarDemoHandler) ListEvents(ctx context.Context, input *resolver.QueryEventsInput) (*[]*resolver.Event, error) {
-	now := scalars.IntTime(time.Now())
-	var start scalars.IntTime
+	now := time.Now()
+	var start time.Time
 	if input.After != nil {
 		start = *input.After
 	} else {
@@ -258,7 +257,7 @@ func (h *ScalarDemoHandler) ListEvents(ctx context.Context, input *resolver.Quer
 }
 
 func (h *ScalarDemoHandler) CreateEvent(ctx context.Context, input *resolver.CreateEventInput) (*resolver.Event, error) {
-	now := scalars.IntTime(time.Now())
+	now := time.Now()
 	return &resolver.Event{Id: 2, Name: input.Name, StartTime: input.StartTime, EndTime: &input.EndTime, CreatedAt: &now}, nil
 }
 
@@ -362,6 +361,11 @@ func (h *FileDemoHandler) DownloadFile(ctx context.Context, id *int) (*string, e
 func (h *FileDemoHandler) ExportCsv(ctx context.Context, ids *string) (*string, error) {
 	s := "id,name\n1,Alice"
 	return &s, nil
+}
+
+func (h *FileDemoHandler) CreatePost(ctx context.Context, input *resolver.CreatePostInput) (any, error) {
+	fmt.Printf(">>> [CreatePost] Type: %s, Payload: %+v\n", input.Type, input.Payload)
+	return input.Payload, nil
 }
 
 // 装饰器与验证器实现
