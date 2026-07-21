@@ -17,7 +17,7 @@ import (
 	"golang.org/x/tools/imports"
 )
 
-const Version = "v0.4.1"
+const Version = "v0.5.0"
 
 //go:embed templates/engine.tmpl
 var engineTmpl string
@@ -671,7 +671,7 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 			if decl.Scalar.Base != "" {
 				baseType = decl.Scalar.Base
 			}
-			
+
 			if baseType == "File" {
 				return fmt.Errorf("语义错误：自定义标量 '%s' 不能继承自 File 类型。File 是专用于文件上传的内置数据流类型，无法作为标量基础类型使用", decl.Scalar.Name)
 			}
@@ -901,12 +901,12 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 						default:
 							return fmt.Errorf("模型 %s 的多态联合类型字段 %s 依赖的判别器字段 %s 必须为基础类型 (当前为 %s)", m.Name, f.Name, f.UnionParamGoName, pf.BaseGoType)
 						}
-						
+
 						// 强类型比对：判别器字段的类型必须与联合类型定义时要求的类型一致
 						if !strings.EqualFold(pf.OriginalType, f.UnionModel.ParamName) {
 							return fmt.Errorf("模型 %s 的多态联合类型字段 %s 依赖的判别器字段 %s 类型不匹配：期望 %s，实际为 %s", m.Name, f.Name, f.UnionParamGoName, f.UnionModel.ParamName, pf.OriginalType)
 						}
-						
+
 						found = true
 						break
 					}

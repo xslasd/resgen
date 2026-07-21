@@ -386,7 +386,7 @@ func findIdentifierAt(schema *parser.Schema, line, col int) string {
 
 func publishDiagnostics(context *glsp.Context, uri, content string) {
 	filename := uriToPath(uri)
-	_, err := parser.ParseFileContent(filename, content)
+	schema, err := parser.ParseFileContent(filename, content)
 	var diagnostics []protocol.Diagnostic
 
 	if err != nil {

@@ -5,7 +5,6 @@ package resolver
 
 import (
 	"context"
-	"time"
 
 	"github.com/xslasd/resgen/examples/scalars"
 )
@@ -16,202 +15,26 @@ import (
 
 // Event 输出模型
 type Event struct {
-	Id        int        `json:"id"`
-	Name      string     `json:"name"`
-	StartTime time.Time  `json:"start_time"`
-	EndTime   *time.Time `json:"end_time"`
-	CreatedAt *time.Time `json:"created_at"`
-}
-
-// EventDTO 数据传输对象
-type EventDTO struct {
-	Id        int    `json:"id"`
-	Name      string `json:"name"`
-	StartTime int64  `json:"start_time"`
-	EndTime   *int64 `json:"end_time"`
-	CreatedAt *int64 `json:"created_at"`
-}
-
-func (m *Event) ToDTO(ctx any) (*EventDTO, error) {
-	if m == nil {
-		return nil, nil
-	}
-	dto := &EventDTO{}
-	dto.Id = m.Id
-	dto.Name = m.Name
-	tmpStartTime := scalars.IntTime(m.StartTime)
-	valStartTime, err := tmpStartTime.ToValue(ctx)
-	if err != nil {
-		return nil, err
-	}
-	dto.StartTime = valStartTime
-	if m.EndTime != nil {
-		tmpEndTime := scalars.IntTime(*m.EndTime)
-		valEndTime, err := tmpEndTime.ToValue(ctx)
-		if err != nil {
-			return nil, err
-		}
-		dto.EndTime = &valEndTime
-	}
-	if m.CreatedAt != nil {
-		tmpCreatedAt := scalars.IntTime(*m.CreatedAt)
-		valCreatedAt, err := tmpCreatedAt.ToValue(ctx)
-		if err != nil {
-			return nil, err
-		}
-		dto.CreatedAt = &valCreatedAt
-	}
-	return dto, nil
-}
-
-func (m *Event) FromDTO(ctx any, dto *EventDTO) error {
-	if m == nil || dto == nil {
-		return nil
-	}
-	m.Id = dto.Id
-	m.Name = dto.Name
-	var tmpStartTime scalars.IntTime
-	if err := tmpStartTime.FromValue(ctx, dto.StartTime); err != nil {
-		return err
-	}
-	m.StartTime = time.Time(tmpStartTime)
-	if dto.EndTime != nil {
-		var tmp scalars.IntTime
-		if err := tmp.FromValue(ctx, *dto.EndTime); err != nil {
-			return err
-		}
-		targetVal := time.Time(tmp)
-		m.EndTime = &targetVal
-	}
-	if dto.CreatedAt != nil {
-		var tmp scalars.IntTime
-		if err := tmp.FromValue(ctx, *dto.CreatedAt); err != nil {
-			return err
-		}
-		targetVal := time.Time(tmp)
-		m.CreatedAt = &targetVal
-	}
-	return nil
+	Id        int              `json:"id"`
+	Name      string           `json:"name"`
+	StartTime scalars.IntTime  `json:"start_time"`
+	EndTime   *scalars.IntTime `json:"end_time"`
+	CreatedAt *scalars.IntTime `json:"created_at"`
 }
 
 // CreateEventInput 输入模型
 type CreateEventInput struct {
-	Name      string    `json:"name"`
-	StartTime time.Time `json:"start_time"`
-	EndTime   time.Time `json:"end_time"`
-}
-
-// CreateEventInputDTO 数据传输对象
-type CreateEventInputDTO struct {
-	Name      string `json:"name"`
-	StartTime int64  `json:"start_time"`
-	EndTime   int64  `json:"end_time"`
-}
-
-func (m *CreateEventInput) ToDTO(ctx any) (*CreateEventInputDTO, error) {
-	if m == nil {
-		return nil, nil
-	}
-	dto := &CreateEventInputDTO{}
-	dto.Name = m.Name
-	tmpStartTime := scalars.IntTime(m.StartTime)
-	valStartTime, err := tmpStartTime.ToValue(ctx)
-	if err != nil {
-		return nil, err
-	}
-	dto.StartTime = valStartTime
-	tmpEndTime := scalars.IntTime(m.EndTime)
-	valEndTime, err := tmpEndTime.ToValue(ctx)
-	if err != nil {
-		return nil, err
-	}
-	dto.EndTime = valEndTime
-	return dto, nil
-}
-
-func (m *CreateEventInput) FromDTO(ctx any, dto *CreateEventInputDTO) error {
-	if m == nil || dto == nil {
-		return nil
-	}
-	m.Name = dto.Name
-	var tmpStartTime scalars.IntTime
-	if err := tmpStartTime.FromValue(ctx, dto.StartTime); err != nil {
-		return err
-	}
-	m.StartTime = time.Time(tmpStartTime)
-	var tmpEndTime scalars.IntTime
-	if err := tmpEndTime.FromValue(ctx, dto.EndTime); err != nil {
-		return err
-	}
-	m.EndTime = time.Time(tmpEndTime)
-	return nil
+	Name      string          `json:"name"`
+	StartTime scalars.IntTime `json:"start_time"`
+	EndTime   scalars.IntTime `json:"end_time"`
 }
 
 // QueryEventsInput 输入模型
 type QueryEventsInput struct {
-	After  *time.Time `json:"after"`
-	Before *time.Time `json:"before"`
-	Page   *int       `json:"page"`
-	Size   *int       `json:"size"`
-}
-
-// QueryEventsInputDTO 数据传输对象
-type QueryEventsInputDTO struct {
-	After  *int64 `json:"after"`
-	Before *int64 `json:"before"`
-	Page   *int   `json:"page"`
-	Size   *int   `json:"size"`
-}
-
-func (m *QueryEventsInput) ToDTO(ctx any) (*QueryEventsInputDTO, error) {
-	if m == nil {
-		return nil, nil
-	}
-	dto := &QueryEventsInputDTO{}
-	if m.After != nil {
-		tmpAfter := scalars.IntTime(*m.After)
-		valAfter, err := tmpAfter.ToValue(ctx)
-		if err != nil {
-			return nil, err
-		}
-		dto.After = &valAfter
-	}
-	if m.Before != nil {
-		tmpBefore := scalars.IntTime(*m.Before)
-		valBefore, err := tmpBefore.ToValue(ctx)
-		if err != nil {
-			return nil, err
-		}
-		dto.Before = &valBefore
-	}
-	dto.Page = m.Page
-	dto.Size = m.Size
-	return dto, nil
-}
-
-func (m *QueryEventsInput) FromDTO(ctx any, dto *QueryEventsInputDTO) error {
-	if m == nil || dto == nil {
-		return nil
-	}
-	if dto.After != nil {
-		var tmp scalars.IntTime
-		if err := tmp.FromValue(ctx, *dto.After); err != nil {
-			return err
-		}
-		targetVal := time.Time(tmp)
-		m.After = &targetVal
-	}
-	if dto.Before != nil {
-		var tmp scalars.IntTime
-		if err := tmp.FromValue(ctx, *dto.Before); err != nil {
-			return err
-		}
-		targetVal := time.Time(tmp)
-		m.Before = &targetVal
-	}
-	m.Page = dto.Page
-	m.Size = dto.Size
-	return nil
+	After  *scalars.IntTime `json:"after"`
+	Before *scalars.IntTime `json:"before"`
+	Page   *int             `json:"page"`
+	Size   *int             `json:"size"`
 }
 
 // ==========================================
@@ -222,7 +45,7 @@ func (m *QueryEventsInput) FromDTO(ctx any, dto *QueryEventsInputDTO) error {
 type ScalarDemoResolver[T any] interface {
 
 	// GetEventByTime GET /events/:startTime
-	GetEventByTime(ctx context.Context, startTime *time.Time) (*Event, error)
+	GetEventByTime(ctx context.Context, startTime *scalars.IntTime) (*Event, error)
 
 	// ListEvents GET /events/list
 	ListEvents(ctx context.Context, input *QueryEventsInput) (*[]*Event, error)
@@ -312,7 +135,7 @@ func (e *ScalarDemoExecutor[T, C]) handleGetEventByTime(request C, info MethodIn
 		request.RenderJson(e.r.ErrorToStatus(native, err), e.r.BindResData(native, nil, err))
 		return
 	}
-	var startTimeVal *time.Time
+	var startTimeVal *scalars.IntTime
 
 	if val := request.GetPath("startTime"); val != "" {
 		var tmp scalars.IntTime
@@ -320,7 +143,7 @@ func (e *ScalarDemoExecutor[T, C]) handleGetEventByTime(request C, info MethodIn
 			request.RenderJson(e.r.ErrorToStatus(native, err), e.r.BindResData(native, nil, err))
 			return
 		}
-		targetVal := time.Time(tmp)
+		targetVal := scalars.IntTime(tmp)
 		startTimeVal = &targetVal
 	}
 	result, err := e.biz.GetEventByTime(request.Context(), startTimeVal)
@@ -328,12 +151,7 @@ func (e *ScalarDemoExecutor[T, C]) handleGetEventByTime(request C, info MethodIn
 		request.RenderJson(e.r.ErrorToStatus(native, err), e.r.BindResData(native, nil, err))
 		return
 	}
-	dtoResult, dErr := result.ToDTO(native)
-	if dErr != nil {
-		request.RenderJson(e.r.ErrorToStatus(native, dErr), e.r.BindResData(native, nil, dErr))
-		return
-	}
-	request.RenderJson(200, e.r.BindResData(native, dtoResult, nil))
+	request.RenderJson(200, e.r.BindResData(native, result, nil))
 }
 
 // handleListEvents 封装了端点的自动化执行流
@@ -353,16 +171,7 @@ func (e *ScalarDemoExecutor[T, C]) handleListEvents(request C, info MethodInfo) 
 		request.RenderJson(e.r.ErrorToStatus(native, err), e.r.BindResData(native, nil, err))
 		return
 	}
-	var dtoResult []*EventDTO
-	for _, item := range *result {
-		if dto, dErr := item.ToDTO(native); dErr == nil {
-			dtoResult = append(dtoResult, dto)
-		} else {
-			request.RenderJson(e.r.ErrorToStatus(native, dErr), e.r.BindResData(native, nil, dErr))
-			return
-		}
-	}
-	request.RenderJson(200, e.r.BindResData(native, dtoResult, nil))
+	request.RenderJson(200, e.r.BindResData(native, result, nil))
 }
 
 // bindListEvents 自动生成的参数提取与转换实现
@@ -372,7 +181,7 @@ func (e *ScalarDemoExecutor[T, C]) bindListEvents(request C, input *QueryEventsI
 		if err := tmp.FromParam(request.Native(), val); err != nil {
 			return err
 		}
-		targetVal := time.Time(tmp)
+		targetVal := scalars.IntTime(tmp)
 		input.After = &targetVal
 	}
 	if val := request.GetQuery("before"); val != "" {
@@ -380,7 +189,7 @@ func (e *ScalarDemoExecutor[T, C]) bindListEvents(request C, input *QueryEventsI
 		if err := tmp.FromParam(request.Native(), val); err != nil {
 			return err
 		}
-		targetVal := time.Time(tmp)
+		targetVal := scalars.IntTime(tmp)
 		input.Before = &targetVal
 	}
 	if val := request.GetQuery("page"); val != "" {
@@ -419,21 +228,12 @@ func (e *ScalarDemoExecutor[T, C]) handleCreateEvent(request C, info MethodInfo)
 		request.RenderJson(e.r.ErrorToStatus(native, err), e.r.BindResData(native, nil, err))
 		return
 	}
-	dtoResult, dErr := result.ToDTO(native)
-	if dErr != nil {
-		request.RenderJson(e.r.ErrorToStatus(native, dErr), e.r.BindResData(native, nil, dErr))
-		return
-	}
-	request.RenderJson(201, e.r.BindResData(native, dtoResult, nil))
+	request.RenderJson(201, e.r.BindResData(native, result, nil))
 }
 
 // bindCreateEvent 自动生成的参数提取与转换实现
 func (e *ScalarDemoExecutor[T, C]) bindCreateEvent(request C, input *CreateEventInput) error {
-	var dto CreateEventInputDTO
-	if err := request.Payload(SourceJson, &dto); err != nil {
-		return err
-	}
-	if err := input.FromDTO(request.Native(), &dto); err != nil {
+	if err := request.Payload(SourceJson, input); err != nil {
 		return err
 	}
 	return nil

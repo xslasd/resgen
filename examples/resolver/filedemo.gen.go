@@ -3,15 +3,11 @@
 
 package resolver
 
-
 import (
-    "context"
-    "github.com/xslasd/resgen/examples/scalars"
-    "time"
-    "strconv"
+	"context"
+	"fmt"
+	"mime/multipart"
 )
-
-
 
 // ==========================================
 // 1. Models
@@ -19,98 +15,49 @@ import (
 
 // UploadAvatarInput 输入模型
 type UploadAvatarInput struct {
-	UserId int `json:"user_id"`
+	UserId int                   `json:"user_id"`
 	Avatar *multipart.FileHeader `json:"avatar"`
 }
 
-
-
 // UploadDocumentInput 输入模型
 type UploadDocumentInput struct {
-	Title string `json:"title"`
-	Description *string `json:"description"`
-	Document *multipart.FileHeader `json:"document"`
-	Cover *multipart.FileHeader `json:"cover"`
+	Title       string                `json:"title"`
+	Description *string               `json:"description"`
+	Document    *multipart.FileHeader `json:"document"`
+	Cover       *multipart.FileHeader `json:"cover"`
 }
-
-
 
 // UploadResult 输出模型
 type UploadResult struct {
-	FileUrl string `json:"file_url"`
-	FileSize int `json:"file_size"`
+	FileUrl  string `json:"file_url"`
+	FileSize int    `json:"file_size"`
 	MimeType string `json:"mime_type"`
 }
 
-
-
 // UnionArticle 输出模型
 type UnionArticle struct {
-	Title string `json:"title"`
+	Title   string `json:"title"`
 	Content string `json:"content"`
 }
 
-
-
 // UnionVideo 输出模型
 type UnionVideo struct {
-	Title string `json:"title"`
-	Url string `json:"url"`
-	Duration int `json:"duration"`
+	Title    string `json:"title"`
+	Url      string `json:"url"`
+	Duration int    `json:"duration"`
 }
-
-
 
 // CreatePostInput 输入模型
 type CreatePostInput struct {
-	Type UnionKind `json:"type"`
-	Payload any `json:"payload"`
+	Type    UnionKind `json:"type"`
+	Payload any       `json:"payload"`
 }
-
-
-// CreatePostInputDTO 数据传输对象
-type CreatePostInputDTO struct {
-	Type string `json:"type"`
-	Payload any `json:"payload"`
-}
-
-func (m *CreatePostInput) ToDTO(ctx any) (*CreatePostInputDTO, error) {
-	if m == nil {
-		return nil, nil
-	}
-	dto := &CreatePostInputDTO{}
-	tmpType := (m.Type)
-	valType, err := tmpType.ToValue(ctx)
-	if err != nil {
-		return nil, err
-	}
-	dto.Type = valType
-	dto.Payload = m.Payload
-	return dto, nil
-}
-
-func (m *CreatePostInput) FromDTO(ctx any, dto *CreatePostInputDTO) error {
-	if m == nil || dto == nil {
-		return nil
-	}
-	var tmpType 
-	if err := tmpType.FromValue(ctx, dto.Type); err != nil {
-		return err
-	}
-	m.Type = UnionKind(tmpType)
-	m.Payload = dto.Payload
-	return nil
-}
-
 
 // ListResArticle 输出模型
 type ListResArticle struct {
-	Rows []Article `json:"rows"`
-	Total int `json:"total"`
+	Rows  []Article `json:"rows"`
+	Total int       `json:"total"`
 }
-
-
-
 
 // ==========================================
 // 2. Resolver Interface
@@ -118,19 +65,19 @@ type ListResArticle struct {
 
 // FileDemoResolver 定义模块业务逻辑接口
 type FileDemoResolver[T any] interface {
-	
+
 	// UploadAvatar POST /files/avatar
 	UploadAvatar(ctx context.Context, input *UploadAvatarInput) (*UploadResult, error)
-	
+
 	// UploadDocument POST /files/document
 	UploadDocument(ctx context.Context, input *UploadDocumentInput) (*UploadResult, error)
-	
+
 	// DownloadFile GET /files/download/:id
 	DownloadFile(ctx context.Context, id *int) (*string, error)
-	
+
 	// ExportCsv GET /files/export/csv
 	ExportCsv(ctx context.Context, ids *string) (*string, error)
-	
+
 	// CreatePost POST /posts/
 	CreatePost(ctx context.Context, input *CreatePostInput) (any, error)
 }
@@ -173,9 +120,9 @@ type FileDemoExecutor[T any, C ServerContext[T]] struct {
 }
 
 func (e *FileDemoExecutor[T, C]) mount() {
-	
+
 	// --- 注册组: Files ---
-	
+
 	infoUploadAvatar := MethodInfo{
 		Module: "FileDemo",
 		Group:  "/files",
@@ -184,7 +131,7 @@ func (e *FileDemoExecutor[T, C]) mount() {
 		Path:   "/files/avatar",
 	}
 	e.register(infoUploadAvatar, e.handleUploadAvatar)
-	
+
 	infoUploadDocument := MethodInfo{
 		Module: "FileDemo",
 		Group:  "/files",
@@ -193,7 +140,7 @@ func (e *FileDemoExecutor[T, C]) mount() {
 		Path:   "/files/document",
 	}
 	e.register(infoUploadDocument, e.handleUploadDocument)
-	
+
 	infoDownloadFile := MethodInfo{
 		Module: "FileDemo",
 		Group:  "/files",
@@ -202,7 +149,7 @@ func (e *FileDemoExecutor[T, C]) mount() {
 		Path:   "/files/download/:id",
 	}
 	e.register(infoDownloadFile, e.handleDownloadFile)
-	
+
 	infoExportCsv := MethodInfo{
 		Module: "FileDemo",
 		Group:  "/files",
@@ -211,9 +158,9 @@ func (e *FileDemoExecutor[T, C]) mount() {
 		Path:   "/files/export/csv",
 	}
 	e.register(infoExportCsv, e.handleExportCsv)
-	
+
 	// --- 注册组: Posts ---
-	
+
 	infoCreatePost := MethodInfo{
 		Module: "FileDemo",
 		Group:  "/posts",
@@ -228,10 +175,6 @@ func (e *FileDemoExecutor[T, C]) register(info MethodInfo, handler HandlerFunc[C
 	info.HandlerPos = GetHandlerJumpPath(e.biz, info.Name)
 	e.en.Register(info, handler)
 }
-
-
-
-
 
 // handleUploadAvatar 封装了端点的自动化执行流
 func (e *FileDemoExecutor[T, C]) handleUploadAvatar(request C, info MethodInfo) {
@@ -253,30 +196,32 @@ func (e *FileDemoExecutor[T, C]) handleUploadAvatar(request C, info MethodInfo) 
 	request.RenderJson(201, e.r.BindResData(native, result, nil))
 }
 
-
 // bindUploadAvatar 自动生成的参数提取与转换实现
 func (e *FileDemoExecutor[T, C]) bindUploadAvatar(request C, input *UploadAvatarInput) error {
 	if err := request.Payload(SourceMultipart, input); err != nil {
 		return err
 	}
-    return nil
+	return nil
 }
 
 // validateUploadAvatar 参数验证逻辑
 func (e *FileDemoExecutor[T, C]) validateUploadAvatar(ctx T, input *UploadAvatarInput) error {
 	// Pass 1: Required validations
-	if err := e.v.Required(ctx, "userId", input.UserId ); err != nil { return err }
-	if err := e.v.Required(ctx, "avatar", input.Avatar ); err != nil { return err }
+	if err := e.v.Required(ctx, "userId", input.UserId); err != nil {
+		return err
+	}
+	if err := e.v.Required(ctx, "avatar", input.Avatar); err != nil {
+		return err
+	}
 
 	// Pass 2: Other validations
 	if input.Avatar != nil {
-		if err := e.v.FileRule(ctx, "avatar", *input.Avatar , 2097152, []string{"image/jpeg", "image/png"}, "头像仅支持 JPG/PNG 格式，且不超过 2MB"); err != nil { return err }
+		if err := e.v.FileRule(ctx, "avatar", *input.Avatar, 2097152, []string{"image/jpeg", "image/png"}, "头像仅支持 JPG/PNG 格式，且不超过 2MB"); err != nil {
+			return err
+		}
 	}
 	return nil
 }
-
-
-
 
 // handleUploadDocument 封装了端点的自动化执行流
 func (e *FileDemoExecutor[T, C]) handleUploadDocument(request C, info MethodInfo) {
@@ -298,49 +243,52 @@ func (e *FileDemoExecutor[T, C]) handleUploadDocument(request C, info MethodInfo
 	request.RenderJson(201, e.r.BindResData(native, result, nil))
 }
 
-
 // bindUploadDocument 自动生成的参数提取与转换实现
 func (e *FileDemoExecutor[T, C]) bindUploadDocument(request C, input *UploadDocumentInput) error {
 	if err := request.Payload(SourceMultipart, input); err != nil {
 		return err
 	}
-    return nil
+	return nil
 }
 
 // validateUploadDocument 参数验证逻辑
 func (e *FileDemoExecutor[T, C]) validateUploadDocument(ctx T, input *UploadDocumentInput) error {
 	// Pass 1: Required validations
-	if err := e.v.Required(ctx, "title", input.Title ); err != nil { return err }
-	if err := e.v.Required(ctx, "document", input.Document ); err != nil { return err }
+	if err := e.v.Required(ctx, "title", input.Title); err != nil {
+		return err
+	}
+	if err := e.v.Required(ctx, "document", input.Document); err != nil {
+		return err
+	}
 
 	// Pass 2: Other validations
 	if input.Document != nil {
-		if err := e.v.FileRule(ctx, "document", *input.Document , 10485760, []string{"application/pdf"}, "仅支持 PDF 格式，且不超过 10MB"); err != nil { return err }
+		if err := e.v.FileRule(ctx, "document", *input.Document, 10485760, []string{"application/pdf"}, "仅支持 PDF 格式，且不超过 10MB"); err != nil {
+			return err
+		}
 	}
 	if input.Cover != nil {
-		if err := e.v.FileRule(ctx, "cover", *input.Cover , 1048576, []string{"image/jpeg", "image/png", "image/webp"}, "封面图仅支持 JPG/PNG/WebP 格式，且不超过 1MB"); err != nil { return err }
+		if err := e.v.FileRule(ctx, "cover", *input.Cover, 1048576, []string{"image/jpeg", "image/png", "image/webp"}, "封面图仅支持 JPG/PNG/WebP 格式，且不超过 1MB"); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
-
-
-
 // handleDownloadFile 封装了端点的自动化执行流
 func (e *FileDemoExecutor[T, C]) handleDownloadFile(request C, info MethodInfo) {
 	native := request.Native()
-		var idVal *int
-		
-		
-		
-		
-		
-		
-			
-		
-		if val := request.GetPath("id"); val != "" {
-			if v, err := IntFromParam(val); err == nil { v2 := v; idVal = &v2 } else { request.RenderJson(e.r.ErrorToStatus(native, err), e.r.BindResData(native, nil, err)); return }
+	var idVal *int
+
+	if val := request.GetPath("id"); val != "" {
+		if v, err := IntFromParam(val); err == nil {
+			v2 := v
+			idVal = &v2
+		} else {
+			request.RenderJson(e.r.ErrorToStatus(native, err), e.r.BindResData(native, nil, err))
+			return
 		}
+	}
 	result, err := e.biz.DownloadFile(request.Context(), idVal)
 	if err != nil {
 		request.RenderJson(e.r.ErrorToStatus(native, err), e.r.BindResData(native, nil, err))
@@ -349,26 +297,14 @@ func (e *FileDemoExecutor[T, C]) handleDownloadFile(request C, info MethodInfo) 
 	request.RenderText(200, result)
 }
 
-
-
-
-
-
 // handleExportCsv 封装了端点的自动化执行流
 func (e *FileDemoExecutor[T, C]) handleExportCsv(request C, info MethodInfo) {
 	native := request.Native()
-		var idsVal *string
-		
-		
-		
-		
-		
-		
-			
-		
-		if val := request.GetQuery("ids"); val != "" {
-			idsVal = &val
-		}
+	var idsVal *string
+
+	if val := request.GetQuery("ids"); val != "" {
+		idsVal = &val
+	}
 	result, err := e.biz.ExportCsv(request.Context(), idsVal)
 	if err != nil {
 		request.RenderJson(e.r.ErrorToStatus(native, err), e.r.BindResData(native, nil, err))
@@ -376,14 +312,6 @@ func (e *FileDemoExecutor[T, C]) handleExportCsv(request C, info MethodInfo) {
 	}
 	request.RenderText(200, result)
 }
-
-
-
-
-
-
-
-
 
 // handleCreatePost 封装了端点的自动化执行流
 func (e *FileDemoExecutor[T, C]) handleCreatePost(request C, info MethodInfo) {
@@ -405,36 +333,29 @@ func (e *FileDemoExecutor[T, C]) handleCreatePost(request C, info MethodInfo) {
 	request.RenderJson(200, result)
 }
 
-
 // bindCreatePost 自动生成的参数提取与转换实现
 func (e *FileDemoExecutor[T, C]) bindCreatePost(request C, input *CreatePostInput) error {
-	var dto CreatePostInputDTO
-	if err := request.Payload(SourceJson, &dto); err != nil {
+	if err := request.Payload(SourceJson, input); err != nil {
 		return err
 	}
-	if err := input.FromDTO(request.Native(), &dto); err != nil {
-		return err
+	// 处理多态 Union 字段
+	if StringifyUnionDiscriminator(input.Type) != "" && input.Payload != nil {
+		resolved, err := ResolveContentPayload(input.Type, input.Payload)
+		if err != nil {
+			return fmt.Errorf("多态 payload 解析失败: %v", err)
+		}
+		input.Payload = resolved
 	}
-    // 处理多态 Union 字段
-    if StringifyUnionDiscriminator(input.Type) != "" && input.Payload != nil {
-        resolved, err := ResolveContentPayload(input.Type, input.Payload)
-        if err != nil {
-            return fmt.Errorf("多态 payload 解析失败: %v", err)
-        }
-        input.Payload = resolved
-    }
-    return nil
+	return nil
 }
 
 // validateCreatePost 参数验证逻辑
 func (e *FileDemoExecutor[T, C]) validateCreatePost(ctx T, input *CreatePostInput) error {
 	// Pass 1: Required validations
-	if err := e.v.Required(ctx, "type", input.Type ); err != nil { return err }
+	if err := e.v.Required(ctx, "type", input.Type); err != nil {
+		return err
+	}
 
 	// Pass 2: Other validations
 	return nil
 }
-
-
-
-

@@ -408,6 +408,7 @@
               "isErrorWrapped": true,
               "errorTypeBase": "ResDataError",
               "successStatus": 200,
+              "permission": "admin",
               "args": [
                 {
                   "name": "id",
@@ -468,6 +469,7 @@
               "isErrorWrapped": true,
               "errorTypeBase": "ResDataError",
               "successStatus": 200,
+              "permission": "events:get",
               "args": [
                 {
                   "name": "start_time",
@@ -497,6 +499,7 @@
               "isErrorWrapped": true,
               "errorTypeBase": "ResDataError",
               "successStatus": 200,
+              "permission": "events:list",
               "args": [
                 {
                   "name": "input",
@@ -664,6 +667,7 @@
               "isErrorWrapped": true,
               "errorTypeBase": "ResDataError",
               "successStatus": 200,
+              "permission": "export:*",
               "isArgsWrapped": false,
               "contentType": "application/json",
               "responseContentType": "text/plain",
@@ -684,6 +688,7 @@
               "isErrorWrapped": true,
               "errorTypeBase": "ResDataError",
               "successStatus": 200,
+              "permission": "export:*",
               "isArgsWrapped": false,
               "contentType": "application/json",
               "responseContentType": "application/json",
@@ -704,6 +709,7 @@
               "isErrorWrapped": true,
               "errorTypeBase": "ResDataError",
               "successStatus": 200,
+              "permission": "export:*",
               "isArgsWrapped": false,
               "contentType": "application/json",
               "responseContentType": "application/xml",
@@ -1554,7 +1560,7 @@
         },
         {
           "name": "start_time",
-          "type": "time.Time",
+          "type": "Int",
           "jsonName": "startTime",
           "originalType": "Int",
           "validators": [
@@ -1565,13 +1571,13 @@
         },
         {
           "name": "end_time",
-          "type": "*time.Time",
+          "type": "*Int",
           "jsonName": "endTime",
           "originalType": "Int"
         },
         {
           "name": "created_at",
-          "type": "*time.Time",
+          "type": "*Int",
           "jsonName": "createdAt",
           "originalType": "Int"
         }
@@ -1596,7 +1602,7 @@
         },
         {
           "name": "start_time",
-          "type": "time.Time",
+          "type": "Int",
           "jsonName": "startTime",
           "originalType": "Int",
           "validators": [
@@ -1607,7 +1613,7 @@
         },
         {
           "name": "end_time",
-          "type": "time.Time",
+          "type": "Int",
           "jsonName": "endTime",
           "originalType": "Int",
           "validators": [
@@ -1626,13 +1632,13 @@
       "fields": [
         {
           "name": "after",
-          "type": "*time.Time",
+          "type": "*Int",
           "jsonName": "after",
           "originalType": "Int"
         },
         {
           "name": "before",
-          "type": "*time.Time",
+          "type": "*Int",
           "jsonName": "before",
           "originalType": "Int"
         },
