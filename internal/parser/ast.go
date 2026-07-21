@@ -19,6 +19,7 @@ type Declaration struct {
 	Decorator *MetaDecl     `| @@` // 处理 validator 和 decorator
 	Model     *ModelDecl    `| @@` // 处理 type 和 input
 	Group     *GroupDecl    `| @@`
+	Union     *UnionDecl    `| @@`
 }
 
 type ModuleDecl struct {
@@ -54,6 +55,21 @@ type ModelDecl struct {
 	Name       string           `@Ident`
 	TypeParams []string         `("<" @Ident ("," @Ident)* ">")?`
 	Properties []FieldDecl      `"{" @@* "}"`
+}
+
+type UnionDecl struct {
+	Pos       lexer.Position
+	Doc       string
+	Name      string      `"union" @Ident`
+	ParamName string      `"(" @Ident ")"`
+	Cases     []UnionCase `"{" @@* "}"`
+}
+
+type UnionCase struct {
+	Pos       lexer.Position
+	IsDefault bool    `( @"default" ":"`
+	Key       string  `| @String ":" )`
+	Type      string  `@Ident`
 }
 
 type FieldDecl struct {
@@ -127,6 +143,7 @@ type TypeRef struct {
 	IsArray     bool      `@"["?`
 	Name        string    `@Ident`
 	TypeArgs    []TypeRef `("<" @@ ("," @@)* ">")?`
+	UnionParam  string    `("(" @Ident ( "." @Ident )* ")")?`
 	ItemNotNull bool      `@"!"?`
 	ArrEnd      bool      `@"]"?`
 	ArrNotNull  bool      `@"!"?`

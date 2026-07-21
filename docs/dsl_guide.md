@@ -13,7 +13,6 @@ Resgen DSL 拥有一套强类型的系统，确保从接口定义到代码生成
 | `Int` | `int` | 整数 |
 | `Float` | `float64` | 浮点数 |
 | `Boolean` | `bool` | 布尔值 |
-| `Time` | `time.Time` | 时间/日期 |
 | `File` | `*multipart.FileHeader` | 文件上传/下载流 |
 | `Any` | `any` | 逃生舱，表示任意动态数据类型 |
 | `Field` | `any` | 字段引用类型（专用于校验器参数声明，⚠️ 警告：绝对不能作为普通属性字段类型！） |
@@ -113,6 +112,21 @@ input CreateUserInput {
     password: String!
 }
 ```
+
+### 联合类型 (Unions)
+使用 `union` 关键字定义多态类型。可在括号内声明该联合类型所预期的判别器基础类型（如 `String`、`Int` 等，主要用于文档提示和基础类型约束）。
+
+```go
+union ContentPayload(String) {
+    "article" => Article
+    "video"   => Video
+    default   => Any
+}
+```
+
+- **类型映射**：联合类型在生成的 Go 代码中统一体现为 `any`（空接口），提供最大的动态灵活性。
+- **解析器**：Resgen 会为每个 `union` 自动生成 `Resolve<UnionName>(disc string, rawData any) (any, error)` 工厂方法。
+- **自动绑定**：如果在 `input` 模型中引用了联合类型字段，且请求 Body 中同时包含对应的 `标识字段` 值，代码生成器会自动在 `bind` 函数中注入并调用对应的 `Resolve` 函数，将底层 `map[string]any` 转换为具体的强类型结构体指针。
 
 ### 响应包装器 (Wrappers)
 使用 `wrap` 关键字定义通用的响应格式，支持泛型 `T`。

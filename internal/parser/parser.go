@@ -121,6 +121,7 @@ func attachCommentsToSchema(s *Schema, comments map[int]string, codeLines map[in
 
 		if decl.Module != nil { decl.Module.Doc = doc }
 		if decl.Scalar != nil { decl.Scalar.Doc = doc }
+		if decl.Union != nil { decl.Union.Doc = doc }
 		if decl.Decorator != nil {
 			decl.Decorator.Doc = doc
 			if txt, ok := comments[decl.Decorator.Pos.Line]; ok {
@@ -298,6 +299,12 @@ func (s *Schema) Validate() error {
 			}
 			models[decl.Scalar.Name] = true
 		}
+		if decl.Union != nil {
+			if models[decl.Union.Name] {
+				return fmt.Errorf("%s: duplicate union defined: %s", decl.Union.Pos, decl.Union.Name)
+			}
+			models[decl.Union.Name] = true
+		}
 	}
 
 	// 第二遍：验证引用完整性
@@ -312,6 +319,13 @@ func (s *Schema) Validate() error {
 			for _, prop := range decl.Model.Properties {
 				if err := validateTypeRef(prop.Type, models, baseTypes, localTypes); err != nil {
 					return fmt.Errorf("%s: model %s property %s: %v", prop.Pos, decl.Model.Name, prop.Name, err)
+				}
+			}
+		}
+		if decl.Union != nil {
+			for _, c := range decl.Union.Cases {
+				if c.Type != "Any" && !baseTypes[c.Type] && !models[c.Type] {
+					return fmt.Errorf("%s: union %s case %s references undefined type: %s", c.Pos, decl.Union.Name, c.Key, c.Type)
 				}
 			}
 		}

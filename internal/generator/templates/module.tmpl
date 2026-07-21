@@ -660,6 +660,20 @@ func (e *{{$.Module.Name}}Executor[T, C]) bind{{.Name}}(request C, input *{{.Inp
 	{{- end}}
 	{{- end}}
     {{- end}}
+    {{- if .HasUnion}}
+    // 处理多态 Union 字段
+    {{- range .InputModel.Fields}}
+    {{- if .IsUnion}}
+    if StringifyUnionDiscriminator(input.{{.UnionParamGoName}}) != "" && input.{{.Name}} != nil {
+        resolved, err := Resolve{{.UnionModel.Name}}(input.{{.UnionParamGoName}}, input.{{.Name}})
+        if err != nil {
+            return fmt.Errorf("多态 payload 解析失败: %v", err)
+        }
+        input.{{.Name}} = resolved
+    }
+    {{- end}}
+    {{- end}}
+    {{- end}}
     return nil
 }
 {{end}}

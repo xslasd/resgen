@@ -236,6 +236,10 @@ type ModelField struct {
 	IsPointer             bool       `json:"-"`
 	IsArrayElementPointer bool       `json:"-"`
 	ScalarModel           string     `json:"-"`
+	IsUnion               bool       `json:"-"`
+	UnionModel            *UnionInfo `json:"-"`
+	UnionParamExp         string     `json:"-"`
+	UnionParamGoName      string     `json:"-"`
 }
 
 type ScalarInfo struct {
@@ -245,6 +249,20 @@ type ScalarInfo struct {
 	GoType   string `json:"goType"`
 }
 
+type UnionCaseInfo struct {
+	IsDefault bool   `json:"isDefault"`
+	Key       string `json:"key"`
+	Type      string `json:"type"`
+	GoType    string `json:"goType"`
+}
+
+type UnionInfo struct {
+	Name      string          `json:"name"`
+	Doc       string          `json:"doc,omitempty"`
+	ParamName string          `json:"paramName"`
+	Cases     []UnionCaseInfo `json:"cases"`
+}
+
 type ModelInfo struct {
 	Name       string       `json:"name"`
 	Doc        string       `json:"doc,omitempty"`
@@ -252,6 +270,7 @@ type ModelInfo struct {
 	IsInput    bool         `json:"isInput"`
 	IsWrapper  bool         `json:"isWrapper"`
 	HasScalar  bool         `json:"-"`
+	HasUnion   bool         `json:"-"`
 	TypeParams []string     `json:"typeParams,omitempty"`
 	Fields     []ModelField `json:"fields"`
 }
@@ -309,6 +328,7 @@ type MethodInfo struct {
 	HasValidation      bool           `json:"-"`
 	HasScalar          bool           `json:"-"`
 	HasInput           bool           `json:"-"`
+	HasUnion           bool           `json:"-"`
 	CustomBind         bool           `json:"-"`
 	CustomValidate     bool           `json:"-"`
 }
@@ -354,6 +374,8 @@ type DataContext struct {
 	Models                      []*ModelInfo           `json:"models"`
 	ModelMap                    map[string]*ModelInfo  `json:"-"`
 	Scalars                     map[string]*ScalarInfo `json:"scalars,omitempty"`
+	Unions                      []*UnionInfo           `json:"unions,omitempty"`
+	UnionMap                    map[string]*UnionInfo  `json:"-"`
 	Config                      *config.Config         `json:"-"`
 	BodySources                 []BodySourceInfo       `json:"-"`
 	ExtraImports                []string               `json:"-"`
@@ -541,6 +563,7 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 		Package:  "resolver",
 		ModelMap: make(map[string]*ModelInfo),
 		Scalars:  make(map[string]*ScalarInfo),
+		UnionMap: make(map[string]*UnionInfo),
 		Config:   conf,
 		Info: ApiInfo{
 			Title:   "Resgen Generated API",
@@ -677,6 +700,29 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 				GoType:   resolvedGoType,
 			}
 		}
+		if decl.Union != nil {
+			u := &UnionInfo{
+				Name:      decl.Union.Name,
+				Doc:       decl.Union.Doc,
+				ParamName: decl.Union.ParamName,
+			}
+			for _, c := range decl.Union.Cases {
+				goType := c.Type
+				if c.Type != "Any" {
+					goType = ToGoType(parser.TypeRef{Name: c.Type}, ctx.Config, &ctx.ExtraImports, "", ctx.ModelMap)
+				} else {
+					goType = "any"
+				}
+				u.Cases = append(u.Cases, UnionCaseInfo{
+					IsDefault: c.IsDefault,
+					Key:       c.Key,
+					Type:      c.Type,
+					GoType:    goType,
+				})
+			}
+			ctx.Unions = append(ctx.Unions, u)
+			ctx.UnionMap[decl.Union.Name] = u
+		}
 		if decl.Model != nil {
 			mName := currentModule
 			if mName == "" {
@@ -724,6 +770,12 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 						}
 					}
 				}
+				if ctx.UnionMap[field.Type.Name] != nil {
+					goType = "any"
+					if field.Type.IsArray {
+						goType = "[]any"
+					}
+				}
 				m.Fields = append(m.Fields, ModelField{
 					Name:     capitalize(field.Name),
 					JSONName: field.Name,
@@ -745,31 +797,40 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 							return goType
 						}
 					}(),
-					OriginalType: field.Type.Name,
-					Tag:          generateTags(field.Name, ctx.Config),
-					Source:       "Body", // Default to Body
-					RefModel:     ctx.ModelMap[field.Type.Name],
+					OriginalType:     field.Type.Name,
+					Tag:              generateTags(field.Name, ctx.Config),
+					Source:           "Body", // Default to Body
+					RefModel:         ctx.ModelMap[field.Type.Name],
+					IsUnion:          ctx.UnionMap[field.Type.Name] != nil,
+					UnionModel:       ctx.UnionMap[field.Type.Name],
+					UnionParamExp:    strings.Trim(field.Type.UnionParam, "()"),
+					UnionParamGoName: capitalize(strings.TrimPrefix(strings.Trim(field.Type.UnionParam, "()"), "input.")),
 				})
 				if ctx.Scalars[field.Type.Name] != nil {
 					m.HasScalar = true
+				}
+				if ctx.UnionMap[field.Type.Name] != nil {
+					m.HasUnion = true
 				}
 			}
 		}
 	}
 
-	// 冒泡传递 HasScalar 属性（解决多级嵌套结构体的 HasScalar 传递）
+	// 冒泡传递 HasScalar 和 HasUnion 属性（解决多级嵌套结构体的传递）
 	changed := true
 	for changed {
 		changed = false
 		for _, m := range ctx.Models {
-			if m.HasScalar {
-				continue
-			}
 			for _, f := range m.Fields {
-				if f.RefModel != nil && f.RefModel.HasScalar {
-					m.HasScalar = true
-					changed = true
-					break
+				if f.RefModel != nil {
+					if !m.HasScalar && f.RefModel.HasScalar {
+						m.HasScalar = true
+						changed = true
+					}
+					if !m.HasUnion && f.RefModel.HasUnion {
+						m.HasUnion = true
+						changed = true
+					}
 				}
 			}
 		}
@@ -793,6 +854,34 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 				field.GoTypeDTO = strings.ReplaceAll(field.GoType, field.RefModel.Name, field.RefModel.Name+"DTO")
 			} else {
 				field.GoTypeDTO = field.GoType
+			}
+		}
+	}
+
+	// 多态 Union 约束验证
+	for _, m := range ctx.Models {
+		if !m.HasUnion {
+			continue
+		}
+		for _, f := range m.Fields {
+			if f.IsUnion {
+				found := false
+				for _, pf := range m.Fields {
+					if pf.Name == f.UnionParamGoName {
+						// 判别器类型应该为可序列化为字符串的基础类型
+						switch pf.BaseGoType {
+						case "string", "int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64", "float32", "float64", "bool", "any":
+							// 合法
+						default:
+							return fmt.Errorf("模型 %s 的多态联合类型字段 %s 依赖的判别器字段 %s 必须为基础类型 (当前为 %s)", m.Name, f.Name, f.UnionParamGoName, pf.BaseGoType)
+						}
+						found = true
+						break
+					}
+				}
+				if !found {
+					return fmt.Errorf("模型 %s 的多态联合类型字段 %s 依赖的判别器字段 %s 未在模型中定义", m.Name, f.Name, f.UnionParamGoName)
+				}
 			}
 		}
 	}
@@ -1071,6 +1160,9 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 					method.InputModel = inputModel
 					if len(inputModel.Fields) > 0 {
 						method.HasInput = true
+					}
+					if inputModel.HasUnion {
+						method.HasUnion = true
 					}
 				}
 				if returnModel, ok := ctx.ModelMap[method.InnerReturnType]; ok {

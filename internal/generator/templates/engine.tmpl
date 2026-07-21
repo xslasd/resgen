@@ -12,6 +12,7 @@ import (
 	"reflect"
 	"runtime"
 	"path/filepath"
+	"github.com/mitchellh/mapstructure"
     {{- range .ExtraImports}}
     "{{.}}"
     {{- end}}
@@ -222,6 +223,21 @@ func AnyFromParam(s string) (any, error) {
 	return s, nil
 }
 
+// StringifyUnionDiscriminator 是一个内部辅助函数，用于将多态判别器（如 int, string 及它们的指针）安全地格式化为字符串
+func StringifyUnionDiscriminator(v any) string {
+	if v == nil {
+		return ""
+	}
+	val := reflect.ValueOf(v)
+	for val.Kind() == reflect.Ptr {
+		if val.IsNil() {
+			return ""
+		}
+		val = val.Elem()
+	}
+	return fmt.Sprintf("%v", val.Interface())
+}
+
 
 // ==========================================
 // 2. Decorators & Validators
@@ -279,4 +295,57 @@ type {{.Name}} struct {
 	{{- end}}
 }
 {{- end}}
+{{end}}
+
+{{if .Unions}}
+// ==========================================
+// 3. Union / Polymorphism Resolvers
+// ==========================================
+
+{{range .Unions}}
+{{- if .Doc}}
+// {{.Doc}}
+{{- end}}
+func Resolve{{.Name}}(disc any, rawData any) (any, error) {
+    discStr := StringifyUnionDiscriminator(disc)
+    switch discStr {
+    {{- range .Cases}}
+    {{- if not .IsDefault}}
+    case "{{.Key}}":
+        {{- if eq .GoType "any"}}
+        return rawData, nil
+        {{- else}}
+        var dst {{.GoType}}
+        if err := mapstructure.Decode(rawData, &dst); err != nil {
+            return nil, err
+        }
+        return &dst, nil
+        {{- end}}
+    {{- end}}
+    {{- end}}
+    default:
+        {{- $hasDefault := false}}
+        {{- $defaultType := ""}}
+        {{- range .Cases}}
+            {{- if .IsDefault}}
+                {{- $hasDefault = true}}
+                {{- $defaultType = .GoType}}
+            {{- end}}
+        {{- end}}
+        {{- if $hasDefault}}
+            {{- if eq $defaultType "any"}}
+        return rawData, nil
+            {{- else}}
+        var dst {{$defaultType}}
+        if err := mapstructure.Decode(rawData, &dst); err != nil {
+            return nil, err
+        }
+        return &dst, nil
+            {{- end}}
+        {{- else}}
+        return rawData, nil
+        {{- end}}
+    }
+}
+{{end}}
 {{end}}

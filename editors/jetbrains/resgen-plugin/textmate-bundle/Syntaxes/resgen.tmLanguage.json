@@ -27,11 +27,11 @@
             "patterns": [
                 {
                     "name": "storage.type.resgen",
-                    "match": "\\b(module|type|input|wrap|group|decorator|validator|scalar)\\b"
+                    "match": "\\b(module|type|input|wrap|group|decorator|validator|scalar|union)\\b"
                 },
                 {
                     "name": "keyword.control.resgen",
-                    "match": "\\b(GET|POST|PUT|DELETE|PATCH|get|post|put|delete|patch)\\b"
+                    "match": "\\b(GET|POST|PUT|DELETE|PATCH|get|post|put|delete|patch|default)\\b"
                 }
             ]
         },
