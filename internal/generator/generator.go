@@ -1147,7 +1147,18 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 					args = append(args, argInfo)
 				}
 
-				if len(args) == 1 && args[0].RefModel != nil && (args[0].Source == "Body" || (ep.Method == "GET" && !args[0].IsScalar)) {
+				// 语义校验：如果存在匿名参数，则必须是唯一的参数
+				for _, arg := range ep.Args {
+					if arg.Name == "" && len(ep.Args) > 1 {
+						return fmt.Errorf("端点 %s 语义错误: 匿名参数 (顶级 Payload) 只能作为唯一参数使用，不可与其他参数混用", ep.Name)
+					}
+				}
+
+				if len(args) == 1 && args[0].Name == "" {
+					method.InputName = args[0].GoType
+					method.IsArgsWrapped = false
+					method.Args = args
+				} else if len(args) == 1 && args[0].RefModel != nil && (args[0].Source == "Body" || (ep.Method == "GET" && !args[0].IsScalar)) {
 					method.InputName = args[0].RefModel.Name
 					method.IsArgsWrapped = false
 					method.Args = args
@@ -1196,7 +1207,10 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 					if inputModel.HasUnion {
 						method.HasUnion = true
 					}
+				} else if len(args) == 1 && args[0].Name == "" {
+					method.HasInput = true
 				}
+				
 				if returnModel, ok := ctx.ModelMap[method.InnerReturnType]; ok {
 					method.ReturnModel = returnModel
 				} else if ep.ReturnType != nil {

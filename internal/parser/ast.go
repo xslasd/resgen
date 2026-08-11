@@ -133,7 +133,7 @@ type EndpointDecl struct {
 type ArgDecl struct {
 	Pos        lexer.Position
 	Doc        string
-	Name       string           `@Ident ":"`
+	Name       string           `( @Ident ":" )?`
 	Type       TypeRef          `@@`
 	Directives []DirectiveUsage `@@*`
 }

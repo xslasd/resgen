@@ -1,0 +1,190 @@
+{
+  "version": "v0.5.0",
+  "package": "resolver",
+  "info": {
+    "title": "Resgen Generated API",
+    "version": "1.0.0",
+    "baseUrl": "http://localhost:8080"
+  },
+  "validators": [
+    {
+      "name": "Required"
+    }
+  ],
+  "modules": [
+    {
+      "name": "SinglePayloadExample",
+      "groups": [
+        {
+          "name": "Api",
+          "path": "/api",
+          "endpoints": [
+            {
+              "name": "SaveItems",
+              "doc": "接收单个数组类型的 Payload\nJSON 请求体示例: {\"items\": [{\"id\": 1, \"name\": \"Apple\"}, {\"id\": 2, \"name\": \"Banana\"}]}",
+              "method": "POST",
+              "path": "/items",
+              "fullPath": "/api/items",
+              "inputName": "[]Item",
+              "returnType": "int",
+              "returnTypeDSL": "Int",
+              "innerReturnType": "int",
+              "isReturnWrapped": false,
+              "isReturnArray": false,
+              "errorType": "ResError",
+              "isErrorWrapped": true,
+              "errorTypeBase": "ResError",
+              "successStatus": 200,
+              "args": [
+                {
+                  "name": "",
+                  "type": "[Item]",
+                  "source": "Body",
+                  "validators": [
+                    {
+                      "name": "Required"
+                    }
+                  ]
+                }
+              ],
+              "isArgsWrapped": false,
+              "contentType": "application/json",
+              "responseContentType": "application/json",
+              "errorContentType": "application/json"
+            },
+            {
+              "name": "ProcessRaw",
+              "doc": "接收单个 Any 类型的 Payload\nJSON 请求体示例: {\"data\": {\"anything\": \"you want\", \"number\": 42}}",
+              "method": "POST",
+              "path": "/raw",
+              "fullPath": "/api/raw",
+              "inputName": "any",
+              "returnType": "any",
+              "returnTypeDSL": "Any",
+              "innerReturnType": "any",
+              "isReturnWrapped": false,
+              "isReturnArray": false,
+              "errorType": "ResError",
+              "isErrorWrapped": true,
+              "errorTypeBase": "ResError",
+              "successStatus": 200,
+              "args": [
+                {
+                  "name": "",
+                  "type": "Any",
+                  "source": "Body"
+                }
+              ],
+              "isArgsWrapped": false,
+              "contentType": "application/json",
+              "responseContentType": "application/json",
+              "errorContentType": "application/json"
+            }
+          ]
+        }
+      ],
+      "models": null
+    }
+  ],
+  "models": [
+    {
+      "name": "Item",
+      "module": "SinglePayloadExample",
+      "isInput": false,
+      "isWrapper": false,
+      "fields": [
+        {
+          "name": "Id",
+          "type": "int",
+          "jsonName": "id",
+          "originalType": "Int",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        },
+        {
+          "name": "Name",
+          "type": "string",
+          "jsonName": "name",
+          "originalType": "String",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Res",
+      "module": "SinglePayloadExample",
+      "isInput": false,
+      "isWrapper": true,
+      "typeParams": [
+        "T"
+      ],
+      "fields": [
+        {
+          "name": "Code",
+          "type": "int",
+          "jsonName": "code",
+          "originalType": "Int",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        },
+        {
+          "name": "Msg",
+          "type": "string",
+          "jsonName": "msg",
+          "originalType": "String",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        },
+        {
+          "name": "Data",
+          "type": "*T",
+          "jsonName": "data",
+          "originalType": "T"
+        }
+      ]
+    },
+    {
+      "name": "ResError",
+      "module": "SinglePayloadExample",
+      "isInput": false,
+      "isWrapper": false,
+      "fields": [
+        {
+          "name": "Code",
+          "type": "int",
+          "jsonName": "code",
+          "originalType": "Int",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        },
+        {
+          "name": "Msg",
+          "type": "string",
+          "jsonName": "msg",
+          "originalType": "String",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
