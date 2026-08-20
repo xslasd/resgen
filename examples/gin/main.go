@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/xslasd/resgen/examples/resolver"
+	"github.com/xslasd/resgen/examples/scalars"
 
 	"github.com/gin-gonic/gin"
 )
@@ -81,6 +82,16 @@ func (c *GinContext) RenderText(code int, obj any) {
 
 func (c *GinContext) RenderRaw(code int, contentType string, body []byte) {
 	c.GC.Data(code, contentType, body)
+}
+
+func (c *GinContext) RenderStream(code int, obj any) {
+	if f, ok := obj.(*resolver.LocalFileDownload); ok {
+		c.GC.FileAttachment(f.FilePath, f.Filename)
+	} else if b, ok := obj.([]byte); ok {
+		c.GC.Data(code, "application/octet-stream", b)
+	} else {
+		c.GC.String(code, "%v", obj)
+	}
 }
 
 func (c *GinContext) RenderXml(code int, obj any) {
@@ -237,14 +248,14 @@ func (h *WrapperDemoHandler) Logout(ctx context.Context) error {
 // ScalarDemoHandler
 type ScalarDemoHandler struct{}
 
-func (h *ScalarDemoHandler) GetEventByTime(ctx context.Context, startTime *time.Time) (*resolver.Event, error) {
-	now := time.Now()
+func (h *ScalarDemoHandler) GetEventByTime(ctx context.Context, startTime *scalars.IntTime) (*resolver.Event, error) {
+	now := scalars.IntTime(time.Now())
 	return &resolver.Event{Id: 1, Name: "Time Event", StartTime: *startTime, EndTime: &now, CreatedAt: &now}, nil
 }
 
 func (h *ScalarDemoHandler) ListEvents(ctx context.Context, input *resolver.QueryEventsInput) (*[]*resolver.Event, error) {
-	now := time.Now()
-	var start time.Time
+	now := scalars.IntTime(time.Now())
+	var start scalars.IntTime
 	if input.After != nil {
 		start = *input.After
 	} else {
@@ -257,7 +268,7 @@ func (h *ScalarDemoHandler) ListEvents(ctx context.Context, input *resolver.Quer
 }
 
 func (h *ScalarDemoHandler) CreateEvent(ctx context.Context, input *resolver.CreateEventInput) (*resolver.Event, error) {
-	now := time.Now()
+	now := scalars.IntTime(time.Now())
 	return &resolver.Event{Id: 2, Name: input.Name, StartTime: input.StartTime, EndTime: &input.EndTime, CreatedAt: &now}, nil
 }
 
@@ -275,7 +286,7 @@ func (h *ContentTypeDemoHandler) SubmitForm(ctx context.Context, input *resolver
 }
 
 func (h *ContentTypeDemoHandler) SubmitMultipart(ctx context.Context, title string) (*string, error) {
-	s := "multipart submitted: " + title
+	s := "multipart submitted"
 	return &s, nil
 }
 
@@ -304,7 +315,7 @@ func (h *StatusDemoHandler) CreateProduct(ctx context.Context, input *resolver.C
 }
 
 func (h *StatusDemoHandler) BatchUpdate(ctx context.Context, ids []int) (*string, error) {
-	s := fmt.Sprintf("updated products count: %d", len(ids))
+	s := "updated"
 	return &s, nil
 }
 
@@ -353,19 +364,44 @@ func (h *FileDemoHandler) UploadDocument(ctx context.Context, input *resolver.Up
 	}, nil
 }
 
-func (h *FileDemoHandler) DownloadFile(ctx context.Context, id *int) (*string, error) {
-	s := fmt.Sprintf("file content of id %d", *id)
-	return &s, nil
+func (h *FileDemoHandler) DownloadFile(ctx context.Context, id *int) (*multipart.FileHeader, error) {
+	return nil, nil
 }
 
-func (h *FileDemoHandler) ExportCsv(ctx context.Context, ids *string) (*string, error) {
-	s := "id,name\n1,Alice"
-	return &s, nil
+func (h *FileDemoHandler) ExportCsv(ctx context.Context, ids *string) (*multipart.FileHeader, error) {
+	return nil, nil
 }
 
-func (h *FileDemoHandler) CreatePost(ctx context.Context, input *resolver.CreatePostInput) (any, error) {
+func (h *FileDemoHandler) CreatePost(ctx context.Context, input *resolver.CreatePostInput) (*resolver.ContentPostItem, error) {
 	fmt.Printf(">>> [CreatePost] Type: %s, Payload: %+v\n", input.Type, input.Payload)
-	return input.Payload, nil
+	return &resolver.ContentPostItem{
+		Id:      1,
+		Type:    input.Type,
+		Payload: input.Payload,
+	}, nil
+}
+
+func (h *FileDemoHandler) GetPost(ctx context.Context, id *int) (*resolver.ContentPostItem, error) {
+	return &resolver.ContentPostItem{
+		Id:   *id,
+		Type: resolver.UnionKind_article,
+		Payload: &resolver.UnionArticle{
+			Title:   "Sample Article",
+			Content: "This is a sample article returned as a union payload.",
+		},
+	}, nil
+}
+
+
+
+type EnumDemoHandler struct{}
+
+func (h *EnumDemoHandler) CreateUser(ctx context.Context, input *resolver.CreateUserInput) (*resolver.UserWithRole, error) {
+	return &resolver.UserWithRole{ Role: &input.Role }, nil
+}
+
+func (h *EnumDemoHandler) QueryByRole(ctx context.Context, input *resolver.QueryByRoleArgs) (*resolver.UserWithRole, error) {
+	return &resolver.UserWithRole{}, nil
 }
 
 // 装饰器与验证器实现
@@ -466,7 +502,8 @@ func main() {
 	resolver.MountScalarDemo(en, &ScalarDemoHandler{})
 	resolver.MountContentTypeDemo(en, &ContentTypeDemoHandler{})
 	resolver.MountStatusDemo(en, &StatusDemoHandler{})
-	resolver.MountFileDemo(en, &FileDemoHandler{})
+	resolver.MountFileDemo[*gin.Context, *GinContext](en, &FileDemoHandler{})
+	resolver.MountEnumDemo[*gin.Context, *GinContext](en, &EnumDemoHandler{})
 
 	fmt.Println("Resgen Gin Example running on :8080")
 	r.Run(":8080")

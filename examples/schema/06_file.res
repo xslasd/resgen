@@ -39,7 +39,7 @@ group /files [wrap=ResData] {
     # 混合表单上传：文档 + 封面
     POST /document[ctype=multipart] => UploadDocument(input: UploadDocumentInput): ResData<UploadResult> [state=201]
     # 文件下载：成功响应为字节流，失败响应为 JSON（使用 ResData 包装错误）
-    GET /download/:id => DownloadFile(id: Int @path): String [ctype=text, etype=json, wrap=ResData]
+    GET /download/:id => DownloadFile(id: Int @path): File [ctype=stream, etype=json, wrap=ResData]
     # 导出 CSV：同为流式文本响应，失败退化 JSON
-    GET /export/csv => ExportCsv(ids: String @query): String [ctype=text, etype=json, wrap=ResData]
+    GET /export/csv => ExportCsv(ids: String @query): File [ctype=stream, etype=json, wrap=ResData]
 }

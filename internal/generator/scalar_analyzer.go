@@ -215,48 +215,7 @@ func checkToValue(ptrType *types.Pointer, pkg *packages.Package, typeName, goBas
 	return nil
 }
 
-// checkMarshalJSON 校验 direct 模式下的 MarshalJSON + UnmarshalJSON 契约
-func checkMarshalJSON(ptrType *types.Pointer, named *types.Named, pkg *packages.Package, typeName string) error {
-	// 校验值接收者的 MarshalJSON() ([]byte, error)
-	marshalObj, _, _ := types.LookupFieldOrMethod(named, false, pkg.Types, "MarshalJSON")
-	if marshalObj == nil {
-		return fmt.Errorf(
-			"标量类型 '%s' 使用了 direct 风格，但未实现 MarshalJSON 契约！\n"+
-				"  期望的签名: func (it %s) MarshalJSON() ([]byte, error)\n"+
-				"  此方法负责将标量序列化为 JSON 传输层格式（如 int64 时间戳）",
-			typeName, typeName,
-		)
-	}
-	marshalFunc := marshalObj.(*types.Func)
-	marshalSig := marshalFunc.Type().(*types.Signature)
-	if marshalSig.Params().Len() != 0 || marshalSig.Results().Len() != 2 {
-		return fmt.Errorf("标量 '%s' 的 MarshalJSON 方法签名不符合契约！\n  期望的签名: func (it %s) MarshalJSON() ([]byte, error)", typeName, typeName)
-	}
-	if !isErrorType(marshalSig.Results().At(1).Type()) {
-		return fmt.Errorf("标量 '%s' 的 MarshalJSON 方法第二个返回值必须是 error 类型！", typeName)
-	}
 
-	// 校验指针接收者的 UnmarshalJSON([]byte) error
-	unmarshalObj, _, _ := types.LookupFieldOrMethod(ptrType, true, pkg.Types, "UnmarshalJSON")
-	if unmarshalObj == nil {
-		return fmt.Errorf(
-			"标量类型 '%s' 使用了 direct 风格，但未实现 UnmarshalJSON 契约！\n"+
-				"  期望的签名: func (it *%s) UnmarshalJSON(data []byte) error\n"+
-				"  此方法负责将 JSON 传输层格式（如 int64 时间戳）反解析为标量",
-			typeName, typeName,
-		)
-	}
-	unmarshalFunc := unmarshalObj.(*types.Func)
-	unmarshalSig := unmarshalFunc.Type().(*types.Signature)
-	if unmarshalSig.Params().Len() != 1 || unmarshalSig.Results().Len() != 1 {
-		return fmt.Errorf("标量 '%s' 的 UnmarshalJSON 方法签名不符合契约！\n  期望的签名: func (it *%s) UnmarshalJSON(data []byte) error", typeName, typeName)
-	}
-	if !isErrorType(unmarshalSig.Results().At(0).Type()) {
-		return fmt.Errorf("标量 '%s' 的 UnmarshalJSON 方法返回值必须是 error 类型！", typeName)
-	}
-
-	return nil
-}
 
 // isErrorType 判断类型是否为 error 接口
 func isErrorType(t types.Type) bool {

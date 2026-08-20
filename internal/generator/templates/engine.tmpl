@@ -20,6 +20,13 @@ import (
 
 var _ embed.FS // 确保 embed 被使用
 
+// LocalFileDownload 专门用于封装本地文件下载的信息
+// 当在 DSL 中将返回类型设为 File 时，底层的业务方法应当返回此载体
+type LocalFileDownload struct {
+	FilePath string
+	Filename string
+}
+
 // Core Engine Definitions
 type CodedError interface {
 	error
@@ -239,6 +246,16 @@ func StringifyUnionDiscriminator(v any) string {
 }
 
 
+// InvalidEnumError 定义了枚举自检失败时的结构化错误
+type InvalidEnumError struct {
+	EnumType string
+	Value    any
+}
+
+func (e *InvalidEnumError) Error() string {
+	return fmt.Sprintf("invalid %s value: %v", e.EnumType, e.Value)
+}
+
 // ==========================================
 // 2. Decorators & Validators
 // ==========================================
@@ -264,6 +281,9 @@ type Validator[T any] interface {
 	// {{.Name}} 校验逻辑
 	{{.Name}}(ctx T, fieldName string, value any {{range .Args}}, {{.Name}} {{.Type}}{{end}}) error
 	{{- end}}
+
+	// EnumError 处理枚举校验失败的翻译与包装回调
+	EnumError(ctx T, fieldName string, enumType string, value any) error
 }
 
 // Responder [T any] 定义了响应包装与错误映射契约

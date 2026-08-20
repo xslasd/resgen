@@ -224,6 +224,7 @@ type ModelField struct {
 	GoType                string     `json:"-"`
 	BaseGoType            string     `json:"-"`
 	IsScalar              bool       `json:"-"`
+	IsEnum                bool       `json:"-"`
 	JSONName              string     `json:"jsonName"`
 	OriginalType          string     `json:"originalType"`
 	GoValue               string     `json:"value,omitempty"`
@@ -236,9 +237,9 @@ type ModelField struct {
 	IsPointer             bool       `json:"-"`
 	IsArrayElementPointer bool       `json:"-"`
 	ScalarModel           string     `json:"-"`
-	IsUnion               bool       `json:"-"`
+	IsUnion               bool       `json:"isUnion"`
 	UnionModel            *UnionInfo `json:"-"`
-	UnionParamExp         string     `json:"-"`
+	UnionParamExp         string     `json:"unionParamExp,omitempty"`
 	UnionParamGoName      string     `json:"-"`
 }
 
@@ -263,6 +264,22 @@ type UnionInfo struct {
 	Cases     []UnionCaseInfo `json:"cases"`
 }
 
+type EnumCaseInfo struct {
+	Name     string `json:"name"`
+	Doc      string `json:"doc,omitempty"`
+	Value    string `json:"value"`
+	IsString bool   `json:"isString"`
+}
+
+type EnumInfo struct {
+	Name       string         `json:"name"`
+	Doc        string         `json:"doc,omitempty"`
+	Module     string         `json:"module,omitempty"`
+	BaseType   string         `json:"baseType"`
+	BaseGoType string         `json:"-"`
+	Cases      []EnumCaseInfo `json:"cases"`
+}
+
 type ModelInfo struct {
 	Name       string       `json:"name"`
 	Doc        string       `json:"doc,omitempty"`
@@ -280,6 +297,7 @@ type ModuleInfo struct {
 	Doc                   string       `json:"doc,omitempty"`
 	Groups                []GroupInfo  `json:"groups"`
 	Models                []*ModelInfo `json:"models"`
+	Enums                 []*EnumInfo  `json:"enums"`
 	SpecializedDecorators []MetaInfo   `json:"specializedDecorators,omitempty"`
 }
 
@@ -312,6 +330,8 @@ type MethodInfo struct {
 	ErrorType          string         `json:"errorType,omitempty"`
 	IsErrorWrapped     bool           `json:"isErrorWrapped"`
 	ErrorTypeBase      string         `json:"errorTypeBase,omitempty"`
+	IsNoWrap           bool           `json:"isNoWrap"`
+	IsSuccessNoWrap    bool           `json:"isSuccessNoWrap"`
 	SuccessStatus      int            `json:"successStatus"`
 	Permission         string         `json:"permission,omitempty"`
 	RequestDecorators  []MetaInfo     `json:"-"`
@@ -331,6 +351,7 @@ type MethodInfo struct {
 	HasUnion           bool           `json:"-"`
 	CustomBind         bool           `json:"-"`
 	CustomValidate     bool           `json:"-"`
+	ValidationCode     string         `json:"-"`
 }
 
 type ArgumentInfo struct {
@@ -338,13 +359,15 @@ type ArgumentInfo struct {
 	Doc         string     `json:"doc,omitempty"`
 	Type        string     `json:"type"`
 	GoType      string     `json:"-"`
+	Tag         string     `json:"-"`
+	IsScalar    bool       `json:"isScalar"`
+	IsEnum      bool       `json:"isEnum"`
+	ScalarModel string     `json:"-"`
 	BaseGoType  string     `json:"-"`
-	IsScalar    bool       `json:"-"`
 	GoName      string     `json:"-"`
 	Source      string     `json:"source"`
 	Validators  []MetaInfo `json:"validators,omitempty"`
 	RefModel    *ModelInfo `json:"-"`
-	ScalarModel string     `json:"-"`
 }
 
 type MetaInfo struct {
@@ -374,6 +397,8 @@ type DataContext struct {
 	Models                      []*ModelInfo           `json:"models"`
 	ModelMap                    map[string]*ModelInfo  `json:"-"`
 	Scalars                     map[string]*ScalarInfo `json:"scalars,omitempty"`
+	Enums                       map[string]*EnumInfo   `json:"-"`
+	OrderedEnums                []*EnumInfo            `json:"enums"`
 	Unions                      []*UnionInfo           `json:"unions,omitempty"`
 	UnionMap                    map[string]*UnionInfo  `json:"-"`
 	Config                      *config.Config         `json:"-"`
@@ -728,7 +753,50 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 				})
 			}
 			ctx.Unions = append(ctx.Unions, u)
-			ctx.UnionMap[decl.Union.Name] = u
+			ctx.UnionMap[u.Name] = u
+		}
+		if decl.Enum != nil {
+			e := &EnumInfo{
+				Name:     decl.Enum.Name,
+				Doc:      decl.Enum.Doc,
+				Module:   currentModule,
+				BaseType: "String", // Default
+			}
+			if decl.Enum.BaseType != "" {
+				e.BaseType = decl.Enum.BaseType
+			}
+
+			// Determine Go physical type from BaseType
+			physicalBaseType := e.BaseType
+			if s, ok := ctx.Scalars[e.BaseType]; ok {
+				physicalBaseType = s.BaseType
+			}
+			e.BaseGoType = toGoPhysicalBaseType(physicalBaseType)
+
+			for _, c := range decl.Enum.Cases {
+				val := ""
+				isString := false
+				if c.Value.String != nil {
+					val = *c.Value.String
+					isString = true
+				} else if c.Value.Int != nil {
+					val = fmt.Sprintf("%d", *c.Value.Int)
+				} else if c.Value.Float != nil {
+					val = fmt.Sprintf("%f", *c.Value.Float)
+				}
+
+				e.Cases = append(e.Cases, EnumCaseInfo{
+					Name:     c.Name,
+					Doc:      c.Doc,
+					Value:    val,
+					IsString: isString,
+				})
+			}
+			if ctx.Enums == nil {
+				ctx.Enums = make(map[string]*EnumInfo)
+			}
+			ctx.Enums[e.Name] = e
+			ctx.OrderedEnums = append(ctx.OrderedEnums, e)
 		}
 		if decl.Model != nil {
 			mName := currentModule
@@ -789,13 +857,14 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 					Doc:      field.Doc,
 					Type:     fieldType,
 					GoType:   goType,
-					IsScalar: ctx.Scalars[field.Type.Name] != nil,
+					IsScalar: ctx.Scalars[field.Type.Name] != nil || ctx.Enums[field.Type.Name] != nil,
+					IsEnum:   ctx.Enums[field.Type.Name] != nil,
 					ScalarModel: func() string {
 						if s, ok := ctx.Config.Scalars[field.Type.Name]; ok && s.Model != "" {
 							base, _ := parseCustomType(s.Model)
 							return base
 						}
-						return ""
+						return field.Type.Name
 					}(),
 					BaseGoType: func() string {
 						if s := ctx.Scalars[field.Type.Name]; s != nil {
@@ -813,13 +882,20 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 					UnionParamExp:    strings.Trim(field.Type.UnionParam, "()"),
 					UnionParamGoName: capitalize(strings.TrimPrefix(strings.Trim(field.Type.UnionParam, "()"), "input.")),
 				})
-				if ctx.Scalars[field.Type.Name] != nil {
+				if ctx.Scalars[field.Type.Name] != nil || ctx.Enums[field.Type.Name] != nil {
 					m.HasScalar = true
 				}
 				if ctx.UnionMap[field.Type.Name] != nil {
 					m.HasUnion = true
 				}
 			}
+		}
+	}
+
+	// 强制校验：所有联合类型（Union）的判别器必须且只能是枚举类型（Enum）
+	for _, u := range ctx.Unions {
+		if ctx.Enums[u.ParamName] == nil {
+			return fmt.Errorf("语义错误：联合类型 '%s' 的判别器 '%s' 无效。判别器被极其严格地限制为必须且只能是一个枚举 (Enum) 类型，请检查是否拼写错误或错误使用了其他类型", u.Name, u.ParamName)
 		}
 	}
 
@@ -830,7 +906,7 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 		for _, m := range ctx.Models {
 			for _, f := range m.Fields {
 				if f.RefModel != nil {
-					if !m.HasScalar && f.RefModel.HasScalar {
+					if !m.HasScalar && (f.RefModel.HasScalar || (ctx.Enums != nil && ctx.Enums[f.OriginalType] != nil)) {
 						m.HasScalar = true
 						changed = true
 					}
@@ -865,22 +941,10 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 		}
 	}
 
-	// 验证所有联合类型的声明是否合法 (判别器类型必须是受限的基础类型或自定义标量)
+	// 验证所有联合类型的声明是否合法 (判别器类型必须是枚举)
 	for _, u := range ctx.Unions {
-		isValid := false
-		switch u.ParamName {
-		case "String", "Int", "Float", "Boolean":
-			isValid = true
-		default:
-			if s := ctx.Scalars[u.ParamName]; s != nil {
-				// 自定义标量的基底类型不能是 Any（无法作为判别器）
-				if !strings.EqualFold(s.BaseType, "Any") {
-					isValid = true
-				}
-			}
-		}
-		if !isValid {
-			return fmt.Errorf("联合类型 %s 声明的判别器类型 %s 不合法，必须为 String, Int, Float, Boolean 或不基于 Any 的自定义 scalar 类型", u.Name, u.ParamName)
+		if ctx.Enums[u.ParamName] == nil {
+			return fmt.Errorf("联合类型 %s 声明的判别器类型 %s 不合法，必须为枚举类型", u.Name, u.ParamName)
 		}
 	}
 
@@ -894,12 +958,9 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 				found := false
 				for _, pf := range m.Fields {
 					if pf.Name == f.UnionParamGoName {
-						// 判别器类型应该为可序列化为字符串的基础类型
-						switch pf.BaseGoType {
-						case "string", "int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64", "float32", "float64", "bool":
-							// 合法
-						default:
-							return fmt.Errorf("模型 %s 的多态联合类型字段 %s 依赖的判别器字段 %s 必须为基础类型 (当前为 %s)", m.Name, f.Name, f.UnionParamGoName, pf.BaseGoType)
+						// 判别器类型必须是枚举
+						if ctx.Enums[pf.OriginalType] == nil {
+							return fmt.Errorf("模型 %s 的多态联合类型字段 %s 依赖的判别器字段 %s 必须为枚举类型 (当前为 %s)", m.Name, f.Name, f.UnionParamGoName, pf.OriginalType)
 						}
 
 						// 强类型比对：判别器字段的类型必须与联合类型定义时要求的类型一致
@@ -1041,6 +1102,22 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 					errorTypeBase = baseModel.Name
 				}
 
+				isNoWrap := false
+				if strings.ToLower(errorType) == "none" {
+					isNoWrap = true
+				}
+
+				isSuccessNoWrap := false
+				if ep.ReturnType != nil && ep.ReturnType.Name == "File" {
+					isSuccessNoWrap = true
+				}
+				if v, ok := metaGet(ep.ResponseMeta, "ctype"); ok {
+					ctypeLower := strings.ToLower(v)
+					if ctypeLower == "stream" || ctypeLower == "multipart" {
+						isSuccessNoWrap = true
+					}
+				}
+
 				method := MethodInfo{
 					Name:       ep.Name,
 					Doc:        ep.Doc,
@@ -1050,7 +1127,11 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 					ReturnType: fullReturnType,
 					ReturnTypeDSL: func() string {
 						if ep.ReturnType != nil {
-							return formatTypeRef(*ep.ReturnType)
+							dsl := formatTypeRef(*ep.ReturnType)
+							if !isReturnWrapped && !isSuccessNoWrap && !isNoWrap && errorType != "" && strings.ToLower(errorType) != "none" {
+								return errorType + "<" + dsl + ">"
+							}
+							return dsl
 						}
 						return ""
 					}(),
@@ -1063,12 +1144,14 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 						}
 						return nil
 					}(),
-					ErrorType:      errorType,
-					IsErrorWrapped: isErrorWrapped,
-					ErrorTypeBase:  errorTypeBase,
-					IsReturnArray:  isReturnArray,
-					SuccessStatus:  successStatus,
-					IsArgsWrapped:  true,
+					ErrorType:       errorType,
+					IsErrorWrapped:  isErrorWrapped,
+					ErrorTypeBase:   errorTypeBase,
+					IsNoWrap:        isNoWrap,
+					IsSuccessNoWrap: isSuccessNoWrap,
+					IsReturnArray:   isReturnArray,
+					SuccessStatus:   successStatus,
+					IsArgsWrapped:   true,
 				}
 
 				// 响应 MIME 类型：优先接口 ResponseMeta[ctype]，无则 fallback 到 default_content_type
@@ -1092,13 +1175,23 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 					goType := ToGoType(arg.Type, ctx.Config, &ctx.ExtraImports, ep.Name+"."+arg.Name, ctx.ModelMap)
 					argInfo := ArgumentInfo{
 						Name: arg.Name, GoName: capitalize(arg.Name), Type: formatTypeRef(arg.Type), GoType: goType, Source: "Body", Doc: arg.Doc,
-						IsScalar: ctx.Scalars[arg.Type.Name] != nil,
+						IsScalar: ctx.Scalars[arg.Type.Name] != nil || ctx.Enums[arg.Type.Name] != nil,
+						IsEnum:   ctx.Enums[arg.Type.Name] != nil,
 						ScalarModel: func() string {
 							if s, ok := ctx.Config.Scalars[arg.Type.Name]; ok && s.Model != "" {
 								base, _ := parseCustomType(s.Model)
 								return base
 							}
-							return ""
+							if arg.Type.Name == "Any" {
+								return "AnyType"
+							}
+							if ctx.UnionMap[arg.Type.Name] != nil {
+								return "UnionKind"
+							}
+							if ctx.Enums[arg.Type.Name] != nil {
+								return ctx.Enums[arg.Type.Name].Name
+							}
+							return arg.Type.Name
 						}(),
 						BaseGoType: func() string {
 							if s := ctx.Scalars[arg.Type.Name]; s != nil {
@@ -1141,7 +1234,10 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 							})
 						}
 					}
-					if ref, ok := ctx.ModelMap[arg.Type.Name]; ok && ref.IsInput {
+					if ref, ok := ctx.ModelMap[arg.Type.Name]; ok {
+						if !ref.IsInput {
+							return fmt.Errorf("语义错误：接口 [%s %s] 的参数引用的模型 '%s' 是输出模型 (type)，接口入参必须使用专门定义的输入模型 (input) 以保持出入参结构的严格分离", ep.Method, ep.Path, arg.Type.Name)
+						}
 						argInfo.RefModel = ref
 					}
 					args = append(args, argInfo)
@@ -1172,13 +1268,14 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 							Doc:          arg.Doc,
 							Type:         arg.Type,
 							GoType:       arg.GoType,
-							IsScalar:     arg.IsScalar,
+							IsScalar:     arg.IsScalar || ctx.Enums[arg.Type] != nil,
+							IsEnum:       arg.IsEnum || ctx.Enums[arg.Type] != nil,
 							ScalarModel:  arg.ScalarModel,
 							BaseGoType:   arg.BaseGoType,
 							OriginalType: arg.Type,
 							Tag:          generateTags(arg.Name, ctx.Config),
 						})
-						if arg.IsScalar {
+						if arg.IsScalar || ctx.Enums[arg.Type] != nil {
 							inputModel.HasScalar = true
 						}
 					}
@@ -1210,7 +1307,7 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 				} else if len(args) == 1 && args[0].Name == "" {
 					method.HasInput = true
 				}
-				
+
 				if returnModel, ok := ctx.ModelMap[method.InnerReturnType]; ok {
 					method.ReturnModel = returnModel
 				} else if ep.ReturnType != nil {
@@ -1419,9 +1516,13 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 					method.HasScalar = true
 				}
 				for _, arg := range method.Args {
-					if arg.IsScalar {
+					if arg.IsScalar || ctx.Enums[arg.Type] != nil {
 						method.HasScalar = true
 					}
+				}
+
+				if method.HasValidation {
+					method.ValidationCode = generateValidationCode(&method)
 				}
 
 				group.Endpoints = append(group.Endpoints, method)
@@ -1590,6 +1691,15 @@ func renderAll(ctx *DataContext, targetDir string) error {
 		for i := range ctx.Modules {
 			if ctx.Modules[i].Name == m.Module {
 				ctx.Modules[i].Models = append(ctx.Modules[i].Models, m)
+				break
+			}
+		}
+	}
+
+	for _, e := range ctx.OrderedEnums {
+		for i := range ctx.Modules {
+			if ctx.Modules[i].Name == e.Module {
+				ctx.Modules[i].Enums = append(ctx.Modules[i].Enums, e)
 				break
 			}
 		}

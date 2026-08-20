@@ -122,6 +122,16 @@ func attachCommentsToSchema(s *Schema, comments map[int]string, codeLines map[in
 		if decl.Module != nil { decl.Module.Doc = doc }
 		if decl.Scalar != nil { decl.Scalar.Doc = doc }
 		if decl.Union != nil { decl.Union.Doc = doc }
+		if decl.Enum != nil { 
+			decl.Enum.Doc = doc
+			for j := range decl.Enum.Cases {
+				c := &decl.Enum.Cases[j]
+				c.Doc = findImmediateComment(c.Pos.Line, comments, codeLines)
+				if txt, ok := comments[c.Pos.Line]; ok {
+					c.TrailingDoc = txt
+				}
+			}
+		}
 		if decl.Decorator != nil {
 			decl.Decorator.Doc = doc
 			if txt, ok := comments[decl.Decorator.Pos.Line]; ok {
@@ -304,6 +314,12 @@ func (s *Schema) Validate() error {
 				return fmt.Errorf("%s: duplicate union defined: %s", decl.Union.Pos, decl.Union.Name)
 			}
 			models[decl.Union.Name] = true
+		}
+		if decl.Enum != nil {
+			if models[decl.Enum.Name] {
+				return fmt.Errorf("%s: duplicate enum defined: %s", decl.Enum.Pos, decl.Enum.Name)
+			}
+			models[decl.Enum.Name] = true
 		}
 	}
 

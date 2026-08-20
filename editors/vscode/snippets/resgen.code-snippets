@@ -104,6 +104,20 @@
         ],
         "description": "定义一个 PATCH 接口端点"
     },
+    "GET File Download Endpoint": {
+        "prefix": "get-file",
+        "body": [
+            "GET ${1:/download} => ${2:DownloadFile}(${3:id: Int @query}): File [ctype=stream, wrap=none]"
+        ],
+        "description": "定义一个文件下载 GET 接口端点 (返回文件流，关闭包装)"
+    },
+    "POST File Upload Endpoint": {
+        "prefix": "post-file",
+        "body": [
+            "POST ${1:/upload} => ${2:UploadFile}(${3:file: File}): ${4:String} [ctype=multipart]"
+        ],
+        "description": "定义一个文件上传 POST 接口端点 (强制使用 multipart)"
+    },
     "Required Validator": {
         "prefix": "@required",
         "body": [

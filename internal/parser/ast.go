@@ -20,6 +20,7 @@ type Declaration struct {
 	Model     *ModelDecl    `| @@` // 处理 type 和 input
 	Group     *GroupDecl    `| @@`
 	Union     *UnionDecl    `| @@`
+	Enum      *EnumDecl     `| @@`
 }
 
 type ModuleDecl struct {
@@ -67,9 +68,25 @@ type UnionDecl struct {
 
 type UnionCase struct {
 	Pos       lexer.Position
-	IsDefault bool    `( @"default" ":"`
-	Key       string  `| @String ":" )`
-	Type      string  `@Ident`
+	IsDefault bool   `( @"default" ":"`
+	Key       string `| @Ident ":" )`
+	Type      string `@Ident`
+}
+
+type EnumDecl struct {
+	Pos      lexer.Position
+	Doc      string
+	Name     string     `"enum" @Ident`
+	BaseType string     `(":" @Ident)?`
+	Cases    []EnumCase `"{" @@* "}"`
+}
+
+type EnumCase struct {
+	Pos         lexer.Position
+	Doc         string
+	TrailingDoc string
+	Name        string `@Ident ":"`
+	Value       Value  `@@`
 }
 
 type FieldDecl struct {

@@ -6,6 +6,9 @@ package {{.Package}}
 
 import (
     "context"
+    {{- if .Module.Enums}}
+    "fmt"
+    {{- end}}
     {{- range .ExtraImports}}
     "{{.}}"
     {{- end}}
@@ -14,7 +17,44 @@ import (
 
 
 // ==========================================
-// 1. Models
+// 1. Enums
+// ==========================================
+{{range .Module.Enums}}
+{{- $enumName := .Name}}
+{{if .Doc}}// {{.Name}} {{.Doc}}{{else}}// {{.Name}} 枚举类型{{end}}
+type {{.Name}} {{.BaseGoType}}
+
+const (
+{{- range .Cases}}
+	{{if .Doc}}// {{.Name}} {{.Doc}}{{end}}
+	{{$enumName}}_{{.Name}} {{$enumName}} = {{if .IsString}}"{{.Value}}"{{else}}{{.Value}}{{end}}
+{{- end}}
+)
+
+// IsValid 检查枚举值是否合法
+func (e {{.Name}}) IsValid() bool {
+	switch e {
+	case {{range $i, $c := .Cases}}{{if $i}}, {{end}}{{$enumName}}_{{$c.Name}}{{end}}:
+		return true
+	}
+	return false
+}
+
+// FromParam 从字符串解析枚举 (用于 Query/Path/Header 参数)
+func (e *{{.Name}}) FromParam(ctx any, s string) error {
+	switch s {
+	{{- range .Cases}}
+	case "{{.Value}}":
+		*e = {{$enumName}}_{{.Name}}
+		return nil
+	{{- end}}
+	}
+	return fmt.Errorf("invalid {{.Name}} value: %v", s)
+}
+{{end}}
+
+// ==========================================
+// 2. Models
 // ==========================================
 {{range .Module.Models}}
 {{- if .IsInput}}
@@ -695,82 +735,7 @@ func (e *{{$.Module.Name}}Executor[T, C]) bind{{.Name}}(request C, input *{{.Inp
 {{- if and .HasInput .HasValidation (not .CustomValidate)}}
 // validate{{.Name}} 参数验证逻辑
 func (e *{{$.Module.Name}}Executor[T, C]) validate{{.Name}}(ctx T, input *{{.InputName}}) error {
-	{{- if .IsArgsWrapped}}
-	// Pass 1: Required validations for top-level arguments and their fields
-	{{- range .Args}}
-	{{- $arg := .}}
-	{{- range .Validators}}{{if eq .Name "Required"}}
-	if err := e.v.{{.Name}}(ctx, "{{$arg.Name}}", input.{{$arg.GoName}} {{range .Args}}, {{.GoValue}}{{end}}); err != nil { return err }
-	{{- end}}{{end}}
-	{{- if .RefModel}}{{range .RefModel.Fields}}{{$field := .}}{{- range .Validators}}{{if eq .Name "Required"}}
-	if input.{{$arg.GoName}} != nil {
-		if err := e.v.{{.Name}}(ctx, "{{$arg.Name}}.{{$field.JSONName}}", input.{{$arg.GoName}}.{{$field.Name}} {{range .Args}}, {{.GoValue}}{{end}}); err != nil { return err }
-	}
-	{{- end}}{{end}}{{end}}{{end}}
-	{{- end}}
-
-	// Pass 2: Other validations
-	{{- range .Args}}
-	{{- $arg := .}}
-	{{- range .Validators}}{{if ne .Name "Required"}}
-	{{- if HasPrefix $arg.Type "*"}}
-	if input.{{$arg.GoName}} != nil {
-		if err := e.v.{{.Name}}(ctx, "{{$arg.Name}}", *input.{{$arg.GoName}} {{range .Args}}, {{.GoValue}}{{end}}); err != nil { return err }
-	}
-	{{- else}}
-	if err := e.v.{{.Name}}(ctx, "{{$arg.Name}}", input.{{$arg.GoName}} {{range .Args}}, {{.GoValue}}{{end}}); err != nil { return err }
-	{{- end}}
-	{{- end}}{{end}}
-	{{- if .RefModel}}{{range .RefModel.Fields}}{{$field := .}}{{- range .Validators}}{{if ne .Name "Required"}}
-	if input.{{$arg.GoName}} != nil {
-		{{- if HasPrefix $field.Type "*"}}
-		if input.{{$arg.GoName}}.{{$field.Name}} != nil {
-			if err := e.v.{{.Name}}(ctx, "{{$arg.Name}}.{{$field.JSONName}}", *input.{{$arg.GoName}}.{{$field.Name}} {{range .Args}}, {{Replace .GoValue "input." (printf "input.%s." $arg.GoName)}}{{end}}); err != nil { return err }
-		}
-		{{- else}}
-		if err := e.v.{{.Name}}(ctx, "{{$arg.Name}}.{{$field.JSONName}}", input.{{$arg.GoName}}.{{$field.Name}} {{range .Args}}, {{Replace .GoValue "input." (printf "input.%s." $arg.GoName)}}{{end}}); err != nil { return err }
-		{{- end}}
-	}
-	{{- end}}{{end}}{{end}}{{end}}
-	{{- end}}
-	{{- else}}
-	{{- $inputModel := (index .Args 0).RefModel}}
-	{{- if $inputModel}}
-	// Pass 1: Required validations
-	{{- range $inputModel.Fields}}
-	{{- $field := .}}
-	{{- range .Validators}}{{if eq .Name "Required"}}
-	if err := e.v.{{.Name}}(ctx, "{{$field.JSONName}}", input.{{$field.Name}} {{range .Args}}, {{.GoValue}}{{end}}); err != nil { return err }
-	{{- end}}{{end}}
-	{{- if .RefModel}}{{range .RefModel.Fields}}{{$subField := .}}{{- range .Validators}}{{if eq .Name "Required"}}
-	if err := e.v.{{.Name}}(ctx, "{{$field.JSONName}}.{{$subField.JSONName}}", input.{{$field.Name}}.{{$subField.Name}} {{range .Args}}, {{.GoValue}}{{end}}); err != nil { return err }
-	{{- end}}{{end}}{{end}}{{end}}
-	{{- end}}
-
-	// Pass 2: Other validations
-	{{- range $inputModel.Fields}}
-	{{- $field := .}}
-	{{- range .Validators}}{{if ne .Name "Required"}}
-	{{- if HasPrefix $field.Type "*"}}
-	if input.{{$field.Name}} != nil {
-		if err := e.v.{{.Name}}(ctx, "{{$field.JSONName}}", *input.{{$field.Name}} {{range .Args}}, {{.GoValue}}{{end}}); err != nil { return err }
-	}
-	{{- else}}
-	if err := e.v.{{.Name}}(ctx, "{{$field.JSONName}}", input.{{$field.Name}} {{range .Args}}, {{.GoValue}}{{end}}); err != nil { return err }
-	{{- end}}
-	{{- end}}{{end}}
-	{{- if .RefModel}}{{range .RefModel.Fields}}{{$subField := .}}{{- range .Validators}}{{if ne .Name "Required"}}
-	{{- if HasPrefix $subField.Type "*"}}
-	if input.{{$field.Name}}.{{$subField.Name}} != nil {
-		if err := e.v.{{.Name}}(ctx, "{{$field.JSONName}}.{{$subField.JSONName}}", *input.{{$field.Name}}.{{$subField.Name}} {{range .Args}}, {{Replace .GoValue "input." (printf "input.%s." $field.Name)}}{{end}}); err != nil { return err }
-	}
-	{{- else}}
-	if err := e.v.{{.Name}}(ctx, "{{$field.JSONName}}.{{$subField.JSONName}}", input.{{$field.Name}}.{{$subField.Name}} {{range .Args}}, {{Replace .GoValue "input." (printf "input.%s." $field.Name)}}{{end}}); err != nil { return err }
-	{{- end}}
-	{{- end}}{{end}}{{end}}{{end}}
-	{{- end}}
-	{{- end}}
-	{{- end}}
+{{.ValidationCode}}
 	return nil
 }
 {{- end}}

@@ -26,6 +26,7 @@ var (
 
 type SymbolInfo struct {
 	Name     string
+	Kind     string
 	Filename string
 	Line     int
 	Column   int
@@ -275,6 +276,7 @@ func addSymbols(schema *parser.Schema, filePath string, symbols map[string]Symbo
 		if decl.Model != nil {
 			symbols[decl.Model.Name] = SymbolInfo{
 				Name:     decl.Model.Name,
+				Kind:     "Model",
 				Filename: filePath,
 				Line:     decl.Model.Pos.Line,
 				Column:   decl.Model.Pos.Column,
@@ -283,6 +285,7 @@ func addSymbols(schema *parser.Schema, filePath string, symbols map[string]Symbo
 		if decl.Scalar != nil {
 			symbols[decl.Scalar.Name] = SymbolInfo{
 				Name:     decl.Scalar.Name,
+				Kind:     "Scalar",
 				Filename: filePath,
 				Line:     decl.Scalar.Pos.Line,
 				Column:   decl.Scalar.Pos.Column,
@@ -291,9 +294,28 @@ func addSymbols(schema *parser.Schema, filePath string, symbols map[string]Symbo
 		if decl.Decorator != nil {
 			symbols[decl.Decorator.Name] = SymbolInfo{
 				Name:     decl.Decorator.Name,
+				Kind:     "Decorator",
 				Filename: filePath,
 				Line:     decl.Decorator.Pos.Line,
 				Column:   decl.Decorator.Pos.Column,
+			}
+		}
+		if decl.Enum != nil {
+			symbols[decl.Enum.Name] = SymbolInfo{
+				Name:     decl.Enum.Name,
+				Kind:     "Enum",
+				Filename: filePath,
+				Line:     decl.Enum.Pos.Line,
+				Column:   decl.Enum.Pos.Column,
+			}
+		}
+		if decl.Union != nil {
+			symbols[decl.Union.Name] = SymbolInfo{
+				Name:     decl.Union.Name,
+				Kind:     "Union",
+				Filename: filePath,
+				Line:     decl.Union.Pos.Line,
+				Column:   decl.Union.Pos.Column,
 			}
 		}
 	}
@@ -323,8 +345,7 @@ func findIdentifierAt(schema *parser.Schema, line, col int) string {
 		return false
 	}
 
-	var visitDirective func(d parser.DirectiveUsage) bool
-	visitDirective = func(d parser.DirectiveUsage) bool {
+	visitDirective := func(d parser.DirectiveUsage) bool {
 		if col >= d.Pos.Column && col <= d.Pos.Column+len(d.Name)+1 {
 			foundIdent = d.Name
 			return true
@@ -348,6 +369,21 @@ func findIdentifierAt(schema *parser.Schema, line, col int) string {
 			for _, dir := range m.Directives {
 				if visitDirective(dir) {
 					return foundIdent
+				}
+			}
+		}
+		if decl.Enum != nil {
+			if inRange(decl.Enum.Pos, decl.Enum.Name) {
+				return decl.Enum.Name
+			}
+		}
+		if decl.Union != nil {
+			if inRange(decl.Union.Pos, decl.Union.Name) {
+				return decl.Union.Name
+			}
+			for _, c := range decl.Union.Cases {
+				if inRange(c.Pos, c.Type) {
+					return c.Type
 				}
 			}
 		}
@@ -427,6 +463,34 @@ func publishDiagnostics(context *glsp.Context, uri, content string) {
 	} else if schema != nil {
 		severity := protocol.DiagnosticSeverityError
 		source := "resgen"
+		
+		modelMap := make(map[string]*parser.ModelDecl)
+		for _, decl := range schema.Declarations {
+			if decl.Model != nil {
+				modelMap[decl.Model.Name] = decl.Model
+			}
+		}
+
+		var checkHasFile func(t parser.TypeRef) bool
+		checkHasFile = func(t parser.TypeRef) bool {
+			if t.Name == "File" {
+				return true
+			}
+			if m, ok := modelMap[t.Name]; ok {
+				for _, prop := range m.Properties {
+					if checkHasFile(prop.Type) {
+						return true
+					}
+				}
+			}
+			for _, arg := range t.TypeArgs {
+				if checkHasFile(arg) {
+					return true
+				}
+			}
+			return false
+		}
+
 		for _, decl := range schema.Declarations {
 			if decl.Scalar != nil {
 				if decl.Scalar.Base == "File" {
@@ -455,7 +519,9 @@ func publishDiagnostics(context *glsp.Context, uri, content string) {
 						})
 					}
 				}
-				if strings.EqualFold(decl.Union.ParamName, "Any") {
+				symbols := buildSymbolTable(filename)
+				sym, ok := symbols[decl.Union.ParamName]
+				if !ok || sym.Kind != "Enum" {
 					diagnostics = append(diagnostics, protocol.Diagnostic{
 						Range: protocol.Range{
 							Start: protocol.Position{Line: uint32(decl.Union.Pos.Line - 1), Character: uint32(decl.Union.Pos.Column - 1)},
@@ -463,8 +529,84 @@ func publishDiagnostics(context *glsp.Context, uri, content string) {
 						},
 						Severity: &severity,
 						Source:   &source,
-						Message:  fmt.Sprintf("语义错误：联合类型 '%s' 的判别器不能为 Any（必须为 String, Int, Float, Boolean 或自定义标量）", decl.Union.Name),
+						Message:  fmt.Sprintf("语义错误：联合类型 '%s' 的判别器 '%s' 无效，必须是一个枚举 (Enum) 类型", decl.Union.Name, decl.Union.ParamName),
 					})
+				}
+			}
+
+			if decl.Model != nil {
+				for _, prop := range decl.Model.Properties {
+					if prop.Type.Name == "Field" {
+						diagnostics = append(diagnostics, protocol.Diagnostic{
+							Range: protocol.Range{
+								Start: protocol.Position{Line: uint32(prop.Pos.Line - 1), Character: uint32(prop.Pos.Column - 1)},
+								End:   protocol.Position{Line: uint32(prop.Pos.Line - 1), Character: uint32(prop.Pos.Column + len(prop.Name))},
+							},
+							Severity: &severity,
+							Source:   &source,
+							Message:  fmt.Sprintf("语义错误：模型属性 '%s.%s' 不能使用 'Field' 类型。'Field' 是专属于校验器形参的字段引用元类型，绝对不能作为普通属性类型！若需表达动态或任意结构数据，请选用 'Any' 类型", decl.Model.Name, prop.Name),
+						})
+					}
+				}
+			}
+			if decl.Group != nil {
+				for _, ep := range decl.Group.Endpoints {
+					if len(ep.Args) > 1 {
+						for _, arg := range ep.Args {
+							if arg.Name == "" {
+								diagnostics = append(diagnostics, protocol.Diagnostic{
+									Range: protocol.Range{
+										Start: protocol.Position{Line: uint32(arg.Pos.Line - 1), Character: uint32(arg.Pos.Column - 1)},
+										End:   protocol.Position{Line: uint32(arg.Pos.Line - 1), Character: uint32(arg.Pos.Column + len(arg.Type.Name))},
+									},
+									Severity: &severity,
+									Source:   &source,
+									Message:  fmt.Sprintf("端点 %s 语义错误: 匿名参数 (顶级 Payload) 只能作为唯一参数使用，不可与其他参数混用", ep.Name),
+								})
+								break
+							}
+						}
+					}
+
+					hasFile := false
+					for _, arg := range ep.Args {
+						if checkHasFile(arg.Type) {
+							hasFile = true
+							break
+						}
+					}
+					if hasFile {
+						ctype := ""
+						for _, meta := range ep.ResponseMeta {
+							if strings.ToLower(meta.Key) == "ctype" && meta.Value.Str != nil {
+								ctype = strings.ToLower(*meta.Value.Str)
+							}
+						}
+						isJsonCtype := ctype == "json" || ctype == "application/json"
+						isFormCtype := ctype == "form" || ctype == "application/x-www-form-urlencoded"
+						
+						if isJsonCtype {
+							diagnostics = append(diagnostics, protocol.Diagnostic{
+								Range: protocol.Range{
+									Start: protocol.Position{Line: uint32(ep.Pos.Line - 1), Character: uint32(ep.Pos.Column - 1)},
+									End:   protocol.Position{Line: uint32(ep.Pos.Line - 1), Character: uint32(ep.Pos.Column + len(ep.Name))},
+								},
+								Severity: &severity,
+								Source:   &source,
+								Message:  fmt.Sprintf("语义错误：接口 [%s %s] 的 input 中包含 File 字段，不能与 ctype=json 同时使用。File 字段必须通过 multipart/form-data 传输，请将 ctype 改为 multipart", ep.Method, ep.Path),
+							})
+						} else if isFormCtype {
+							diagnostics = append(diagnostics, protocol.Diagnostic{
+								Range: protocol.Range{
+									Start: protocol.Position{Line: uint32(ep.Pos.Line - 1), Character: uint32(ep.Pos.Column - 1)},
+									End:   protocol.Position{Line: uint32(ep.Pos.Line - 1), Character: uint32(ep.Pos.Column + len(ep.Name))},
+								},
+								Severity: &severity,
+								Source:   &source,
+								Message:  fmt.Sprintf("语义错误：接口 [%s %s] 的 input 中包含 File 字段，不能与 ctype=form（application/x-www-form-urlencoded）同时使用。文件上传必须使用 multipart/form-data，请将 ctype 改为 multipart", ep.Method, ep.Path),
+							})
+						}
+					}
 				}
 			}
 		}

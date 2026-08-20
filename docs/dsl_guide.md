@@ -113,17 +113,33 @@ input CreateUserInput {
 }
 ```
 
+### 枚举类型 (Enums)
+
+使用 `enum` 关键字定义枚举类型，可用于限制字段的取值范围，也可作为联合类型的强类型判别器。
+
+```graphql
+# 默认底层类型为 String
+enum UnionKind {
+    article: "article"
+    video: "video"
+}
+
+# 也可以显式指定底层类型（例如 Int）
+enum Status: Int {
+    active: 1
+    inactive: 2
+}
+```
+
 ### 联合类型 (Unions)
 使用 `union` 关键字定义多态（多态 JSON）类型。`union` 后的括号内声明该联合类型在反序列化时，预期的**判别器（Discriminator）数据类型**，这是一种强类型的约束设计。
 
 ⚠️ **判别器类型的白名单限制**：
-判别器的数据类型被极其严格地限制为只能是以下基础标量类型：
-- `String`
-- `Int`
-- `Float`
-- `Boolean`
-- 以及您通过 `scalar` 关键字定义的**自定义标量**（如 `scalar UnionKind: String`）
-  > 注意：如果您的自定义标量是继承自动态类型 `Any`（如 `scalar DynamicData: Any`），那么它**绝对不能**用作联合类型的判别器，编译器将直接报错拦截！因为无法对动态对象执行稳定的 Switch 判别。
+判别器的数据类型被极其严格地限制为**只能是枚举类型 (Enum)**！
+
+这是因为枚举能够为您提供最大的安全边界，并使得各端的类型推导（如 TypeScript 的 Discriminated Unions）更加完美：
+- 🌟 您定义的**枚举类型 (Enum)**（例如 `enum UnionKind: String`）
+  > 注意：**绝对禁止**使用基础类型（如 `String`, `Int`, `Boolean`, `Any` 等）直接作为判别器，编译器将直接报错拦截！
 
 🌟 **典型业务场景**：
 在现代 API 设计中，联合类型是解决**“异构数据多态传输”**的终极武器，它能彻底消灭后端庞大臃肿、充满无数 `nil` 和可选字段的“上帝结构体”，让每种数据严丝合缝地拥有自己的独立定义。典型场景包括：
@@ -132,16 +148,21 @@ input CreateUserInput {
 - **动态表单与低代码渲染**：接口返回一系列表单组件，输入框组件包含 `placeholder`，而下拉框组件包含 `options` 选项数组，它们的配置项完全不互通。
 
 ```graphql
-# 定义一个联合类型，预期判别器的数据类型必须为 String
-union ContentPayload(String) {
-    "article": Article
-    "video": Video
+# 推荐做法：使用 enum 作为强类型的判别器约束
+enum UnionKind: String {
+    article: "article"
+    video: "video"
+}
+
+union ContentPayload(UnionKind) {
+    article: Article
+    video: Video
     default: Any
 }
 ```
 
 > [!WARNING]
-> **禁止使用 File 类型**：联合类型的分支中**绝对禁止**使用 `File` 数据流类型（例如 `"file": File`）。因为文件流无法在 JSON 多态结构中进行序列化与反序列化，编译器遇到时会直接报错拦截。
+> **禁止使用 File 类型**：联合类型的分支中**绝对禁止**使用 `File` 数据流类型（例如 `file: File`）。因为文件流无法在 JSON 多态结构中进行序列化与反序列化，编译器遇到时会直接报错拦截。
 
 #### 在模型中使用联合类型
 当在 `input` 模型中使用联合类型时，**必须**在同一模型中显式声明判别器字段，并在声明联合类型字段时通过括号 `(字段名)` 将其与该判别器绑定。
@@ -149,8 +170,8 @@ union ContentPayload(String) {
 
 ```graphql
 input CreatePostInput {
-    # 1. 判别器字段（这里它的类型是 String，符合 ContentPayload 的要求）
-    type: String!
+    # 1. 判别器字段（这里它的类型是 UnionKind，符合 ContentPayload 的要求）
+    type: UnionKind!
     
     # 2. 联合类型字段，通过 (type) 显式关联同级的判别器字段
     payload: ContentPayload(type)
@@ -158,7 +179,7 @@ input CreatePostInput {
 ```
 
 - **类型映射**：联合类型在生成的 Go 代码中统一体现为 `any`（空接口），提供最大的动态灵活性。
-- **解析器**：Resgen 会为每个 `union` 自动生成 `Resolve<UnionName>(disc string, rawData any) (any, error)` 工厂方法。
+- **解析器**：Resgen 会为每个 `union` 自动生成 `Resolve<UnionName>(disc <DiscType>, rawData any) (any, error)` 工厂方法。
 - **全自动多态绑定**：在代码生成时，Resgen 编译器会进行约束校验。运行期 `bind` 函数会自动提取 JSON 中的判别器值（即 `type` 的值），然后调用 `ResolveContentPayload`，将底层的 `map[string]any` 完美转换为对应的 `*Article` 或 `*Video` 强类型指针注入到 Payload 中！
 
 ### 响应包装器 (Wrappers)

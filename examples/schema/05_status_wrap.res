@@ -41,7 +41,7 @@ group /products [wrap=ResData] {
 # 无全局包装的组：每个接口自定义
 group /raw {
     # 直接返回原始对象，不包装
-    GET /product/:id => GetRawProduct(id: Int @path): Product
+    GET /product/:id => GetRawProduct(id: Int @path): Product [wrap=none]
     # 需要包装时在接口级单独声明
     GET /products => GetRawProducts(page: Int): ResData<[Product]> [wrap=ResData]
 }

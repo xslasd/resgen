@@ -2,7 +2,7 @@
     "name": "resgen-vscode",
     "displayName": "Resgen DSL Support",
     "description": "为 Resgen API 设计 DSL 提供官方语法高亮与开发体验。支持代码格式化与类型/参数位置跳转。",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "publisher": "resgen",
     "engines": {
         "vscode": "^1.60.0"

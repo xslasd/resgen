@@ -124,7 +124,7 @@
 
         let toggledModules = new Set(apiData.modules.map(m => m.name));
         let activeEndpointId = null;
-        let currentView = 'apis'; // 'apis', 'validators'
+        let currentView = 'apis'; // 'apis', 'validators', 'enums'
 
         function renderSidebar(search = '') {
             const nav = document.getElementById('nav-content');
@@ -155,18 +155,18 @@
                 showValidators
             ));
 
-            if (apiData.unions && apiData.unions.length > 0) {
-                nav.appendChild(createMenuItem('unions', 'Union Types', 
-                    `<svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>`,
-                    'amber', 
-                    showUnions
+            if (apiData.enums && apiData.enums.length > 0) {
+                nav.appendChild(createMenuItem('enums', 'Enum Types', 
+                    `<svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>`,
+                    'cyan', 
+                    showEnums
                 ));
             }
 
             nav.appendChild(createMenuItem('apis', 'API All',
                 `<svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>`,
                 'indigo',
-                () => { if (!activeEndpointId || activeEndpointId === 'validators' || activeEndpointId === 'unions') activeEndpointId = null; }
+                () => { if (!activeEndpointId || activeEndpointId === 'validators' || activeEndpointId === 'enums') activeEndpointId = null; }
             ));
 
             if (currentView !== 'apis') return;
@@ -300,49 +300,53 @@
             view.innerHTML = html;
         }
 
-        function showUnions() {
-            currentView = 'unions';
+        function showEnums() {
+            currentView = 'enums';
             const view = document.getElementById('content-view');
             let html = `
                 <div class="space-y-8 animate-in">
                     <div class="flex items-center gap-4">
-                        <div class="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center border border-amber-500/20 shadow-lg shadow-amber-500/10">
-                            <svg class="w-6 h-6 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                        <div class="w-12 h-12 rounded-xl bg-cyan-500/20 flex items-center justify-center border border-cyan-500/20 shadow-lg shadow-cyan-500/10">
+                            <svg class="w-6 h-6 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
                         </div>
                         <div>
-                            <h1 class="text-4xl font-bold text-white tracking-tight">Union Types</h1>
-                            <p class="text-slate-400 mt-1">Reference for all polymorphic union types in the API</p>
+                            <h1 class="text-4xl font-bold text-white tracking-tight">Enum Types</h1>
+                            <p class="text-slate-400 mt-1">Reference for all enumerated constants</p>
                         </div>
                     </div>
-
                     <div class="overflow-hidden rounded-2xl border border-slate-700/50 glass shadow-2xl">
                         <table class="w-full text-left text-sm">
                             <thead class="bg-slate-800/50 text-slate-400 font-bold uppercase text-[10px] tracking-widest">
                                 <tr>
-                                    <th class="p-4 w-1/4 text-amber-400 border-b border-white/5">Union Name</th>
-                                    <th class="p-4 w-1/4 border-b border-white/5">Discriminator</th>
-                                    <th class="p-4 w-1/2 border-b border-white/5">Cases</th>
+                                    <th class="p-4 w-1/5 text-cyan-400 border-b border-white/5">Enum Name</th>
+                                    <th class="p-4 w-1/6 border-b border-white/5">Type</th>
+                                    <th class="p-4 w-2/5 border-b border-white/5">Values</th>
+                                    <th class="p-4 w-1/4 border-b border-white/5">Description</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-white/5 cursor-default">
-                                ${(apiData.unions || []).map(u => `
+                                ${(apiData.enums || []).map(e => `
                                     <tr class="hover:bg-white/[0.02] transition-colors">
-                                        <td class="p-4 font-mono font-bold text-amber-400">
-                                            ${u.name}
-                                            ${u.doc ? `<div class="text-xs text-slate-500 mt-1 font-sans font-normal">${u.doc}</div>` : ''}
+                                        <td class="p-4 font-mono font-bold text-cyan-400">
+                                            ${e.name}
                                         </td>
-                                        <td class="p-4 text-slate-300 font-mono text-xs">${u.paramName}</td>
+                                        <td class="p-4 font-mono">
+                                            <span class="text-xs font-mono font-bold bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 px-2 py-0.5 rounded">${e.baseType || 'String'}</span>
+                                        </td>
                                         <td class="p-4">
-                                            <div class="space-y-1">
-                                                ${u.cases.map(c => `
+                                            <div class="space-y-1.5">
+                                                ${e.cases.map(c => `
                                                     <div class="flex items-center gap-2 text-xs">
-                                                        <span class="font-mono text-slate-400 bg-slate-900 px-1 rounded">${c.key}</span>
+                                                        <span class="font-mono text-slate-300 bg-slate-900 px-1.5 py-0.5 rounded border border-slate-700/50">${c.isString !== false ? `'${c.name}'` : c.name}</span>
                                                         <span class="text-slate-500">→</span>
-                                                        <span class="font-mono text-indigo-300">${c.type}</span>
-                                                        ${c.isDefault ? '<span class="text-[9px] font-bold uppercase text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded">Default</span>' : ''}
+                                                        <span class="font-mono text-indigo-300">${c.isString !== false ? `'${c.value}'` : c.value}</span>
+                                                        ${c.doc ? `<span class="text-slate-500">→</span><span class="text-slate-400 italic">${c.doc}</span>` : ''}
                                                     </div>
                                                 `).join('')}
                                             </div>
+                                        </td>
+                                        <td class="p-4 text-xs text-slate-400 leading-relaxed">
+                                            ${e.doc || '<span class="text-slate-600 italic">-</span>'}
                                         </td>
                                     </tr>
                                 `).join('')}
@@ -502,17 +506,21 @@
             let rows = '';
 
             if (!ep.isArgsWrapped && ep.inputName) {
-                const model = apiData.models.find(m => m.name === ep.inputName);
+                const model = apiData.models && apiData.models.find(m => m.name === ep.inputName);
                 if (model) {
                     const defaultSource = (ep.args && ep.args[0]) ? ep.args[0].source : 'Body';
+                    let discMap = {};
+                    try { discMap = getDiscriminatorMap(model); } catch(e) {}
                     model.fields.forEach(f => {
                         rows += renderRow({
-                            name: f.name,
+                            name: f.jsonName || f.name,
                             type: f.type,
                             source: defaultSource,
                             validators: f.validators,
-                            doc: f.doc
-                        }, 0);
+                            doc: f.doc,
+                            isUnion: f.isUnion,
+                            unionParamExp: f.unionParamExp
+                        }, 0, false, '', discMap ? discMap[f.name] : null, discMap ? discMap['__field_' + f.name] : null);
                     });
                 }
             } else if (ep.args) {
@@ -551,45 +559,67 @@
             const typeStr = ep.returnTypeDSL || ep.returnType;
             const typeInfo = parseType(typeStr);
             
-            // --- Success Section ---
-            successContainer.innerHTML = `
-                <div class="flex items-center gap-2 mb-2">
-                    <span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px] font-black uppercase border border-emerald-500/20">Success</span>
-                    <span class="text-[10px] text-slate-500 font-mono italic">${ep.responseContentType || 'application/json'}</span>
-                </div>
-                <div class="overflow-hidden rounded-xl border border-white/5 bg-slate-900/30">
-                    <table class="w-full text-left text-xs">
-                        <tbody class="divide-y divide-white/5">
-                            ${renderTypeStructure(typeInfo.base, typeInfo)}
-                        </tbody>
-                    </table>
+            // Re-layout respGrid to act as a tab container if it has classes
+            respGrid.className = "";
+            
+            const hasError = (ep.isErrorWrapped || (ep.errorContentType && ep.errorContentType !== ep.responseContentType));
+
+            respGrid.innerHTML = `
+                <div class="glass rounded-xl overflow-hidden border border-white/5 shadow-xl">
+                    <div class="flex border-b border-white/5 bg-slate-900/50">
+                        <button onclick="
+                            document.getElementById('resp-success-content').classList.remove('hidden');
+                            if(document.getElementById('resp-error-content')) document.getElementById('resp-error-content').classList.add('hidden');
+                            this.classList.add('text-emerald-400', 'border-b-2', 'border-emerald-400', 'bg-emerald-500/10');
+                            this.classList.remove('text-slate-400', 'hover:text-slate-200');
+                            const errBtn = document.getElementById('resp-err-btn');
+                            if(errBtn) {
+                                errBtn.classList.remove('text-rose-400', 'border-b-2', 'border-rose-400', 'bg-rose-500/10');
+                                errBtn.classList.add('text-slate-400', 'hover:text-slate-200');
+                            }
+                        " id="resp-success-btn" class="px-5 py-3 text-xs font-mono font-bold tracking-widest transition-all text-emerald-400 border-b-2 border-emerald-400 bg-emerald-500/10 flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                            SUCCESS
+                        </button>
+                        ${hasError ? `
+                        <button onclick="
+                            document.getElementById('resp-success-content').classList.add('hidden');
+                            document.getElementById('resp-error-content').classList.remove('hidden');
+                            this.classList.add('text-rose-400', 'border-b-2', 'border-rose-400', 'bg-rose-500/10');
+                            this.classList.remove('text-slate-400', 'hover:text-slate-200');
+                            const succBtn = document.getElementById('resp-success-btn');
+                            if(succBtn) {
+                                succBtn.classList.remove('text-emerald-400', 'border-b-2', 'border-emerald-400', 'bg-emerald-500/10');
+                                succBtn.classList.add('text-slate-400', 'hover:text-slate-200');
+                            }
+                        " id="resp-err-btn" class="px-5 py-3 text-xs font-mono font-bold tracking-widest transition-all text-slate-400 hover:text-slate-200 flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-rose-400"></span>
+                            ERROR RESPONSE
+                        </button>
+                        ` : ''}
+                    </div>
+                    <div class="p-4 bg-slate-900/30">
+                        <div id="resp-success-content">
+                            <table class="w-full text-left text-xs">
+                                <tbody class="divide-y divide-white/5">
+                                    ${renderTypeStructure(typeInfo.base, typeInfo)}
+                                </tbody>
+                            </table>
+                        </div>
+                        ${hasError ? `
+                        <div id="resp-error-content" class="hidden">
+                            <table class="w-full text-left text-xs">
+                                <tbody class="divide-y divide-white/5">
+                                    ${ep.isErrorWrapped ? renderTypeStructure(ep.errorTypeBase, null) : 
+                                        `<tr><td class="p-4 text-slate-500 italic">No specific structure, status code indicates error</td></tr>`
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                        ` : ''}
+                    </div>
                 </div>
             `;
-
-            // --- Error Section (Optional) ---
-            if (ep.isErrorWrapped || (ep.errorContentType && ep.errorContentType !== ep.responseContentType)) {
-                const errorMime = ep.errorContentType || ep.responseContentType || 'application/json';
-                errorContainer.classList.remove('hidden');
-                errorContainer.innerHTML = `
-                    <div class="flex items-center gap-2 mb-2">
-                        <span class="px-2 py-0.5 rounded bg-rose-500/10 text-rose-400 text-[10px] font-black uppercase border border-rose-500/20">Error Response</span>
-                        <span class="text-[10px] text-slate-500 font-mono italic">${errorMime}</span>
-                    </div>
-                    <div class="overflow-hidden rounded-xl border border-rose-500/10 bg-slate-900/30">
-                        <table class="w-full text-left text-xs">
-                            <tbody class="divide-y divide-white/5">
-                                ${ep.isErrorWrapped ? renderTypeStructure(ep.errorTypeBase, null) : 
-                                    `<tr><td class="p-4 text-slate-500 italic">No specific structure, status code indicates error</td></tr>`
-                                }
-                            </tbody>
-                        </table>
-                    </div>
-                `;
-                respGrid.classList.add('lg:grid-cols-2');
-            } else {
-                errorContainer.classList.add('hidden');
-                respGrid.classList.remove('lg:grid-cols-2');
-            }
         }
 
         function renderTypeStructure(baseType, typeInfo) {
@@ -597,6 +627,8 @@
             const union = apiData.unions && apiData.unions.find(u => u.name === baseType);
             if (model) {
                 let rows = '';
+                let discMap = {};
+                try { discMap = getDiscriminatorMap(model); } catch(e) {}
                 model.fields.forEach(f => {
                     let displayType = f.type;
                     if (typeInfo && model.typeParams && model.typeParams.length > 0) {
@@ -609,10 +641,10 @@
                     }
 
                     rows += renderRow({
-                        name: f.name,
+                        ...f,
+                        name: f.jsonName || f.name,
                         type: displayType,
-                        doc: f.doc
-                    }, 0, true);
+                    }, 0, true, '', discMap ? discMap[f.name] : null, discMap ? discMap['__field_' + f.name] : null);
                 });
                 return rows;
             } else if (union) {
@@ -638,10 +670,40 @@
             document.getElementById('tab-js').classList.remove('tab-active');
             document.getElementById(`tab-${tab}`).classList.add('tab-active');
         }
+        
+        function getDiscriminatorMap(model) {
+            const discriminatorMap = {};
+            if (!model || !model.fields) return discriminatorMap;
+            model.fields.forEach(f => {
+                const cleanUnionType = f.type.split('(')[0].replace(/[*[\]!]/g, '');
+                const u = apiData.unions && apiData.unions.find(x => x.name === cleanUnionType);
+                if (u || f.isUnion) {
+                    const foundUnion = u || (apiData.unions && apiData.unions.find(x => x.name === cleanUnionType));
+                    if (foundUnion) {
+                        const discField = model.fields.find(field => field.name === f.unionParamExp || field.type.replace(/[*[\]!]/g, '') === foundUnion.paramName || field.name === 'type');
+                        const paramFieldName = discField ? discField.name : (f.unionParamExp || 'type');
+                        
+                        const uid = 'utab-' + Math.random().toString(36).substring(2, 7);
+                        discriminatorMap[paramFieldName] = {
+                            uid: uid,
+                            union: foundUnion,
+                            unionField: f
+                        };
+                        discriminatorMap['__field_' + f.name] = {
+                            uid: uid,
+                            union: foundUnion,
+                            paramName: paramFieldName
+                        };
+                    }
+                }
+            });
+            return discriminatorMap;
+        }
+
         function getQueryParams(ep) {
             const params = [];
             if (!ep.isArgsWrapped && ep.inputName) {
-                const model = apiData.models.find(m => m.name === ep.inputName);
+                const model = apiData.models && apiData.models.find(m => m.name === ep.inputName);
                 if (model) {
                     const source = (ep.args && ep.args[0]) ? ep.args[0].source : 'Body';
                     if (source === 'Query') {
@@ -683,14 +745,65 @@
             return js;
         }
 
-        function renderRow(arg, depth = 0, hideSource = false) {
+        function renderRow(arg, depth = 0, hideSource = false, extraClass = '', discInfo = null, unionFieldInfo = null) {
             const padding = depth * 16;
             const isRequired = arg.validators && arg.validators.some(v => v.name === 'Required');
             const displayValidators = arg.validators ? arg.validators.filter(v => v.name !== 'Required') : [];
             const displayType = (arg.type.endsWith('!') || !isRequired) ? arg.type : `${arg.type}!`;
 
+            const cleanTypeForEnum = arg.type.replace(/[*[\]!]/g, '');
+            const enm = apiData.enums && apiData.enums.find(e => e.name === cleanTypeForEnum);
+            let enumHtml = '';
+            if (enm) {
+                enumHtml = `<div class="mt-1 flex flex-wrap gap-1 items-center">
+                    <span class="text-[8px] font-black tracking-widest text-emerald-500/70 uppercase border border-emerald-500/20 px-1 rounded">Enum</span>
+                    ${enm.cases.map(c => {
+                        const val = (c.value !== undefined && c.value !== '') ? c.value : c.name;
+                        const isStr = c.isString !== undefined ? c.isString : true;
+                        return `<span class="text-[10px] font-mono bg-slate-800/80 text-emerald-100 px-1.5 py-0.5 rounded border border-slate-700" title="${c.doc || ''}">${isStr ? `'${val}'` : val}</span>`;
+                    }).join('')}
+                </div>`;
+            }
+
+            const cleanType = arg.type.split('(')[0].replace(/[*[\]!]/g, '');
+            const model = apiData.models && apiData.models.find(m => m.name === cleanType);
+            const union = apiData.unions && apiData.unions.find(u => u.name === cleanType);
+
+            let unionUid = unionFieldInfo ? unionFieldInfo.uid : null;
+            let selectorHtml = '';
+            if (union && (depth < 4)) {
+                if (!unionUid) {
+                    unionUid = 'utab-' + Math.random().toString(36).substring(2, 7);
+                }
+                selectorHtml = `<div class="mt-1 flex flex-wrap gap-1.5 items-center">
+                    <span class="text-[8px] font-black tracking-widest text-indigo-400 uppercase border border-indigo-500/30 px-1 py-0.5 rounded bg-indigo-500/10">Selector</span>
+                    ${union.cases.map((c, idx) => {
+                        const val = (c.key !== undefined && c.key !== '') ? c.key : c.type;
+                        return `<button onclick="
+                            document.querySelectorAll('.${unionUid}-case').forEach(el => el.classList.add('hidden'));
+                            document.querySelectorAll('.${unionUid}-btn').forEach(el => {
+                                el.classList.remove('bg-indigo-600', 'text-white', 'border-indigo-500', 'shadow-sm');
+                                el.classList.add('bg-slate-800/80', 'text-indigo-200', 'border-slate-700', 'hover:border-indigo-500/50');
+                            });
+                            document.querySelectorAll('.${unionUid}-case-${idx}').forEach(el => el.classList.remove('hidden'));
+                            this.classList.remove('bg-slate-800/80', 'text-indigo-200', 'border-slate-700', 'hover:border-indigo-500/50');
+                            this.classList.add('bg-indigo-600', 'text-white', 'border-indigo-500', 'shadow-sm');
+                        " class="${unionUid}-btn px-2 py-0.5 rounded border text-[10px] font-mono font-bold transition-all ${idx === 0 ? 'bg-indigo-600 text-white border-indigo-500 shadow-sm' : 'bg-slate-800/80 text-indigo-200 border-slate-700 hover:border-indigo-500/50'}" title="${c.doc || ''}">
+                            '${val}'
+                        </button>`;
+                    }).join('')}
+                </div>`;
+            }
+
+            let typeCellContent = displayType;
+            if (enm) {
+                typeCellContent = enumHtml;
+            } else if (union && selectorHtml) {
+                typeCellContent = selectorHtml;
+            }
+
             let row = `
-                <tr class="${depth > 0 ? 'bg-white/[0.01]' : ''} group/row transition-colors hover:bg-white/[0.02]">
+                <tr class="${extraClass} ${depth > 0 ? 'bg-white/[0.01]' : ''} group/row transition-colors hover:bg-white/[0.02]">
                     ${hideSource ? '' : `<td class="p-4 font-mono text-[9px] font-black uppercase text-slate-600">${arg.source || 'Body'}</td>`}
                     <td class="p-4 font-bold text-slate-300">
                         <div style="padding-left: ${padding}px" class="flex items-center gap-2">
@@ -698,33 +811,50 @@
                             <span class="text-slate-200">${arg.name}</span>
                         </div>
                     </td>
-                    <td class="p-4 font-mono text-xs text-secondary/80">${displayType}</td>
+                    <td class="p-4 font-mono text-xs text-secondary/80">
+                        ${typeCellContent}
+                    </td>
                     ${hideSource ? '' : `<td class="p-4 whitespace-nowrap">${renderValidators(displayValidators)}</td>`}
                     <td class="p-4 text-xs text-slate-500 leading-relaxed max-w-xs">${arg.doc || '-'}</td>
                 </tr>
             `;
 
-            const cleanType = arg.type.replace(/[*\[\]]/g, '');
-            const model = apiData.models && apiData.models.find(m => m.name === cleanType);
-            const union = apiData.unions && apiData.unions.find(u => u.name === cleanType);
-            if (model && (depth < 4)) { 
+            if (union && (depth < 4)) {
+                const uid = unionUid;
+                union.cases.forEach((c, idx) => {
+                    const caseModel = apiData.models && apiData.models.find(m => m.name === c.type.replace(/[*[\]!]/g, ''));
+                    if (caseModel) {
+                        const caseDiscMap = getDiscriminatorMap(caseModel);
+                        caseModel.fields.forEach(f => {
+                            const cls = `${extraClass} ${uid}-case ${uid}-case-${idx} ${idx === 0 ? '' : 'hidden'}`;
+                            const cDiscInfo = caseDiscMap[f.name];
+                            const cUnionFieldInfo = caseDiscMap['__field_' + f.name];
+                            row += renderRow({
+                                name: f.jsonName || f.name,
+                                type: f.type,
+                                source: arg.source || 'Body',
+                                validators: f.validators,
+                                doc: f.doc,
+                                isUnion: f.isUnion,
+                                unionParamExp: f.unionParamExp
+                            }, depth + 1, hideSource, cls, cDiscInfo, cUnionFieldInfo);
+                        });
+                    }
+                });
+            } else if (model && (depth < 4)) { 
+                const subDiscMap = getDiscriminatorMap(model);
                 model.fields.forEach(f => {
+                    const subDiscInfo = subDiscMap[f.name];
+                    const subUnionFieldInfo = subDiscMap['__field_' + f.name];
                     row += renderRow({
-                        name: f.name,
+                        name: f.jsonName || f.name,
                         type: f.type,
                         source: arg.source || 'Body',
                         validators: f.validators,
-                        doc: f.doc
-                    }, depth + 1, hideSource);
-                });
-            } else if (union && (depth < 4)) {
-                union.cases.forEach(c => {
-                    row += renderRow({
-                        name: c.key,
-                        type: c.type,
-                        source: arg.source || 'Body',
-                        doc: c.isDefault ? 'Default Case' : ''
-                    }, depth + 1, hideSource);
+                        doc: f.doc,
+                        isUnion: f.isUnion,
+                        unionParamExp: f.unionParamExp
+                    }, depth + 1, hideSource, extraClass, subDiscInfo, subUnionFieldInfo);
                 });
             }
             return row;

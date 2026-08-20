@@ -2,12 +2,13 @@ package config
 
 import (
 	"os"
+
 	"gopkg.in/yaml.v3"
 )
 
 type Config struct {
 	Generator GeneratorConfig         `yaml:"generator"`
-	Scalars   map[string]ScalarConfig `yaml:"scalars"`  // 新增：标量映射配置
+	Scalars   map[string]ScalarConfig `yaml:"scalars"` // 新增：标量映射配置
 }
 
 type ScalarConfig struct {
