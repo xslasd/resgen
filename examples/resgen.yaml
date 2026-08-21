@@ -1,74 +1,122 @@
 generator:
-  # 生成代码的包名，默认为 resolver
+  # ==============================================================================
+  # 1. 基础生成配置
+  # ==============================================================================
+  # 生成代码的目标 Go 包名，默认为 resolver
   package: "resolver"
-  # 是否开启全自动 API 文档生成功能（生成 docs 目录并自动注册路由）
+
+  # 是否开启全自动 API 契约文档生成功能（自动生成 docs/api.json 与 docs/api.html）
   enable_api_docs: true
-  # 交互式 API 文档 (api.json/api.html) 中的测试请求根地址
-  # 用作交互式调试面板中 "Try it out" 接口联调派发时的默认主机前缀
+
+  # 交互式 API 文档中的测试请求根地址（用于 "Try it out" 在线调试面板的默认主机前缀）
   base_url: "http://localhost:8080"
-  
-  # 默认的请求体类型，可以使用下方的别名
+
+  # 默认的请求体 Content-Type 别名（当 DSL 中未显式指定 [ctype=...] 时采用）
   default_content_type: "json"
-  
-  # Content-Type 别名映射：将简短的别名映射为标准的 MIME 类型
-  content_type_aliases:
-    json: "application/json"
-    form: "application/x-www-form-urlencoded"
-    multipart: "multipart/form-data"
-    xml: "application/xml"
-    text: "text/plain"
-    
-  # 结构体标签生成策略
-  # name: 标签名称 (json, form, xml, gorm 等)
-  # case: 命名风格转换策略
-  #   - snake: 下划线 (UserName -> user_name)
+
+  # 全局默认的结构体字段命名风格策略
+  # 可选值:
+  #   - snake: 下划线小写 (UserName -> user_name)
   #   - camel: 小驼峰 (UserName -> userName)
   #   - lower: 全小写 (UserName -> username)
-  #   - keep:  保持原样 (UserName -> UserName)
-  struct_tags:
-    - name: "json"
-      case: "snake"
-  
-  # api.json 文件中的命名风格
-  # 可选: snake, camel, lower, keep
+  #   - keep:  保持 DSL 原样大小写 (UserName -> UserName)
+  default_case: "snake"
+
+  # 交互式契约文档 (api.json) 中参数的命名风格，若不填写则默认继承 default_case
   doc_case: "snake"
-  
-  # 默认错误返回统一响应包装器
+
+  # ==============================================================================
+  # 2. 🌟 统一协议与 Content-Type 全规格配置 (Content Types & Codecs)
+  # ------------------------------------------------------------------------------
+  # 字段属性说明:
+  #   - mime:         标准 MIME 类型 (必填，如 application/json)
+  #   - tag:          为该协议生成的 Go 结构体 Tag 名称 (如 json, form, xml 等)
+  #   - case:         该协议专属的字段命名风格 (可选，缺省时自动使用全局 default_case)
+  #   - raw_type:     多态影子结构体中用于暂存未解析原始流的类型 (如 json.RawMessage, yaml.Node)
+  #   - import_pkg:   生成多态解析代码时需自动导入的 Go 包路径
+  #   - unmarshal_fn: 该协议对应的反序列化标准函数签名 (如 json.Unmarshal)
+  # ==============================================================================
+  content_types:
+    # --- 1. JSON 协议 (默认生成 json:"user_name" 标签) ---
+    json:
+      mime: "application/json"
+      tag: "json"
+      case: "snake"
+      raw_type: "json.RawMessage"
+      import_pkg: "encoding/json"
+      unmarshal_fn: "json.Unmarshal"
+
+    # --- 2. Form 表单提交 (生成 form:"user_name" 标签) ---
+    form:
+      mime: "application/x-www-form-urlencoded"
+      tag: "form"
+      case: "snake"
+
+    # --- 3. Multipart 文件表单 (生成 form:"user_name" 标签) ---
+    multipart:
+      mime: "multipart/form-data"
+      tag: "form"
+      case: "snake"
+
+    # --- 4. XML 协议 (演示协议独立风格: 生成 xml:"userName" 驼峰标签与 XML 影子类型) ---
+    xml:
+      mime: "application/xml"
+      tag: "xml"
+      case: "camel"
+      raw_type: "runtime.XMLRawNode"
+      import_pkg: "github.com/xslasd/resgen/runtime"
+      unmarshal_fn: "xml.Unmarshal"
+
+    # --- 5. YAML 协议 ---
+    yaml:
+      mime: "application/x-yaml"
+      tag: "yaml"
+      case: "snake"
+      raw_type: "yaml.Node"
+      import_pkg: "gopkg.in/yaml.v3"
+      unmarshal_fn: "yaml.Unmarshal"
+
+    # --- 6. TOML 协议 ---
+    toml:
+      mime: "application/toml"
+      tag: "toml"
+      case: "snake"
+      raw_type: "toml.Primitive"
+      import_pkg: "github.com/BurntSushi/toml"
+      unmarshal_fn: "toml.Unmarshal"
+
+    # --- 7. 纯文本 / HTML (支持极简字符串简写形式) ---
+    text: "text/plain"
+    html: "text/html"
+
+  # ==============================================================================
+  # 3. 响应与包装器默认设置
+  # ==============================================================================
+  # 默认错误返回统一响应包装器 (对应 DSL 中定义的 wrap ResData<T>)
   default_wrap: "ResData"
 
-  # 默认成功返回 http 状态码
+  # 默认成功返回的 HTTP 状态码
   default_ok_status: 200
 
-  # 自定义标量生成风格配置
-  # 可选风格:
+  # 自定义标量代码生成风格配置:
   #   - isolation: 方案 A (默认)。生成中间 DTO 与转换函数，物理层使用原生态 Target 类型 (如 time.Time)
-  #   - direct:    方案 B。物理对象中直接使用标量别名 (如 IntTime)，不生成冗余的 DTO，靠标量 JSON Marshaler 自动转换
+  #   - direct:    方案 B。物理对象中直接使用标量别名 (如 IntTime)，不生成冗余 DTO，靠标量 Marshal 自动转换
   scalar_style: "direct"
-  # 权限标识提取配置
-  # 用于在生成 API 契约文档（api.json / api.html）时，将特定的权限装饰器自动提取为标准统一的 permission 属性。
-  #
-  # - auth_decorator: 指定代表权限的装饰器名称 (例如 "auth" 或 "permission")，前缀 @ 可省略。
-  # - auth_param_name: 权限装饰器中代表权限码的形参名称 (例如 "role" 或 "code")。
-  #   - 若指定了此项：生成器会在对应接口绑定的该装饰器参数中查找，兼容命名参数 @auth(role="admin") 与位置参数 @auth("admin") 的位置对齐提取。
-  #   - 若未指定此项：默认将该装饰器在位置 0 的第一个参数值提取为权限码。
+
+  # ==============================================================================
+  # 4. 权限标识智能提取配置
+  # ==============================================================================
+  # 用于在生成 API 契约文档时，将特定的权限装饰器自动提取为标准统一的 permission 属性
+  #   - auth_decorator: 指定代表权限的装饰器名称 (例如 "auth" 或 "permission")，前缀 @ 可省略
+  #   - auth_param_name: 权限装饰器中代表权限码的形参名称 (例如 "role" 或 "code")
   auth_decorator: "auth"
   auth_param_name: "role"
 
-# 标量类型自定义映射配置 (Scalars Custom Mapping)
-# 用于将 DSL 中定义的自定义标量 (scalar) 映射到 Go 物理包的实现类型。
-#
-# 🚀 极其震撼的【AST 自适应推导与契约强校验系统】说明:
-#   1. 开发人员【完全不需要】手动配置繁琐的 `target` 参数了！
-#   2. 生成器在运行 `resgen generate` 时，会通过 golang.org/x/tools 自动静态解析 Go 源码中 `model` 的定义。
-#   3. 自动智能提取底层 Underlying 物理类型（例如从 `type IntTime time.Time` 自动推导出 "time.Time"），并在生成的代码里全自动写上 package 的 `import` 语句！
-#   4. 【三关契约强校验】：自动在生成期强校验该标量是否完美实现了以下三关契约签名：
-#      - FromParam(ctx any, s string) error
-#      - FromValue(ctx any, v BaseType) error  (BaseType 必须与 DSL 定义相符)
-#      - ToValue(ctx any) (BaseType, error)  (BaseType 必须与 DSL 定义相符)
-#      如果签名未实现或类型不一致，直接在生成控制台抛出精美的中文语义报错！
-#
-# 参数配置项说明:
-#   - model:  开发人员在 Go 物理项目中手写实现的标量类型的完整包路径 (例如: "github.com/xslasd/resgen/examples/scalars.IntTime")。
+# ==============================================================================
+# 5. 标量类型自定义映射配置 (Scalars Custom Mapping)
+# ==============================================================================
+# 用于将 DSL 中定义的自定义标量 (scalar) 映射到 Go 物理包的具体实现类型。
+# Resgen 支持 AST 自适应推导与契约强校验，自动检查 FromParam/FromValue/ToValue 契约方法并自动导包。
 scalars:
   IntTime:
     model: "github.com/xslasd/resgen/examples/scalars.IntTime"

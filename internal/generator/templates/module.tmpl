@@ -6,9 +6,6 @@ package {{.Package}}
 
 import (
     "context"
-    {{- if .Module.Enums}}
-    "fmt"
-    {{- end}}
     {{- range .ExtraImports}}
     "{{.}}"
     {{- end}}
@@ -49,7 +46,10 @@ func (e *{{.Name}}) FromParam(ctx any, s string) error {
 		return nil
 	{{- end}}
 	}
-	return fmt.Errorf("invalid {{.Name}} value: %v", s)
+	return &InvalidEnumError{
+		EnumType: "{{.Name}}",
+		Value:    s,
+	}
 }
 {{end}}
 
@@ -263,6 +263,55 @@ func (m *{{.Name}}{{if .TypeParams}}[{{range $i, $p := .TypeParams}}{{if $i}}, {
 	return nil
 }
 {{end}}
+
+{{if .HasUnion}}
+// ResolveUnions 递归解析模型 {{.Name}} 及其子字段中的所有多态 Union 字段
+func (m *{{.Name}}{{if .TypeParams}}[{{range $i, $p := .TypeParams}}{{if $i}}, {{end}}{{$p}}{{end}}]{{end}}) ResolveUnions() error {
+	if m == nil {
+		return nil
+	}
+	{{- range .Fields}}
+	{{- if .IsUnion}}
+	if StringifyUnionDiscriminator(m.{{.UnionParamGoName}}) != "" && m.{{.Name}} != nil {
+		resolved, err := Resolve{{.UnionModel.Name}}(m.{{.UnionParamGoName}}, m.{{.Name}})
+		if err != nil {
+			return fmt.Errorf("多态 payload 解析失败: %w", err)
+		}
+		m.{{.Name}} = resolved
+	}
+	{{- else if and .RefModel .RefModel.HasUnion}}
+	{{- if .IsArray}}
+	for i := range m.{{.Name}} {
+		{{- if .IsArrayElementPointer}}
+		if m.{{.Name}}[i] != nil {
+			if err := m.{{.Name}}[i].ResolveUnions(); err != nil {
+				return fmt.Errorf("%s[%d]: %w", "{{.JSONName}}", i, err)
+			}
+		}
+		{{- else}}
+		if err := m.{{.Name}}[i].ResolveUnions(); err != nil {
+			return fmt.Errorf("%s[%d]: %w", "{{.JSONName}}", i, err)
+		}
+		{{- end}}
+	}
+	{{- else}}
+	{{- if .IsPointer}}
+	if m.{{.Name}} != nil {
+		if err := m.{{.Name}}.ResolveUnions(); err != nil {
+			return fmt.Errorf("%s: %w", "{{.JSONName}}", err)
+		}
+	}
+	{{- else}}
+	if err := m.{{.Name}}.ResolveUnions(); err != nil {
+		return fmt.Errorf("%s: %w", "{{.JSONName}}", err)
+	}
+	{{- end}}
+	{{- end}}
+	{{- end}}
+	{{- end}}
+	return nil
+}
+{{end}}
 {{end}}
 
 // ==========================================
@@ -438,6 +487,9 @@ func (e *{{$.Module.Name}}Executor[T, C]) handle{{.Name}}(request C, info Method
 		if val := request.{{$extractFunc}}("{{.Name}}"); val != "" {
 			var tmp {{.ScalarModel}}
 			if err := tmp.FromParam(native, val); err != nil {
+				{{- if .IsEnum}}
+				err = e.v.EnumError(native, "{{.Name}}", "{{.ScalarModel}}", val)
+				{{- end}}
 				{{- if $ep.IsReturnWrapped}}
 				request.Render{{$ep.ErrorRenderFunc}}(e.r.ErrorToStatus(native, err), e.r.Bind{{$ep.ReturnTypeBase}}(native, nil, err))
 				{{- else if $ep.IsErrorWrapped}}
@@ -571,7 +623,7 @@ func (e *{{$.Module.Name}}Executor[T, C]) handle{{.Name}}(request C, info Method
 	request.Render{{.ResponseRenderFunc}}({{.SuccessStatus}}, e.r.Bind{{.ReturnTypeBase}}(native, dtoResult, nil))
 	{{- else if .IsErrorWrapped}}
 	request.Render{{.ResponseRenderFunc}}({{.SuccessStatus}}, e.r.Bind{{.ErrorTypeBase}}(native, dtoResult, nil))
-	{{- else if $.Config.Generator.DefaultWrap}}
+	{{- else if and $.Config.Generator.DefaultWrap (not .IsNoWrap)}}
 	request.Render{{.ResponseRenderFunc}}({{.SuccessStatus}}, e.r.Bind{{$.Config.Generator.DefaultWrap}}(native, dtoResult, nil))
 	{{- else}}
 	request.Render{{.ResponseRenderFunc}}({{.SuccessStatus}}, dtoResult)
@@ -592,7 +644,7 @@ func (e *{{$.Module.Name}}Executor[T, C]) handle{{.Name}}(request C, info Method
 	request.Render{{.ResponseRenderFunc}}({{.SuccessStatus}}, e.r.Bind{{.ReturnTypeBase}}(native, dtoResult, nil))
 	{{- else if .IsErrorWrapped}}
 	request.Render{{.ResponseRenderFunc}}({{.SuccessStatus}}, e.r.Bind{{.ErrorTypeBase}}(native, dtoResult, nil))
-	{{- else if $.Config.Generator.DefaultWrap}}
+	{{- else if and $.Config.Generator.DefaultWrap (not .IsNoWrap)}}
 	request.Render{{.ResponseRenderFunc}}({{.SuccessStatus}}, e.r.Bind{{$.Config.Generator.DefaultWrap}}(native, dtoResult, nil))
 	{{- else}}
 	request.Render{{.ResponseRenderFunc}}({{.SuccessStatus}}, dtoResult)
@@ -601,16 +653,24 @@ func (e *{{$.Module.Name}}Executor[T, C]) handle{{.Name}}(request C, info Method
 	{{- else}}
 	{{- if .IsReturnWrapped}}
 	request.Render{{.ResponseRenderFunc}}({{.SuccessStatus}}, e.r.Bind{{.ReturnTypeBase}}(native, result, nil))
+	{{- else if .IsSuccessNoWrap}}
+	{{- if eq .ResponseRenderFunc "Stream"}}
+	if result != nil {
+		request.RenderStream({{.SuccessStatus}}, *result)
+	}
+	{{- else}}
+	request.Render{{.ResponseRenderFunc}}({{.SuccessStatus}}, result)
+	{{- end}}
 	{{- else if .IsErrorWrapped}}
 	request.Render{{.ResponseRenderFunc}}({{.SuccessStatus}}, e.r.Bind{{.ErrorTypeBase}}(native, result, nil))
-	{{- else if $.Config.Generator.DefaultWrap}}
+	{{- else if and $.Config.Generator.DefaultWrap (not .IsNoWrap)}}
 	request.Render{{.ResponseRenderFunc}}({{.SuccessStatus}}, e.r.Bind{{$.Config.Generator.DefaultWrap}}(native, result, nil))
 	{{- else}}
 	request.Render{{.ResponseRenderFunc}}({{.SuccessStatus}}, result)
 	{{- end}}
 	{{- end}}
 	{{- else}}
-	{{- if $.Config.Generator.DefaultWrap}}
+	{{- if and $.Config.Generator.DefaultWrap (not .IsNoWrap)}}
 	request.Render{{.ResponseRenderFunc}}({{.SuccessStatus}}, e.r.Bind{{$.Config.Generator.DefaultWrap}}(native, nil, nil))
 	{{- else}}
 	request.Render{{.ResponseRenderFunc}}({{.SuccessStatus}}, nil)
@@ -645,7 +705,13 @@ func (e *{{$.Module.Name}}Executor[T, C]) bind{{.Name}}(request C, input *{{.Inp
 	{{- if eq .Source "Header"}}{{$extractFunc = "GetHeader"}}{{end}}
 	if val := request.{{$extractFunc}}("{{.Name}}"); val != "" {
 		var tmp {{.ScalarModel}}
-		if err := tmp.FromParam(request.Native(), val); err != nil { return err }
+		if err := tmp.FromParam(request.Native(), val); err != nil {
+			{{- if .IsEnum}}
+			return e.v.EnumError(request.Native(), "{{.Name}}", "{{.ScalarModel}}", val)
+			{{- else}}
+			return err
+			{{- end}}
+		}
 		{{- if HasPrefix .GoType "*" }}
 		targetVal := {{slice .GoType 1}}(tmp)
 		input.{{.GoName}} = &targetVal
@@ -675,7 +741,13 @@ func (e *{{$.Module.Name}}Executor[T, C]) bind{{.Name}}(request C, input *{{.Inp
 	{{- if .IsScalar}}
 	if val := request.{{$extractFunc}}("{{.JSONName}}"); val != "" {
 		var tmp {{.ScalarModel}}
-		if err := tmp.FromParam(request.Native(), val); err != nil { return err }
+		if err := tmp.FromParam(request.Native(), val); err != nil {
+			{{- if .IsEnum}}
+			return e.v.EnumError(request.Native(), "{{.JSONName}}", "{{.ScalarModel}}", val)
+			{{- else}}
+			return err
+			{{- end}}
+		}
 		{{- if HasPrefix .GoType "*" }}
 		targetVal := {{slice .GoType 1}}(tmp)
 		input.{{.Name}} = &targetVal
@@ -696,7 +768,13 @@ func (e *{{$.Module.Name}}Executor[T, C]) bind{{.Name}}(request C, input *{{.Inp
 	{{- if .IsScalar}}
 	if val := request.GetQuery("{{.JSONName}}"); val != "" {
 		var tmp {{.ScalarModel}}
-		if err := tmp.FromParam(request.Native(), val); err != nil { return err }
+		if err := tmp.FromParam(request.Native(), val); err != nil {
+			{{- if .IsEnum}}
+			return e.v.EnumError(request.Native(), "{{.JSONName}}", "{{.ScalarModel}}", val)
+			{{- else}}
+			return err
+			{{- end}}
+		}
 		{{- if HasPrefix .GoType "*" }}
 		targetVal := {{slice .GoType 1}}(tmp)
 		input.{{.Name}} = &targetVal
@@ -715,18 +793,10 @@ func (e *{{$.Module.Name}}Executor[T, C]) bind{{.Name}}(request C, input *{{.Inp
 	{{- end}}
 	{{- end}}
     {{- if .HasUnion}}
-    // 处理多态 Union 字段
-    {{- range .InputModel.Fields}}
-    {{- if .IsUnion}}
-    if StringifyUnionDiscriminator(input.{{.UnionParamGoName}}) != "" && input.{{.Name}} != nil {
-        resolved, err := Resolve{{.UnionModel.Name}}(input.{{.UnionParamGoName}}, input.{{.Name}})
-        if err != nil {
-            return fmt.Errorf("多态 payload 解析失败: %v", err)
-        }
-        input.{{.Name}} = resolved
+    // 递归处理多态 Union 字段 (支持多级嵌套与切片自动递归)
+    if err := input.ResolveUnions(); err != nil {
+        return err
     }
-    {{- end}}
-    {{- end}}
     {{- end}}
     return nil
 }

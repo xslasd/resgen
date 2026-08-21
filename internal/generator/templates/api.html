@@ -622,13 +622,20 @@
             `;
         }
 
+        function formatDisplayType(rawType) {
+            if (!rawType) return '';
+            return rawType.replace(/^\*/, '').replace(/\*\[\]/g, '[]').replace(/\[\*([a-zA-Z0-9_]+)\]/g, '[$1]');
+        }
+
         function renderTypeStructure(baseType, typeInfo) {
-            const model = apiData.models && apiData.models.find(m => m.name === baseType);
-            const union = apiData.unions && apiData.unions.find(u => u.name === baseType);
+            const cleanBase = baseType ? baseType.replace(/[*[\]!]/g, '') : '';
+            const model = apiData.models && apiData.models.find(m => m.name === cleanBase);
+            const union = apiData.unions && apiData.unions.find(u => u.name === cleanBase);
             if (model) {
                 let rows = '';
                 let discMap = {};
                 try { discMap = getDiscriminatorMap(model); } catch(e) {}
+                const visited = new Set([cleanBase]);
                 model.fields.forEach(f => {
                     let displayType = f.type;
                     if (typeInfo && model.typeParams && model.typeParams.length > 0) {
@@ -644,7 +651,7 @@
                         ...f,
                         name: f.jsonName || f.name,
                         type: displayType,
-                    }, 0, true, '', discMap ? discMap[f.name] : null, discMap ? discMap['__field_' + f.name] : null);
+                    }, 0, true, '', discMap ? discMap[f.name] : null, discMap ? discMap['__field_' + f.name] : null, visited);
                 });
                 return rows;
             } else if (union) {
@@ -745,13 +752,14 @@
             return js;
         }
 
-        function renderRow(arg, depth = 0, hideSource = false, extraClass = '', discInfo = null, unionFieldInfo = null) {
+        function renderRow(arg, depth = 0, hideSource = false, extraClass = '', discInfo = null, unionFieldInfo = null, visitedModels = new Set()) {
             const padding = depth * 16;
             const isRequired = arg.validators && arg.validators.some(v => v.name === 'Required');
             const displayValidators = arg.validators ? arg.validators.filter(v => v.name !== 'Required') : [];
-            const displayType = (arg.type.endsWith('!') || !isRequired) ? arg.type : `${arg.type}!`;
+            const formattedType = formatDisplayType(arg.type);
+            const displayType = (formattedType.endsWith('!') || !isRequired) ? formattedType : `${formattedType}!`;
 
-            const cleanTypeForEnum = arg.type.replace(/[*[\]!]/g, '');
+            const cleanTypeForEnum = formattedType.replace(/[*[\]!]/g, '');
             const enm = apiData.enums && apiData.enums.find(e => e.name === cleanTypeForEnum);
             let enumHtml = '';
             if (enm) {
@@ -765,13 +773,14 @@
                 </div>`;
             }
 
-            const cleanType = arg.type.split('(')[0].replace(/[*[\]!]/g, '');
+            const cleanType = formattedType.split('(')[0].replace(/[*[\]!]/g, '');
+            const isSelfRef = visitedModels && visitedModels.has(cleanType);
             const model = apiData.models && apiData.models.find(m => m.name === cleanType);
             const union = apiData.unions && apiData.unions.find(u => u.name === cleanType);
 
             let unionUid = unionFieldInfo ? unionFieldInfo.uid : null;
             let selectorHtml = '';
-            if (union && (depth < 4)) {
+            if (union && (depth < 6)) {
                 if (!unionUid) {
                     unionUid = 'utab-' + Math.random().toString(36).substring(2, 7);
                 }
@@ -800,6 +809,8 @@
                 typeCellContent = enumHtml;
             } else if (union && selectorHtml) {
                 typeCellContent = selectorHtml;
+            } else if (isSelfRef) {
+                typeCellContent = `<span class="flex items-center gap-1.5 flex-wrap"><span>${displayType}</span><span class="text-[9px] font-mono font-semibold text-cyan-400/90 bg-cyan-500/10 border border-cyan-500/20 px-1.5 py-0.5 rounded tracking-wide">Self-ref Tree Node</span></span>`;
             }
 
             let row = `
@@ -819,7 +830,17 @@
                 </tr>
             `;
 
-            if (union && (depth < 4)) {
+            // 如果是自引用结构，终止向内递归展开，避免死循环和多层重复展开
+            if (isSelfRef) {
+                return row;
+            }
+
+            const nextVisited = new Set(visitedModels || []);
+            if (cleanType) {
+                nextVisited.add(cleanType);
+            }
+
+            if (union && (depth < 6)) {
                 const uid = unionUid;
                 union.cases.forEach((c, idx) => {
                     const caseModel = apiData.models && apiData.models.find(m => m.name === c.type.replace(/[*[\]!]/g, ''));
@@ -837,11 +858,11 @@
                                 doc: f.doc,
                                 isUnion: f.isUnion,
                                 unionParamExp: f.unionParamExp
-                            }, depth + 1, hideSource, cls, cDiscInfo, cUnionFieldInfo);
+                            }, depth + 1, hideSource, cls, cDiscInfo, cUnionFieldInfo, nextVisited);
                         });
                     }
                 });
-            } else if (model && (depth < 4)) { 
+            } else if (model && (depth < 6)) { 
                 const subDiscMap = getDiscriminatorMap(model);
                 model.fields.forEach(f => {
                     const subDiscInfo = subDiscMap[f.name];
@@ -854,7 +875,7 @@
                         doc: f.doc,
                         isUnion: f.isUnion,
                         unionParamExp: f.unionParamExp
-                    }, depth + 1, hideSource, extraClass, subDiscInfo, subUnionFieldInfo);
+                    }, depth + 1, hideSource, extraClass, subDiscInfo, subUnionFieldInfo, nextVisited);
                 });
             }
             return row;

@@ -1,7 +1,5 @@
 ﻿.idea/
 *.exe
-/examples/resolver
-/examples/resolver_isolation
 /editors/vscode/dist/
 /editors/vscode/node_modules/
 /editors/vscode/package-lock.json

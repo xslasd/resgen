@@ -7,6 +7,7 @@ package {{.Package}}
 import (
 	"context"
 	"embed"
+	"encoding/json"
 	"strconv"
 	"fmt"
 	"reflect"
@@ -23,8 +24,9 @@ var _ embed.FS // 确保 embed 被使用
 // LocalFileDownload 专门用于封装本地文件下载的信息
 // 当在 DSL 中将返回类型设为 File 时，底层的业务方法应当返回此载体
 type LocalFileDownload struct {
-	FilePath string
-	Filename string
+	FilePath    string
+	Filename    string
+	ContentType string
 }
 
 // Core Engine Definitions
@@ -54,9 +56,14 @@ type ServerContextBase interface {
 	Context() context.Context
 
 	{{range .RenderFuncs}}
+	{{- if eq .Name "Stream"}}
+	// RenderStream 以 HTTP 状态码 code 将 localFileDownload 写入流式响应。
+	RenderStream(code int, localFileDownload LocalFileDownload)
+	{{- else}}
 	// Render{{.Name}} 以 HTTP 状态码 code 将 obj 序列化后，
 	// 以 "{{.MimeType}}" Content-Type 写入响应。
 	Render{{.Name}}(code int, obj any)
+	{{- end}}
 	{{end}}
 }
 
@@ -246,13 +253,17 @@ func StringifyUnionDiscriminator(v any) string {
 }
 
 
-// InvalidEnumError 定义了枚举自检失败时的结构化错误
+// InvalidEnumError 定义了枚举自检与解析失败时的结构化错误，携带元数据以友好支持多语言(i18n)及统一错误映射
 type InvalidEnumError struct {
-	EnumType string
-	Value    any
+	FieldName string
+	EnumType  string
+	Value     any
 }
 
 func (e *InvalidEnumError) Error() string {
+	if e.FieldName != "" {
+		return fmt.Sprintf("invalid %s for field '%s': %v", e.EnumType, e.FieldName, e.Value)
+	}
 	return fmt.Sprintf("invalid %s value: %v", e.EnumType, e.Value)
 }
 
@@ -322,6 +333,35 @@ type {{.Name}} struct {
 // 3. Union / Polymorphism Resolvers
 // ==========================================
 
+// decodeUnionPayload 自适应将 string / []byte / map[string]any / struct 等反序列化到目标结构体 dst
+func decodeUnionPayload(rawData any, dst any) error {
+	if rawData == nil {
+		return nil
+	}
+	switch v := rawData.(type) {
+	case string:
+		return json.Unmarshal([]byte(v), dst)
+	case []byte:
+		return json.Unmarshal(v, dst)
+	case map[string]any:
+		b, err := json.Marshal(v)
+		if err != nil {
+			return err
+		}
+		return json.Unmarshal(b, dst)
+	default:
+		config := &mapstructure.DecoderConfig{
+			TagName: "json",
+			Result:  dst,
+		}
+		decoder, err := mapstructure.NewDecoder(config)
+		if err != nil {
+			return err
+		}
+		return decoder.Decode(rawData)
+	}
+}
+
 {{range .Unions}}
 {{- if .Doc}}
 // {{.Doc}}
@@ -335,11 +375,19 @@ func Resolve{{.Name}}(disc any, rawData any) (any, error) {
         {{- if eq .GoType "any"}}
         return rawData, nil
         {{- else}}
-        var dst {{.GoType}}
-        if err := mapstructure.Decode(rawData, &dst); err != nil {
+        {{- if HasPrefix .GoType "*"}}
+        var dst {{slice .GoType 1}}
+        if err := decodeUnionPayload(rawData, &dst); err != nil {
             return nil, err
         }
         return &dst, nil
+        {{- else}}
+        var dst {{.GoType}}
+        if err := decodeUnionPayload(rawData, &dst); err != nil {
+            return nil, err
+        }
+        return dst, nil
+        {{- end}}
         {{- end}}
     {{- end}}
     {{- end}}
@@ -356,11 +404,19 @@ func Resolve{{.Name}}(disc any, rawData any) (any, error) {
             {{- if eq $defaultType "any"}}
         return rawData, nil
             {{- else}}
-        var dst {{$defaultType}}
-        if err := mapstructure.Decode(rawData, &dst); err != nil {
+            {{- if HasPrefix $defaultType "*"}}
+        var dst {{slice $defaultType 1}}
+        if err := decodeUnionPayload(rawData, &dst); err != nil {
             return nil, err
         }
         return &dst, nil
+            {{- else}}
+        var dst {{$defaultType}}
+        if err := decodeUnionPayload(rawData, &dst); err != nil {
+            return nil, err
+        }
+        return dst, nil
+            {{- end}}
             {{- end}}
         {{- else}}
         return rawData, nil

@@ -577,9 +577,16 @@ func publishDiagnostics(context *glsp.Context, uri, content string) {
 					}
 					if hasFile {
 						ctype := ""
-						for _, meta := range ep.ResponseMeta {
+						for _, meta := range ep.RequestMeta {
 							if strings.ToLower(meta.Key) == "ctype" && meta.Value.Str != nil {
 								ctype = strings.ToLower(*meta.Value.Str)
+							}
+						}
+						if ctype == "" {
+							for _, meta := range ep.ResponseMeta {
+								if strings.ToLower(meta.Key) == "ctype" && meta.Value.Str != nil {
+									ctype = strings.ToLower(*meta.Value.Str)
+								}
 							}
 						}
 						isJsonCtype := ctype == "json" || ctype == "application/json"

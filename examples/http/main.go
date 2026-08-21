@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"mime/multipart"
 	"net/http"
@@ -87,29 +88,26 @@ func (c *HttpContext) RenderRaw(code int, contentType string, body []byte) {
 	c.NC.W.Write(body)
 }
 
-func (c *HttpContext) RenderStream(code int, obj any) {
-	if f, ok := obj.(*resolver.LocalFileDownload); ok {
-		c.NC.W.Header().Set("Content-Disposition", `attachment; filename="`+f.Filename+`"`)
-		c.NC.W.Header().Set("Content-Type", "application/octet-stream")
-		c.NC.W.WriteHeader(code)
-		// For a real app, use http.ServeFile(c.W, c.R, f.FilePath)
-		c.NC.W.Write([]byte("mock file content of " + f.FilePath))
-	} else if b, ok := obj.([]byte); ok {
-		c.NC.W.Header().Set("Content-Type", "application/octet-stream")
-		c.NC.W.WriteHeader(code)
-		c.NC.W.Write(b)
+func (c *HttpContext) RenderStream(code int, localFileDownload resolver.LocalFileDownload) {
+	if localFileDownload.ContentType != "" {
+		c.NC.W.Header().Set("Content-Type", localFileDownload.ContentType)
 	} else {
-		c.NC.W.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		c.NC.W.WriteHeader(code)
-		fmt.Fprintf(c.NC.W, "%v", obj)
+		c.NC.W.Header().Set("Content-Type", "application/octet-stream")
 	}
+	c.NC.W.Header().Set("Content-Disposition", `attachment; filename="`+localFileDownload.Filename+`"`)
+	c.NC.W.WriteHeader(code)
+	c.NC.W.Write([]byte("mock file content of " + localFileDownload.FilePath))
 }
 
 func (c *HttpContext) RenderXml(code int, obj any) {
-	c.NC.W.Header().Set("Content-Type", "application/xml")
+	c.NC.W.Header().Set("Content-Type", "application/xml; charset=utf-8")
 	c.NC.W.WriteHeader(code)
-	// mock xml render
-	fmt.Fprintf(c.NC.W, "<xml>not implemented</xml>")
+	b, err := xml.Marshal(obj)
+	if err != nil {
+		fmt.Fprintf(c.NC.W, "<error>%v</error>", err)
+		return
+	}
+	c.NC.W.Write(b)
 }
 
 func (c *HttpContext) SetHeader(name, value string) {
@@ -141,6 +139,14 @@ func (r *MyResponder) BindResData(ctx *NativeCtx, data any, err error) resolver.
 		res.Data = nil
 	}
 	return res
+}
+
+func (r *MyResponder) BindListRes(ctx *NativeCtx, data any, err error) resolver.ListRes {
+	return resolver.ListRes{Rows: []any{data}, Total: 1}
+}
+
+func (r *MyResponder) BindTreeRes(ctx *NativeCtx, data any, err error) resolver.TreeRes {
+	return resolver.TreeRes{Items: []any{data}, Total: 1}
 }
 
 func (r *MyResponder) BindPageData(ctx *NativeCtx, data any, err error) resolver.PageData {
@@ -209,6 +215,16 @@ func (h *WrapperDemoHandler) ListArticlesV2(ctx context.Context, input *resolver
 	return &resolver.ListResArticle{Rows: []resolver.Article{{Id: 1, Title: "A1", Content: "C1"}}, Total: 1}, nil
 }
 
+func (h *WrapperDemoHandler) GetCategoryTree(ctx context.Context) (*resolver.TreeResCategoryTreeNode, error) {
+	child := resolver.CategoryTreeNode{Id: 101, ParentId: 1, Name: "后端开发", Sort: 1}
+	root := resolver.CategoryTreeNode{Id: 1, ParentId: 0, Name: "技术分类", Sort: 1, Children: &[]resolver.CategoryTreeNode{child}}
+	return &resolver.TreeResCategoryTreeNode{Items: []resolver.CategoryTreeNode{root}, Total: 2}, nil
+}
+
+func (h *WrapperDemoHandler) GetCategoryTreeRaw(ctx context.Context) (*resolver.CategoryTreeNode, error) {
+	return &resolver.CategoryTreeNode{Id: 1, ParentId: 0, Name: "原生分类", Sort: 1}, nil
+}
+
 func (h *WrapperDemoHandler) CreateArticle(ctx context.Context, input *resolver.CreateArticleArgs) (*resolver.Article, error) {
 	return &resolver.Article{Id: 100, Title: input.Title, Content: input.Content}, nil
 }
@@ -252,6 +268,10 @@ func (h *ContentTypeDemoHandler) SubmitJson(ctx context.Context, input *resolver
 }
 func (h *ContentTypeDemoHandler) SubmitForm(ctx context.Context, input *resolver.FormInput) (*string, error) {
 	s := "form submitted"
+	return &s, nil
+}
+func (h *ContentTypeDemoHandler) SubmitNestedForm(ctx context.Context, input *resolver.NestedFormInput) (*string, error) {
+	s := fmt.Sprintf("nested form submitted: name=%s, age=%d, city=%s, street=%s", input.Name, input.Age, input.Address.City, input.Address.Street)
 	return &s, nil
 }
 func (h *ContentTypeDemoHandler) SubmitMultipart(ctx context.Context, title string) (*string, error) {
@@ -303,12 +323,19 @@ func (h *FileDemoHandler) UploadAvatar(ctx context.Context, input *resolver.Uplo
 func (h *FileDemoHandler) UploadDocument(ctx context.Context, input *resolver.UploadDocumentInput) (*resolver.UploadResult, error) {
 	return &resolver.UploadResult{FileUrl: "/uploads/document.pdf"}, nil
 }
-func (h *FileDemoHandler) DownloadFile(ctx context.Context, id *int) (*multipart.FileHeader, error) {
-	// mock file download
-	return nil, nil
+func (h *FileDemoHandler) DownloadFile(ctx context.Context, id *int) (*resolver.LocalFileDownload, error) {
+	return &resolver.LocalFileDownload{
+		FilePath:    "./temp/sample.pdf",
+		Filename:    "sample.pdf",
+		ContentType: "application/pdf",
+	}, nil
 }
-func (h *FileDemoHandler) ExportCsv(ctx context.Context, ids *string) (*multipart.FileHeader, error) {
-	return nil, nil
+func (h *FileDemoHandler) ExportCsv(ctx context.Context, ids *string) (*resolver.LocalFileDownload, error) {
+	return &resolver.LocalFileDownload{
+		FilePath:    "./temp/export.csv",
+		Filename:    "export.csv",
+		ContentType: "text/csv",
+	}, nil
 }
 func (h *FileDemoHandler) CreatePost(ctx context.Context, input *resolver.CreatePostInput) (*resolver.ContentPostItem, error) {
 	return &resolver.ContentPostItem{
@@ -350,6 +377,13 @@ func (v *MyValidator) Mobile(ctx *NativeCtx, fieldName string, value any) error 
 func (v *MyValidator) Min(ctx *NativeCtx, fieldName string, value any, Len int) error { return nil }
 func (v *MyValidator) Max(ctx *NativeCtx, fieldName string, value any, Len int) error { return nil }
 func (v *MyValidator) FileRule(ctx *NativeCtx, fieldName string, value any, maxSize int, types []string, msg string) error { return nil }
+func (v *MyValidator) EnumError(ctx *NativeCtx, fieldName string, enumType string, value any) error {
+	return &resolver.InvalidEnumError{
+		FieldName: fieldName,
+		EnumType:  enumType,
+		Value:     value,
+	}
+}
 
 
 func convertPath(path string) string {

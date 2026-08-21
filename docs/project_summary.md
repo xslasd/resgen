@@ -33,13 +33,31 @@
 - **状态码动态展示**：支持 `@status` 指令，文档实时反映非 200 的成功状态码。
 - **权限标识一键提取与高亮显示**：支持通过 `resgen.yaml` 的约定映射，将鉴权装饰器中的权限码自动提取到 `api.json` 的 `permission` 字段。同时在 `api.html` 导航目录及详情页的头部均能展现醒目的锁图标与金色高对比度 Badge，极佳地解决了前端对于接口权限识别的耦合痛点。
 
+## 🛠️ 最新版本特性演进 (Latest Updates)
+
+### 1. 响应包装器体系与树形结构支持 (TreeRes & Wrappers)
+- **`TreeRes<T>` 树形包装器**：内置对树形层级数据结构（`items: [T!]!`, `total: Int!`）的原生支持。
+- **自引用模型保护**：完善了递归自引用树节点（如 `CategoryTreeNode` 包含 `children: [CategoryTreeNode!]`）的支持，并在 API 交互式文档中加入循环引用智能保护，标记为 `Self-ref Tree Node`，彻底防止前端页面渲染无限递归卡死。
+
+### 2. 文件与流式响应强类型载体 (LocalFileDownload & RenderStream)
+- **`LocalFileDownload` 强类型载体**：封装 `FilePath`（物理路径）、`Filename`（下载文件名）、`ContentType`（MIME 类型），作为业务 Resolver 返回文件时的统一载体。
+- **`RenderStream` 强类型签名**：`ServerContextBase` 契约升级为 `RenderStream(code int, localFileDownload LocalFileDownload)`，彻底消除 `any` 反射与协议侵入。
+- **流式接口纯净输出**：文件下载接口成功响应默认以裸流传输（`wrap=none`），失败时优雅退化为 JSON 错误响应。
+
+### 3. 多协议 Tags 按需精准推导机制 (Precision Tag Generation)
+- **全端点使用场景精准分析**：所有模型（包括业务 Entity、Input 结构体以及 `ResData` / `ListRes` / `TreeRes` / `PageData` 等包装器）的字段 Tag，严格根据它们在所有被引用的端点中实际使用的协议类型（`ctype` / `etype`）全集生成。
+- **零 Tag 冗余污染**：只在普通 JSON 接口中使用的模型，绝不生成多余的 `xml`、`yaml` 等无用 Tag；在 XML 接口中被使用的模型自动获得对应大小写风格的 `xml:"..."` 标签。
+
+### 4. 多层结构 Form 表单提交支持 (Nested Form Input)
+- **深层嵌套与点语法绑定**：`[ctype=form]` 支持复杂嵌套子模型，框架适配层与测试套件支持 `address.city=Shenzhen` 等点分层级键名与递归绑定。
+
+### 5. LSP 语言服务器与诊断检查增强
+- **全语法元素索引**：支持 `type`、`input`、`wrap`、`enum`、`union`、`scalar`、`decorator`、`validator` 的跨文件代码跳转与定义查找。
+- **深层语义诊断**：自动校验 `Field` 类型的非法滥用、`File` 类型的合法使用场景、匿名参数唯一性校验、以及入参含文件时强制要求 `multipart` 传输等规则。
+
 ## 📂 项目文档清单
 
 我们已在 `docs/` 目录下整理了以下指南：
-- [DSL 语法指南](file:///d:/项目/resgen/docs/dsl_guide.md)：涵盖模型、包装器、参数绑定等。
-- [响应处理机制](file:///d:/项目/resgen/docs/response_handling.md)：详细说明了错误映射与包装器逻辑。
-
-## 🚀 接下来建议
-
-1. **跨框架适配**：目前已在 Gin 框架上跑通，后续可进一步完善对 Echo 或标准库 http 的模版适配。
-2. **CLI 完善**：将生成器封装为更易用的 CLI 工具，支持目录监听与自动更新。
+- [DSL 语法指南](file:///d:/项目/resgen/docs/dsl_guide.md)：涵盖模型、包装器、参数绑定、多协议与标量等。
+- [响应处理机制](file:///d:/项目/resgen/docs/response_handling.md)：详细说明了错误映射、状态码与包装器契约。
+- [项目演进总结](file:///d:/项目/resgen/docs/project_summary.md)：了解 Resgen 的最新特性与架构演进。

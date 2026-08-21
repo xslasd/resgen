@@ -13,3 +13,9 @@ wrap ListRes<T> {
     rows: [T!]! # 列表数据
     total: Int! # 总条数
 }
+
+# 4. 通用树形结构响应包装器
+wrap TreeRes<T> {
+    items: [T!]! # 顶层树节点列表
+    total: Int!  # 树节点总数
+}

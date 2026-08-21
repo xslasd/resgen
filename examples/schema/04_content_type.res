@@ -21,12 +21,28 @@ input FormInput {
     email: String!
 }
 
+# 多层嵌套子模型：地址信息
+input AddressInput {
+    city: String!
+    street: String!
+    zipCode: String
+}
+
+# 多层嵌套表单输入模型
+input NestedFormInput {
+    name: String!
+    age: Int!
+    address: AddressInput!
+}
+
 # ── POST 接口的三种请求 Content-Type ─────────────────────
 group /content [wrap=ResData] {
     # 默认：请求体为 JSON（可省略 ctype=json）
     POST /json => SubmitJson(input: JsonInput): ResData<String>
     # 请求体为 URL 编码表单（application/x-www-form-urlencoded）
     POST /form[ctype=form] => SubmitForm(input: FormInput): ResData<String>
+    # 🌟 请求体为 URL 编码表单，支持多层嵌套结构
+    POST /form/nested[ctype=form] => SubmitNestedForm(input: NestedFormInput): ResData<String>
     # 请求体为 multipart/form-data（文件上传场景在示例 6 详细展示）
     POST /multipart[ctype=multipart] => SubmitMultipart(title: String!): ResData<String>
 }

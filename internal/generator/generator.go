@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"text/template"
 	"unicode"
@@ -17,7 +18,7 @@ import (
 	"golang.org/x/tools/imports"
 )
 
-const Version = "v0.5.0"
+const Version = "v0.6.0"
 
 //go:embed templates/engine.tmpl
 var engineTmpl string
@@ -140,7 +141,11 @@ func ToGoType(t parser.TypeRef, conf *config.Config, extraImports *[]string, con
 	case "Boolean":
 		goBaseType = "bool"
 	case "File":
-		goBaseType = "*multipart.FileHeader"
+		if strings.HasSuffix(context, ".Return") || strings.HasSuffix(context, ".InnerReturn") {
+			goBaseType = "*LocalFileDownload"
+		} else {
+			goBaseType = "*multipart.FileHeader"
+		}
 	case "Any", "Field":
 		goBaseType = "any"
 	}
@@ -230,6 +235,7 @@ type ModelField struct {
 	GoValue               string     `json:"value,omitempty"`
 	Validators            []MetaInfo `json:"validators,omitempty"`
 	Tag                   string     `json:"-"`
+	XMLName               string     `json:"-"`
 	Source                string     `json:"-"` // Added: Path, Query, Header, Body
 	RefModel              *ModelInfo `json:"-"`
 	GoTypeDTO             string     `json:"-"`
@@ -312,46 +318,49 @@ type GroupInfo struct {
 }
 
 type MethodInfo struct {
-	Name               string         `json:"name"`
-	Doc                string         `json:"doc,omitempty"`
-	Method             string         `json:"method"`
-	Path               string         `json:"path"`
-	FullPath           string         `json:"fullPath"`
-	InputName          string         `json:"inputName,omitempty"`
-	InputModel         *ModelInfo     `json:"-"`
-	ReturnType         string         `json:"returnType"`
-	ReturnModel        *ModelInfo     `json:"-"`
-	InnerReturnModel   *ModelInfo     `json:"-"`
-	ReturnTypeDSL      string         `json:"returnTypeDSL,omitempty"`
-	InnerReturnType    string         `json:"innerReturnType,omitempty"`
-	IsReturnWrapped    bool           `json:"isReturnWrapped"`
-	IsReturnArray      bool           `json:"isReturnArray"`
-	ReturnTypeBase     string         `json:"returnTypeBase,omitempty"`
-	ErrorType          string         `json:"errorType,omitempty"`
-	IsErrorWrapped     bool           `json:"isErrorWrapped"`
-	ErrorTypeBase      string         `json:"errorTypeBase,omitempty"`
-	IsNoWrap           bool           `json:"isNoWrap"`
-	IsSuccessNoWrap    bool           `json:"isSuccessNoWrap"`
-	SuccessStatus      int            `json:"successStatus"`
-	Permission         string         `json:"permission,omitempty"`
-	RequestDecorators  []MetaInfo     `json:"-"`
-	InvokeDecorators   []MetaInfo     `json:"-"`
-	ResponseDecorators []MetaInfo     `json:"-"`
-	Args               []ArgumentInfo `json:"args,omitempty"`
-	IsArgsWrapped      bool           `json:"isArgsWrapped"`
-	ContentType        string         `json:"-"`
-	MimeType           string         `json:"contentType"`
-	ResponseMimeType   string         `json:"responseContentType"`
-	ErrorMimeType      string         `json:"errorContentType,omitempty"`
-	ResponseRenderFunc string         `json:"-"` // e.g. "Json", "Text"
-	ErrorRenderFunc    string         `json:"-"` // e.g. "Json", "Text"
-	HasValidation      bool           `json:"-"`
-	HasScalar          bool           `json:"-"`
-	HasInput           bool           `json:"-"`
-	HasUnion           bool           `json:"-"`
-	CustomBind         bool           `json:"-"`
-	CustomValidate     bool           `json:"-"`
-	ValidationCode     string         `json:"-"`
+	Name                string         `json:"name"`
+	Doc                 string         `json:"doc,omitempty"`
+	Method              string         `json:"method"`
+	Path                string         `json:"path"`
+	FullPath            string         `json:"fullPath"`
+	InputName           string         `json:"inputName,omitempty"`
+	InputModel          *ModelInfo     `json:"-"`
+	ReturnType          string         `json:"returnType"`
+	ReturnModel         *ModelInfo     `json:"-"`
+	InnerReturnModel    *ModelInfo     `json:"-"`
+	ReturnTypeDSL       string         `json:"returnTypeDSL,omitempty"`
+	InnerReturnType     string         `json:"innerReturnType,omitempty"`
+	IsReturnWrapped     bool           `json:"isReturnWrapped"`
+	IsReturnArray       bool           `json:"isReturnArray"`
+	ReturnTypeBase      string         `json:"returnTypeBase,omitempty"`
+	ErrorType           string         `json:"errorType,omitempty"`
+	IsErrorWrapped      bool           `json:"isErrorWrapped"`
+	ErrorTypeBase       string         `json:"errorTypeBase,omitempty"`
+	IsNoWrap            bool           `json:"isNoWrap"`
+	IsSuccessNoWrap     bool           `json:"isSuccessNoWrap"`
+	SuccessStatus       int            `json:"successStatus"`
+	Permission          string         `json:"permission,omitempty"`
+	RequestDecorators   []MetaInfo     `json:"-"`
+	InvokeDecorators    []MetaInfo     `json:"-"`
+	ResponseDecorators  []MetaInfo     `json:"-"`
+	Args                []ArgumentInfo `json:"args,omitempty"`
+	IsArgsWrapped       bool           `json:"isArgsWrapped"`
+	ContentType         string         `json:"-"`
+	RequestContentType  string         `json:"-"`
+	ResponseContentType string         `json:"-"`
+	ErrorContentType    string         `json:"-"`
+	MimeType            string         `json:"contentType"`
+	ResponseMimeType    string         `json:"responseContentType"`
+	ErrorMimeType       string         `json:"errorContentType,omitempty"`
+	ResponseRenderFunc  string         `json:"-"` // e.g. "Json", "Text"
+	ErrorRenderFunc     string         `json:"-"` // e.g. "Json", "Text"
+	HasValidation       bool           `json:"-"`
+	HasScalar           bool           `json:"-"`
+	HasInput            bool           `json:"-"`
+	HasUnion            bool           `json:"-"`
+	CustomBind          bool           `json:"-"`
+	CustomValidate      bool           `json:"-"`
+	ValidationCode      string         `json:"-"`
 }
 
 type ArgumentInfo struct {
@@ -429,11 +438,71 @@ type ModuleRenderContext struct {
 }
 
 func generateTags(fieldName string, conf *config.Config) string {
+	return generateModelFieldTags(fieldName, conf, nil)
+}
+
+func generateModelFieldTags(fieldName string, conf *config.Config, allowedTags map[string]bool) string {
 	var tags []string
-	for _, t := range conf.Generator.StructTags {
-		val := formatTagName(fieldName, t.Case)
-		tags = append(tags, fmt.Sprintf("%s:%q", t.Name, val))
+	seenTags := make(map[string]bool)
+
+	// 1. 新版：从 ContentTypes 按需生成 Tag
+	if len(conf.Generator.ContentTypes) > 0 {
+		priorityKeys := []string{"json", "form", "xml", "yaml", "toml", "msgpack"}
+
+		// 若未指定 allowedTags，默认只保留 default_content_type (通常为 json)
+		var activeKeys []string
+		if allowedTags != nil && len(allowedTags) > 0 {
+			for _, pk := range priorityKeys {
+				if allowedTags[pk] {
+					activeKeys = append(activeKeys, pk)
+				}
+			}
+			for k := range allowedTags {
+				found := false
+				for _, pk := range priorityKeys {
+					if pk == k {
+						found = true
+						break
+					}
+				}
+				if !found {
+					activeKeys = append(activeKeys, k)
+				}
+			}
+		} else {
+			defaultCT := conf.Generator.DefaultContentType
+			if defaultCT == "" {
+				defaultCT = "json"
+			}
+			activeKeys = []string{defaultCT}
+		}
+
+		for _, k := range activeKeys {
+			spec, ok := conf.Generator.ContentTypes[k]
+			if !ok || spec.Tag == "" {
+				continue
+			}
+			tagName := spec.Tag
+			if seenTags[tagName] {
+				continue
+			}
+			seenTags[tagName] = true
+
+			caseStyle := spec.Case
+			if caseStyle == "" {
+				caseStyle = conf.Generator.DefaultCase
+			}
+			val := formatTagName(fieldName, caseStyle)
+			tags = append(tags, fmt.Sprintf("%s:%q", tagName, val))
+		}
+	} else {
+		// 2. 兼容旧版 StructTags
+		for _, t := range conf.Generator.StructTags {
+			val := formatTagName(fieldName, t.Case)
+			tags = append(tags, fmt.Sprintf("%s:%q", t.Name, val))
+		}
 	}
+
 	if len(tags) == 0 {
 		return ""
 	}
@@ -602,7 +671,12 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 		ctx.Package = conf.Generator.Package
 	}
 
-	for alias := range conf.Generator.ContentTypeAliases {
+	var sourceKeys []string
+	for alias := range conf.Generator.ContentTypes {
+		sourceKeys = append(sourceKeys, alias)
+	}
+	sort.Strings(sourceKeys)
+	for _, alias := range sourceKeys {
 		ctx.BodySources = append(ctx.BodySources, BodySourceInfo{
 			Name:  capitalize(alias),
 			Alias: alias,
@@ -873,8 +947,17 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 							return goType
 						}
 					}(),
-					OriginalType:     field.Type.Name,
-					Tag:              generateTags(field.Name, ctx.Config),
+					OriginalType: field.Type.Name,
+					Tag:          generateTags(field.Name, ctx.Config),
+					XMLName: func() string {
+						caseStyle := ""
+						if spec, ok := ctx.Config.Generator.ContentTypes["xml"]; ok && spec.Case != "" {
+							caseStyle = spec.Case
+						} else {
+							caseStyle = ctx.Config.Generator.DefaultCase
+						}
+						return formatTagName(field.Name, caseStyle)
+					}(),
 					Source:           "Body", // Default to Body
 					RefModel:         ctx.ModelMap[field.Type.Name],
 					IsUnion:          ctx.UnionMap[field.Type.Name] != nil,
@@ -1156,16 +1239,20 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 
 				// 响应 MIME 类型：优先接口 ResponseMeta[ctype]，无则 fallback 到 default_content_type
 				if v, ok := metaGet(ep.ResponseMeta, "ctype"); ok {
+					method.ResponseContentType = v
 					method.ResponseMimeType = resolveMimeType(v, ctx.Config)
 				} else {
+					method.ResponseContentType = ctx.Config.Generator.DefaultContentType
 					method.ResponseMimeType = resolveMimeType(ctx.Config.Generator.DefaultContentType, ctx.Config)
 				}
 				method.ResponseRenderFunc = addRenderFunc(ctx, method.ResponseMimeType)
 
 				// 错误响应 MIME 类型：ResponseMeta[etype]，无则 fallback 到 default_content_type
 				if v, ok := metaGet(ep.ResponseMeta, "etype"); ok {
+					method.ErrorContentType = v
 					method.ErrorMimeType = resolveMimeType(v, ctx.Config)
 				} else {
+					method.ErrorContentType = ctx.Config.Generator.DefaultContentType
 					method.ErrorMimeType = resolveMimeType(ctx.Config.Generator.DefaultContentType, ctx.Config)
 				}
 				method.ErrorRenderFunc = addRenderFunc(ctx, method.ErrorMimeType)
@@ -1461,6 +1548,7 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 				if sourceSymbol == "" {
 					sourceSymbol = conf.Generator.DefaultContentType
 				}
+				method.RequestContentType = sourceSymbol
 
 				switch strings.ToLower(sourceSymbol) {
 				case "json", "application/json":
@@ -1474,12 +1562,22 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 					method.MimeType = "multipart/form-data"
 				default:
 					found := false
-					for alias, mime := range conf.Generator.ContentTypeAliases {
+					for alias, spec := range conf.Generator.ContentTypes {
 						if alias == sourceSymbol {
 							method.ContentType = "Source" + capitalize(alias)
-							method.MimeType = mime
+							method.MimeType = spec.MIME
 							found = true
 							break
+						}
+					}
+					if !found {
+						for alias, mime := range conf.Generator.ContentTypeAliases {
+							if alias == sourceSymbol {
+								method.ContentType = "Source" + capitalize(alias)
+								method.MimeType = mime
+								found = true
+								break
+							}
 						}
 					}
 					if !found {
@@ -1487,16 +1585,16 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 						method.MimeType = sourceSymbol
 					}
 				}
-				// 检查是否有任何校验逻辑，决定是否生成校验区块和校验方法调用
+				// 检查是否有任何校验逻辑或枚举自检，决定是否生成校验区块和校验方法调用
 				hasValidation := false
 				for _, arg := range method.Args {
-					if len(arg.Validators) > 0 {
+					if len(arg.Validators) > 0 || arg.IsEnum {
 						hasValidation = true
 						break
 					}
 					if arg.RefModel != nil {
 						for _, f := range arg.RefModel.Fields {
-							if len(f.Validators) > 0 {
+							if len(f.Validators) > 0 || f.IsEnum {
 								hasValidation = true
 								break
 							}
@@ -1557,7 +1655,150 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 		}
 	}
 
+	// 智能推导并应用各模型的结构体 Tag（根据 API 入参和出参实际使用的 ctype / etype）
+	inferAndApplyModelTags(ctx)
+
 	return renderAll(ctx, targetDir)
+}
+
+// inferAndApplyModelTags 智能按需推导模型 Tag，避免盲目全量输出不相关的协议标签
+func inferAndApplyModelTags(ctx *DataContext) {
+	// 记录每个 Model 需要生成的 Tag 集合 (例如 "json", "form", "xml")
+	modelRequiredTags := make(map[string]map[string]bool)
+
+	// 获取全局默认 Content-Type
+	defaultCType := ctx.Config.Generator.DefaultContentType
+	if defaultCType == "" {
+		defaultCType = "json"
+	}
+
+	// 辅助映射：将 MIME 或别名解析为对应的 Tag 别名 (例如 multipart -> form)
+	resolveTagAlias := func(raw string) string {
+		if raw == "" {
+			raw = defaultCType
+		}
+		rawLower := strings.ToLower(raw)
+		if rawLower == "multipart" || rawLower == "multipart/form-data" {
+			return "form"
+		}
+		if rawLower == "form" || rawLower == "application/x-www-form-urlencoded" {
+			return "form"
+		}
+		if rawLower == "json" || rawLower == "application/json" {
+			return "json"
+		}
+		if rawLower == "xml" || rawLower == "application/xml" {
+			return "xml"
+		}
+		if rawLower == "yaml" || rawLower == "application/x-yaml" {
+			return "yaml"
+		}
+		if rawLower == "toml" || rawLower == "application/toml" {
+			return "toml"
+		}
+		// 查找 ContentTypes 中的配置
+		for alias, spec := range ctx.Config.Generator.ContentTypes {
+			if strings.EqualFold(alias, raw) || strings.EqualFold(spec.MIME, raw) {
+				if spec.Tag != "" {
+					return spec.Tag
+				}
+				return alias
+			}
+		}
+		return rawLower
+	}
+
+	// 递归标记模型及其所有子模型和多态 Case 模型
+	var markModelTags func(m *ModelInfo, tag string, visited map[string]bool)
+	markModelTags = func(m *ModelInfo, tag string, visited map[string]bool) {
+		if m == nil || visited[m.Name] {
+			return
+		}
+		visited[m.Name] = true
+		if modelRequiredTags[m.Name] == nil {
+			modelRequiredTags[m.Name] = make(map[string]bool)
+		}
+		modelRequiredTags[m.Name][tag] = true
+
+		for _, f := range m.Fields {
+			if f.RefModel != nil {
+				markModelTags(f.RefModel, tag, visited)
+			}
+			if f.UnionModel != nil {
+				for _, c := range f.UnionModel.Cases {
+					if caseModel := ctx.ModelMap[c.Type]; caseModel != nil {
+						markModelTags(caseModel, tag, visited)
+					}
+				}
+			}
+		}
+	}
+
+	// 1. 默认所有模型都支持默认的 ContentType (如 json)
+	for _, m := range ctx.Models {
+		if modelRequiredTags[m.Name] == nil {
+			modelRequiredTags[m.Name] = make(map[string]bool)
+		}
+		modelRequiredTags[m.Name][resolveTagAlias(defaultCType)] = true
+	}
+
+	// 2. 遍历所有端点，收集每个模型在各端点中的实际请求与响应 Content-Type
+	for _, mod := range ctx.Modules {
+		for _, grp := range mod.Groups {
+			for _, ep := range grp.Endpoints {
+				// 请求入参所使用的 Tag
+				reqTag := resolveTagAlias(ep.RequestContentType)
+				if ep.InputModel != nil {
+					markModelTags(ep.InputModel, reqTag, make(map[string]bool))
+				}
+				for _, arg := range ep.Args {
+					if arg.RefModel != nil {
+						markModelTags(arg.RefModel, reqTag, make(map[string]bool))
+					}
+				}
+
+				// 成功响应出参所使用的 Tag
+				respTag := resolveTagAlias(ep.ResponseContentType)
+				if ep.ReturnModel != nil {
+					markModelTags(ep.ReturnModel, respTag, make(map[string]bool))
+				}
+				if ep.InnerReturnModel != nil {
+					markModelTags(ep.InnerReturnModel, respTag, make(map[string]bool))
+				}
+				// 成功响应包装器所使用的 Tag
+				if ep.IsReturnWrapped && ep.ReturnTypeBase != "" {
+					if wrapModel := ctx.ModelMap[ep.ReturnTypeBase]; wrapModel != nil {
+						markModelTags(wrapModel, respTag, make(map[string]bool))
+					}
+				} else if !ep.IsNoWrap && ep.ErrorTypeBase != "" {
+					if wrapModel := ctx.ModelMap[ep.ErrorTypeBase]; wrapModel != nil {
+						markModelTags(wrapModel, respTag, make(map[string]bool))
+					}
+				}
+
+				// 错误响应出参所使用的 Tag
+				errTag := resolveTagAlias(ep.ErrorContentType)
+				if ep.ErrorType != "" {
+					if errModel := ctx.ModelMap[ep.ErrorType]; errModel != nil {
+						markModelTags(errModel, errTag, make(map[string]bool))
+					}
+				}
+				if ep.IsErrorWrapped && ep.ErrorTypeBase != "" {
+					if wrapModel := ctx.ModelMap[ep.ErrorTypeBase]; wrapModel != nil {
+						markModelTags(wrapModel, errTag, make(map[string]bool))
+					}
+				}
+			}
+		}
+	}
+
+	// 3. 为所有模型的字段统一应用精准计算后的 Tag
+	for _, m := range ctx.Models {
+		reqTags := modelRequiredTags[m.Name]
+		for i := range m.Fields {
+			m.Fields[i].Tag = generateModelFieldTags(m.Fields[i].JSONName, ctx.Config, reqTags)
+		}
+	}
 }
 
 func extractAndPadArgs(name string, dArgs []parser.DirectiveArg, defMap map[string]MetaInfo, defSlice *[]MetaInfo, modelContext *ModelInfo, prefix string, fullModelMap map[string]*ModelInfo) []ModelField {
@@ -1844,6 +2085,9 @@ func resolveMimeType(symbol string, conf *config.Config) string {
 	case "html", "text/html":
 		return "text/html"
 	}
+	if spec, ok := conf.Generator.ContentTypes[symbol]; ok && spec.MIME != "" {
+		return spec.MIME
+	}
 	for alias, mime := range conf.Generator.ContentTypeAliases {
 		if strings.ToLower(alias) == symbol {
 			return mime
@@ -1913,6 +2157,19 @@ func replaceScalarType(rawType string, scalars map[string]*ScalarInfo) string {
 	return res
 }
 
+// cleanDocType 净化模型与字段在文档中的展示类型，消除 Go 指针前缀
+func cleanDocType(raw string, original string, scalars map[string]*ScalarInfo) string {
+	target := original
+	if target == "" {
+		target = raw
+	}
+	target = replaceScalarType(target, scalars)
+	target = strings.TrimPrefix(target, "*")
+	target = strings.ReplaceAll(target, "*[]", "[]")
+	target = strings.ReplaceAll(target, "[*]", "[]")
+	return target
+}
+
 // generateApiDocs 处理 API 文档的 JSON 和 HTML 生成逻辑
 func generateApiDocs(ctx *DataContext, targetDir string) error {
 	docsDir := filepath.Join(targetDir, "docs")
@@ -1937,7 +2194,7 @@ func generateApiDocs(ctx *DataContext, targetDir string) error {
 		for j, f := range m.Fields {
 			fCopy := f
 			fCopy.Name = formatTagName(f.Name, ctx.Config.Generator.DocCase)
-			fCopy.Type = replaceScalarType(f.Type, ctx.Scalars)
+			fCopy.Type = cleanDocType(f.Type, f.OriginalType, ctx.Scalars)
 			fCopy.OriginalType = replaceScalarType(f.OriginalType, ctx.Scalars)
 			mCopy.Fields[j] = fCopy
 		}
@@ -1979,10 +2236,10 @@ func generateApiDocs(ctx *DataContext, targetDir string) error {
 			groupCopy.Endpoints = make([]MethodInfo, len(group.Endpoints))
 			for k, method := range group.Endpoints {
 				methodCopy := method
-				methodCopy.ReturnType = replaceScalarType(method.ReturnType, ctx.Scalars)
-				methodCopy.ReturnTypeDSL = replaceScalarType(method.ReturnTypeDSL, ctx.Scalars)
+				methodCopy.ReturnType = cleanDocType(method.ReturnType, method.ReturnTypeDSL, ctx.Scalars)
+				methodCopy.ReturnTypeDSL = cleanDocType(method.ReturnTypeDSL, method.ReturnTypeDSL, ctx.Scalars)
 				methodCopy.ReturnTypeBase = replaceScalarType(method.ReturnTypeBase, ctx.Scalars)
-				methodCopy.InnerReturnType = replaceScalarType(method.InnerReturnType, ctx.Scalars)
+				methodCopy.InnerReturnType = cleanDocType(method.InnerReturnType, method.InnerReturnType, ctx.Scalars)
 
 				// 重定向错误包装类型
 				if wrappers[methodCopy.ErrorTypeBase] {
@@ -1995,7 +2252,7 @@ func generateApiDocs(ctx *DataContext, targetDir string) error {
 				for l, arg := range method.Args {
 					argCopy := arg
 					argCopy.Name = formatTagName(arg.Name, ctx.Config.Generator.DocCase)
-					argCopy.Type = replaceScalarType(arg.Type, ctx.Scalars)
+					argCopy.Type = cleanDocType(arg.Type, arg.Type, ctx.Scalars)
 					methodCopy.Args[l] = argCopy
 				}
 				groupCopy.Endpoints[k] = methodCopy

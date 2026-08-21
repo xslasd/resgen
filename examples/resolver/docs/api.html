@@ -97,7 +97,7 @@
     <script>
         // Data injected by Go
         const apiData = {
-  "version": "v0.5.0",
+  "version": "v0.6.0",
   "package": "resolver",
   "info": {
     "title": "Resgen Generated API",
@@ -192,9 +192,9 @@
               "method": "GET",
               "path": "/:id",
               "fullPath": "/articles/:id",
-              "returnType": "*ResData",
+              "returnType": "ResData\u003cArticle\u003e",
               "returnTypeDSL": "ResData\u003cArticle\u003e",
-              "innerReturnType": "*Article",
+              "innerReturnType": "Article",
               "isReturnWrapped": true,
               "isReturnArray": false,
               "returnTypeBase": "ResData",
@@ -220,14 +220,14 @@
             },
             {
               "name": "ListArticles",
-              "doc": "返回列表：ResData\u003c[Article]\u003e",
+              "doc": "返回扁平列表：ResData\u003c[Article]\u003e",
               "method": "GET",
               "path": "/list",
               "fullPath": "/articles/list",
               "inputName": "ListArticlesArgs",
-              "returnType": "*ResData",
+              "returnType": "ResData\u003c[Article]\u003e",
               "returnTypeDSL": "ResData\u003c[Article]\u003e",
-              "innerReturnType": "*[]*Article",
+              "innerReturnType": "[]*Article",
               "isReturnWrapped": true,
               "isReturnArray": true,
               "returnTypeBase": "ResData",
@@ -265,9 +265,9 @@
               "path": "/list/v2",
               "fullPath": "/articles/list/v2",
               "inputName": "ListArticlesV2Args",
-              "returnType": "*ResData",
+              "returnType": "ResData\u003cListResArticle\u003e",
               "returnTypeDSL": "ResData\u003cListResArticle\u003e",
-              "innerReturnType": "*ListResArticle",
+              "innerReturnType": "ListResArticle",
               "isReturnWrapped": true,
               "isReturnArray": false,
               "returnTypeBase": "ResData",
@@ -299,15 +299,60 @@
               "errorContentType": "application/json"
             },
             {
+              "name": "GetCategoryTree",
+              "doc": "🌟 返回树形结构数据：ResData\u003cTreeRes\u003cCategoryTreeNode\u003e\u003e",
+              "method": "GET",
+              "path": "/categories/tree",
+              "fullPath": "/articles/categories/tree",
+              "returnType": "ResData\u003cTreeResCategoryTreeNode\u003e",
+              "returnTypeDSL": "ResData\u003cTreeResCategoryTreeNode\u003e",
+              "innerReturnType": "TreeResCategoryTreeNode",
+              "isReturnWrapped": true,
+              "isReturnArray": false,
+              "returnTypeBase": "ResData",
+              "errorType": "ResDataError",
+              "isErrorWrapped": true,
+              "errorTypeBase": "ResDataError",
+              "isNoWrap": false,
+              "isSuccessNoWrap": false,
+              "successStatus": 200,
+              "isArgsWrapped": false,
+              "contentType": "application/json",
+              "responseContentType": "application/json",
+              "errorContentType": "application/json"
+            },
+            {
+              "name": "GetCategoryTreeRaw",
+              "doc": "🌟 裸返回树形结构数据（接口级 wrap=none 覆盖组级 wrap）",
+              "method": "GET",
+              "path": "/categories/tree/raw",
+              "fullPath": "/articles/categories/tree/raw",
+              "returnType": "TreeRes\u003cCategoryTreeNode\u003e",
+              "returnTypeDSL": "TreeRes\u003cCategoryTreeNode\u003e",
+              "innerReturnType": "CategoryTreeNode",
+              "isReturnWrapped": true,
+              "isReturnArray": false,
+              "returnTypeBase": "TreeRes",
+              "errorType": "none",
+              "isErrorWrapped": false,
+              "isNoWrap": true,
+              "isSuccessNoWrap": false,
+              "successStatus": 200,
+              "isArgsWrapped": false,
+              "contentType": "application/json",
+              "responseContentType": "application/json",
+              "errorContentType": "application/json"
+            },
+            {
               "name": "CreateArticle",
               "doc": "创建成功返回 201，数据包裹在 ResData 中",
               "method": "POST",
               "path": "/create",
               "fullPath": "/articles/create",
               "inputName": "CreateArticleArgs",
-              "returnType": "*ResData",
+              "returnType": "ResData\u003cArticle\u003e",
               "returnTypeDSL": "ResData\u003cArticle\u003e",
-              "innerReturnType": "*Article",
+              "innerReturnType": "Article",
               "isReturnWrapped": true,
               "isReturnArray": false,
               "returnTypeBase": "ResData",
@@ -354,9 +399,9 @@
               "method": "GET",
               "path": "/raw/:id",
               "fullPath": "/articles/raw/:id",
-              "returnType": "*Article",
+              "returnType": "Article",
               "returnTypeDSL": "Article",
-              "innerReturnType": "*Article",
+              "innerReturnType": "Article",
               "isReturnWrapped": false,
               "isReturnArray": false,
               "errorType": "none",
@@ -380,7 +425,7 @@
             },
             {
               "name": "Logout",
-              "doc": "无返回值接口测试",
+              "doc": "无返回值接口",
               "method": "POST",
               "path": "/logout",
               "fullPath": "/articles/logout",
@@ -418,9 +463,9 @@
               "path": "/register",
               "fullPath": "/auth/register",
               "inputName": "RegisterInput",
-              "returnType": "*ResData",
+              "returnType": "ResData\u003cUser\u003e",
               "returnTypeDSL": "ResData\u003cUser\u003e",
-              "innerReturnType": "*User",
+              "innerReturnType": "User",
               "isReturnWrapped": true,
               "isReturnArray": false,
               "returnTypeBase": "ResData",
@@ -451,9 +496,9 @@
               "path": "/login",
               "fullPath": "/auth/login",
               "inputName": "LoginArgs",
-              "returnType": "*ResData",
+              "returnType": "ResData\u003cToken\u003e",
               "returnTypeDSL": "ResData\u003cToken\u003e",
-              "innerReturnType": "*Token",
+              "innerReturnType": "Token",
               "isReturnWrapped": true,
               "isReturnArray": false,
               "returnTypeBase": "ResData",
@@ -490,9 +535,9 @@
               "method": "GET",
               "path": "/me",
               "fullPath": "/auth/me",
-              "returnType": "*ResData",
+              "returnType": "ResData\u003cUser\u003e",
               "returnTypeDSL": "ResData\u003cUser\u003e",
-              "innerReturnType": "*User",
+              "innerReturnType": "User",
               "isReturnWrapped": true,
               "isReturnArray": false,
               "returnTypeBase": "ResData",
@@ -514,9 +559,9 @@
               "path": "/update",
               "fullPath": "/auth/update",
               "inputName": "UpdateInput",
-              "returnType": "*ResData",
+              "returnType": "ResData\u003cUser\u003e",
               "returnTypeDSL": "ResData\u003cUser\u003e",
-              "innerReturnType": "*User",
+              "innerReturnType": "User",
               "isReturnWrapped": true,
               "isReturnArray": false,
               "returnTypeBase": "ResData",
@@ -546,9 +591,9 @@
               "method": "DELETE",
               "path": "/:id",
               "fullPath": "/auth/:id",
-              "returnType": "*ResData",
+              "returnType": "ResData\u003cString\u003e",
               "returnTypeDSL": "ResData\u003cString\u003e",
-              "innerReturnType": "*string",
+              "innerReturnType": "string",
               "isReturnWrapped": true,
               "isReturnArray": false,
               "returnTypeBase": "ResData",
@@ -612,9 +657,9 @@
               "method": "GET",
               "path": "/:startTime",
               "fullPath": "/events/:startTime",
-              "returnType": "*ResData",
+              "returnType": "ResData\u003cEvent\u003e",
               "returnTypeDSL": "ResData\u003cEvent\u003e",
-              "innerReturnType": "*Event",
+              "innerReturnType": "Event",
               "isReturnWrapped": true,
               "isReturnArray": false,
               "returnTypeBase": "ResData",
@@ -646,9 +691,9 @@
               "path": "/list",
               "fullPath": "/events/list",
               "inputName": "QueryEventsInput",
-              "returnType": "*ResData",
+              "returnType": "ResData\u003c[Event]\u003e",
               "returnTypeDSL": "ResData\u003c[Event]\u003e",
-              "innerReturnType": "*[]*Event",
+              "innerReturnType": "[]*Event",
               "isReturnWrapped": true,
               "isReturnArray": true,
               "returnTypeBase": "ResData",
@@ -680,9 +725,9 @@
               "path": "/create",
               "fullPath": "/events/create",
               "inputName": "CreateEventInput",
-              "returnType": "*ResData",
+              "returnType": "ResData\u003cEvent\u003e",
               "returnTypeDSL": "ResData\u003cEvent\u003e",
-              "innerReturnType": "*Event",
+              "innerReturnType": "Event",
               "isReturnWrapped": true,
               "isReturnArray": false,
               "returnTypeBase": "ResData",
@@ -727,9 +772,9 @@
               "path": "/json",
               "fullPath": "/content/json",
               "inputName": "JsonInput",
-              "returnType": "*ResData",
+              "returnType": "ResData\u003cString\u003e",
               "returnTypeDSL": "ResData\u003cString\u003e",
-              "innerReturnType": "*string",
+              "innerReturnType": "string",
               "isReturnWrapped": true,
               "isReturnArray": false,
               "returnTypeBase": "ResData",
@@ -760,9 +805,9 @@
               "path": "/form",
               "fullPath": "/content/form",
               "inputName": "FormInput",
-              "returnType": "*ResData",
+              "returnType": "ResData\u003cString\u003e",
               "returnTypeDSL": "ResData\u003cString\u003e",
-              "innerReturnType": "*string",
+              "innerReturnType": "string",
               "isReturnWrapped": true,
               "isReturnArray": false,
               "returnTypeBase": "ResData",
@@ -787,14 +832,47 @@
               "errorContentType": "application/json"
             },
             {
+              "name": "SubmitNestedForm",
+              "doc": "🌟 请求体为 URL 编码表单，支持多层嵌套结构",
+              "method": "POST",
+              "path": "/form/nested",
+              "fullPath": "/content/form/nested",
+              "inputName": "NestedFormInput",
+              "returnType": "ResData\u003cString\u003e",
+              "returnTypeDSL": "ResData\u003cString\u003e",
+              "innerReturnType": "string",
+              "isReturnWrapped": true,
+              "isReturnArray": false,
+              "returnTypeBase": "ResData",
+              "errorType": "ResDataError",
+              "isErrorWrapped": true,
+              "errorTypeBase": "ResDataError",
+              "isNoWrap": false,
+              "isSuccessNoWrap": false,
+              "successStatus": 200,
+              "args": [
+                {
+                  "name": "input",
+                  "type": "NestedFormInput",
+                  "isScalar": false,
+                  "isEnum": false,
+                  "source": "Body"
+                }
+              ],
+              "isArgsWrapped": false,
+              "contentType": "application/x-www-form-urlencoded",
+              "responseContentType": "application/json",
+              "errorContentType": "application/json"
+            },
+            {
               "name": "SubmitMultipart",
               "doc": "请求体为 multipart/form-data（文件上传场景在示例 6 详细展示）",
               "method": "POST",
               "path": "/multipart",
               "fullPath": "/content/multipart",
-              "returnType": "*ResData",
+              "returnType": "ResData\u003cString\u003e",
               "returnTypeDSL": "ResData\u003cString\u003e",
-              "innerReturnType": "*string",
+              "innerReturnType": "string",
               "isReturnWrapped": true,
               "isReturnArray": false,
               "returnTypeBase": "ResData",
@@ -836,9 +914,9 @@
               "method": "GET",
               "path": "/text",
               "fullPath": "/export/text",
-              "returnType": "*string",
+              "returnType": "ResData\u003cString\u003e",
               "returnTypeDSL": "ResData\u003cString\u003e",
-              "innerReturnType": "*string",
+              "innerReturnType": "string",
               "isReturnWrapped": false,
               "isReturnArray": false,
               "errorType": "ResDataError",
@@ -859,9 +937,9 @@
               "method": "GET",
               "path": "/json",
               "fullPath": "/export/json",
-              "returnType": "*Report",
+              "returnType": "ResData\u003cReport\u003e",
               "returnTypeDSL": "ResData\u003cReport\u003e",
-              "innerReturnType": "*Report",
+              "innerReturnType": "Report",
               "isReturnWrapped": false,
               "isReturnArray": false,
               "errorType": "ResDataError",
@@ -882,9 +960,9 @@
               "method": "GET",
               "path": "/xml",
               "fullPath": "/export/xml",
-              "returnType": "*Report",
+              "returnType": "ResData\u003cReport\u003e",
               "returnTypeDSL": "ResData\u003cReport\u003e",
-              "innerReturnType": "*Report",
+              "innerReturnType": "Report",
               "isReturnWrapped": false,
               "isReturnArray": false,
               "errorType": "ResDataError",
@@ -919,9 +997,9 @@
               "method": "GET",
               "path": "/:id",
               "fullPath": "/products/:id",
-              "returnType": "*ResData",
+              "returnType": "ResData\u003cProduct\u003e",
               "returnTypeDSL": "ResData\u003cProduct\u003e",
-              "innerReturnType": "*Product",
+              "innerReturnType": "Product",
               "isReturnWrapped": true,
               "isReturnArray": false,
               "returnTypeBase": "ResData",
@@ -952,9 +1030,9 @@
               "path": "/create",
               "fullPath": "/products/create",
               "inputName": "CreateProductInput",
-              "returnType": "*ResData",
+              "returnType": "ResData\u003cProduct\u003e",
               "returnTypeDSL": "ResData\u003cProduct\u003e",
-              "innerReturnType": "*Product",
+              "innerReturnType": "Product",
               "isReturnWrapped": true,
               "isReturnArray": false,
               "returnTypeBase": "ResData",
@@ -984,9 +1062,9 @@
               "method": "POST",
               "path": "/batch-update",
               "fullPath": "/products/batch-update",
-              "returnType": "*ResData",
+              "returnType": "ResData\u003cString\u003e",
               "returnTypeDSL": "ResData\u003cString\u003e",
-              "innerReturnType": "*string",
+              "innerReturnType": "string",
               "isReturnWrapped": true,
               "isReturnArray": false,
               "returnTypeBase": "ResData",
@@ -1021,9 +1099,9 @@
               "method": "DELETE",
               "path": "/:id",
               "fullPath": "/products/:id",
-              "returnType": "*string",
+              "returnType": "String",
               "returnTypeDSL": "String",
-              "innerReturnType": "*string",
+              "innerReturnType": "string",
               "isReturnWrapped": false,
               "isReturnArray": false,
               "errorType": "none",
@@ -1052,7 +1130,7 @@
               "path": "/list",
               "fullPath": "/products/list",
               "inputName": "ListProductsArgs",
-              "returnType": "*PageData",
+              "returnType": "PageData\u003c[Product]\u003e",
               "returnTypeDSL": "PageData\u003c[Product]\u003e",
               "innerReturnType": "[]Product",
               "isReturnWrapped": true,
@@ -1097,9 +1175,9 @@
               "method": "GET",
               "path": "/product/:id",
               "fullPath": "/raw/product/:id",
-              "returnType": "*Product",
+              "returnType": "Product",
               "returnTypeDSL": "Product",
-              "innerReturnType": "*Product",
+              "innerReturnType": "Product",
               "isReturnWrapped": false,
               "isReturnArray": false,
               "errorType": "none",
@@ -1127,9 +1205,9 @@
               "method": "GET",
               "path": "/products",
               "fullPath": "/raw/products",
-              "returnType": "*ResData",
+              "returnType": "ResData\u003c[Product]\u003e",
               "returnTypeDSL": "ResData\u003c[Product]\u003e",
-              "innerReturnType": "*[]*Product",
+              "innerReturnType": "[]*Product",
               "isReturnWrapped": true,
               "isReturnArray": true,
               "returnTypeBase": "ResData",
@@ -1173,9 +1251,9 @@
               "path": "/avatar",
               "fullPath": "/files/avatar",
               "inputName": "UploadAvatarInput",
-              "returnType": "*ResData",
+              "returnType": "ResData\u003cUploadResult\u003e",
               "returnTypeDSL": "ResData\u003cUploadResult\u003e",
-              "innerReturnType": "*UploadResult",
+              "innerReturnType": "UploadResult",
               "isReturnWrapped": true,
               "isReturnArray": false,
               "returnTypeBase": "ResData",
@@ -1206,9 +1284,9 @@
               "path": "/document",
               "fullPath": "/files/document",
               "inputName": "UploadDocumentInput",
-              "returnType": "*ResData",
+              "returnType": "ResData\u003cUploadResult\u003e",
               "returnTypeDSL": "ResData\u003cUploadResult\u003e",
-              "innerReturnType": "*UploadResult",
+              "innerReturnType": "UploadResult",
               "isReturnWrapped": true,
               "isReturnArray": false,
               "returnTypeBase": "ResData",
@@ -1234,13 +1312,13 @@
             },
             {
               "name": "DownloadFile",
-              "doc": "文件下载：成功响应为字节流，失败响应为 JSON（使用 ResData 包装错误）",
+              "doc": "文件下载：成功响应为裸字节流 (wrap=none)，失败响应退化为 JSON (etype=json)",
               "method": "GET",
               "path": "/download/:id",
               "fullPath": "/files/download/:id",
-              "returnType": "*multipart.FileHeader",
+              "returnType": "File",
               "returnTypeDSL": "File",
-              "innerReturnType": "*multipart.FileHeader",
+              "innerReturnType": "LocalFileDownload",
               "isReturnWrapped": false,
               "isReturnArray": false,
               "errorType": "ResDataError",
@@ -1265,19 +1343,18 @@
             },
             {
               "name": "ExportCsv",
-              "doc": "导出 CSV：同为流式文本响应，失败退化 JSON",
+              "doc": "导出 CSV：同为裸流式响应 (wrap=none)，失败响应退化为 JSON (etype=json)",
               "method": "GET",
               "path": "/export/csv",
               "fullPath": "/files/export/csv",
-              "returnType": "*multipart.FileHeader",
+              "returnType": "File",
               "returnTypeDSL": "File",
-              "innerReturnType": "*multipart.FileHeader",
+              "innerReturnType": "LocalFileDownload",
               "isReturnWrapped": false,
               "isReturnArray": false,
-              "errorType": "ResDataError",
-              "isErrorWrapped": true,
-              "errorTypeBase": "ResDataError",
-              "isNoWrap": false,
+              "errorType": "none",
+              "isErrorWrapped": false,
+              "isNoWrap": true,
               "isSuccessNoWrap": true,
               "successStatus": 200,
               "args": [
@@ -1313,9 +1390,9 @@
               "method": "GET",
               "path": "/:id",
               "fullPath": "/posts/:id",
-              "returnType": "*ContentPostItem",
+              "returnType": "ResData\u003cContentPostItem\u003e",
               "returnTypeDSL": "ResData\u003cContentPostItem\u003e",
-              "innerReturnType": "*ContentPostItem",
+              "innerReturnType": "ContentPostItem",
               "isReturnWrapped": false,
               "isReturnArray": false,
               "errorType": "ResDataError",
@@ -1340,14 +1417,14 @@
             },
             {
               "name": "CreatePost",
-              "doc": "创建帖子接口 (UnionKind)",
+              "doc": "单帖创建接口：基础联合类型 (UnionKind)",
               "method": "POST",
               "path": "/",
               "fullPath": "/posts/",
               "inputName": "CreatePostInput",
-              "returnType": "*ContentPostItem",
+              "returnType": "ResData\u003cContentPostItem\u003e",
               "returnTypeDSL": "ResData\u003cContentPostItem\u003e",
-              "innerReturnType": "*ContentPostItem",
+              "innerReturnType": "ContentPostItem",
               "isReturnWrapped": false,
               "isReturnArray": false,
               "errorType": "ResDataError",
@@ -1360,6 +1437,43 @@
                 {
                   "name": "input",
                   "type": "CreatePostInput",
+                  "isScalar": false,
+                  "isEnum": false,
+                  "source": "Body",
+                  "validators": [
+                    {
+                      "name": "Required"
+                    }
+                  ]
+                }
+              ],
+              "isArgsWrapped": false,
+              "contentType": "application/json",
+              "responseContentType": "application/json",
+              "errorContentType": "application/json"
+            },
+            {
+              "name": "BatchCreatePost",
+              "doc": "批量发布接口：多级结构 (嵌套对象 + 切片列表) 中的联合类型入参",
+              "method": "POST",
+              "path": "/batch",
+              "fullPath": "/posts/batch",
+              "inputName": "BatchCreatePostInput",
+              "returnType": "ResData\u003cBatchCreatePostResult\u003e",
+              "returnTypeDSL": "ResData\u003cBatchCreatePostResult\u003e",
+              "innerReturnType": "BatchCreatePostResult",
+              "isReturnWrapped": false,
+              "isReturnArray": false,
+              "errorType": "ResDataError",
+              "isErrorWrapped": true,
+              "errorTypeBase": "ResDataError",
+              "isNoWrap": false,
+              "isSuccessNoWrap": false,
+              "successStatus": 200,
+              "args": [
+                {
+                  "name": "input",
+                  "type": "BatchCreatePostInput",
                   "isScalar": false,
                   "isEnum": false,
                   "source": "Body",
@@ -1395,9 +1509,9 @@
               "path": "/create",
               "fullPath": "/enum/create",
               "inputName": "CreateUserInput",
-              "returnType": "*UserWithRole",
+              "returnType": "ResData\u003cUserWithRole\u003e",
               "returnTypeDSL": "ResData\u003cUserWithRole\u003e",
-              "innerReturnType": "*UserWithRole",
+              "innerReturnType": "UserWithRole",
               "isReturnWrapped": false,
               "isReturnArray": false,
               "errorType": "ResDataError",
@@ -1432,9 +1546,9 @@
               "path": "/query",
               "fullPath": "/enum/query",
               "inputName": "QueryByRoleArgs",
-              "returnType": "*UserWithRole",
+              "returnType": "ResData\u003cUserWithRole\u003e",
               "returnTypeDSL": "ResData\u003cUserWithRole\u003e",
-              "innerReturnType": "*UserWithRole",
+              "innerReturnType": "UserWithRole",
               "isReturnWrapped": false,
               "isReturnArray": false,
               "errorType": "ResDataError",
@@ -1484,7 +1598,7 @@
       "fields": [
         {
           "name": "code",
-          "type": "int",
+          "type": "Int",
           "jsonName": "code",
           "originalType": "Int",
           "validators": [
@@ -1496,7 +1610,7 @@
         },
         {
           "name": "msg",
-          "type": "string",
+          "type": "String",
           "jsonName": "msg",
           "originalType": "String",
           "validators": [
@@ -1508,7 +1622,7 @@
         },
         {
           "name": "data",
-          "type": "*T",
+          "type": "T",
           "jsonName": "data",
           "originalType": "T",
           "isUnion": false
@@ -1524,7 +1638,7 @@
       "fields": [
         {
           "name": "code",
-          "type": "int",
+          "type": "Int",
           "jsonName": "code",
           "originalType": "Int",
           "validators": [
@@ -1536,7 +1650,7 @@
         },
         {
           "name": "msg",
-          "type": "string",
+          "type": "String",
           "jsonName": "msg",
           "originalType": "String",
           "validators": [
@@ -1560,7 +1674,7 @@
       "fields": [
         {
           "name": "rows",
-          "type": "[]T",
+          "type": "T",
           "jsonName": "rows",
           "originalType": "T",
           "validators": [
@@ -1572,7 +1686,7 @@
         },
         {
           "name": "total",
-          "type": "int",
+          "type": "Int",
           "jsonName": "total",
           "originalType": "Int",
           "validators": [
@@ -1593,7 +1707,64 @@
       "fields": [
         {
           "name": "total",
-          "type": "int",
+          "type": "Int",
+          "jsonName": "total",
+          "originalType": "Int",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ],
+          "isUnion": false
+        }
+      ]
+    },
+    {
+      "name": "TreeRes",
+      "doc": "4. 通用树形结构响应包装器",
+      "module": "Default",
+      "isInput": false,
+      "isWrapper": true,
+      "typeParams": [
+        "T"
+      ],
+      "fields": [
+        {
+          "name": "items",
+          "type": "T",
+          "jsonName": "items",
+          "originalType": "T",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ],
+          "isUnion": false
+        },
+        {
+          "name": "total",
+          "type": "Int",
+          "jsonName": "total",
+          "originalType": "Int",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ],
+          "isUnion": false
+        }
+      ]
+    },
+    {
+      "name": "TreeResError",
+      "doc": "4. 通用树形结构响应包装器",
+      "module": "Default",
+      "isInput": false,
+      "isWrapper": false,
+      "fields": [
+        {
+          "name": "total",
+          "type": "Int",
           "jsonName": "total",
           "originalType": "Int",
           "validators": [
@@ -1607,14 +1778,14 @@
     },
     {
       "name": "Article",
-      "doc": "数据模型",
+      "doc": "数据模型：基础文章",
       "module": "WrapperDemo",
       "isInput": false,
       "isWrapper": false,
       "fields": [
         {
           "name": "id",
-          "type": "int",
+          "type": "Int",
           "jsonName": "id",
           "originalType": "Int",
           "validators": [
@@ -1626,7 +1797,7 @@
         },
         {
           "name": "title",
-          "type": "string",
+          "type": "String",
           "jsonName": "title",
           "originalType": "String",
           "validators": [
@@ -1638,7 +1809,7 @@
         },
         {
           "name": "content",
-          "type": "string",
+          "type": "String",
           "jsonName": "content",
           "originalType": "String",
           "validators": [
@@ -1651,7 +1822,77 @@
       ]
     },
     {
+      "name": "CategoryTreeNode",
+      "doc": "数据模型：树形分类节点（自引用递归结构）",
+      "module": "WrapperDemo",
+      "isInput": false,
+      "isWrapper": false,
+      "fields": [
+        {
+          "name": "id",
+          "type": "Int",
+          "jsonName": "id",
+          "originalType": "Int",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ],
+          "isUnion": false
+        },
+        {
+          "name": "parent_id",
+          "type": "Int",
+          "jsonName": "parentId",
+          "originalType": "Int",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ],
+          "isUnion": false
+        },
+        {
+          "name": "name",
+          "type": "String",
+          "jsonName": "name",
+          "originalType": "String",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ],
+          "isUnion": false
+        },
+        {
+          "name": "sort",
+          "type": "Int",
+          "jsonName": "sort",
+          "originalType": "Int",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ],
+          "isUnion": false
+        },
+        {
+          "name": "children",
+          "type": "CategoryTreeNode",
+          "jsonName": "children",
+          "originalType": "CategoryTreeNode",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ],
+          "isUnion": false
+        }
+      ]
+    },
+    {
       "name": "PageResult",
+      "doc": "数据模型：自定义分页结果",
       "module": "WrapperDemo",
       "isInput": false,
       "isWrapper": false,
@@ -1673,7 +1914,7 @@
         },
         {
           "name": "total",
-          "type": "int",
+          "type": "Int",
           "jsonName": "total",
           "originalType": "Int",
           "validators": [
@@ -1685,7 +1926,7 @@
         },
         {
           "name": "page",
-          "type": "int",
+          "type": "Int",
           "jsonName": "page",
           "originalType": "Int",
           "validators": [
@@ -1697,7 +1938,7 @@
         },
         {
           "name": "size",
-          "type": "int",
+          "type": "Int",
           "jsonName": "size",
           "originalType": "Int",
           "validators": [
@@ -1718,7 +1959,7 @@
       "fields": [
         {
           "name": "id",
-          "type": "int",
+          "type": "Int",
           "jsonName": "id",
           "originalType": "Int",
           "validators": [
@@ -1730,7 +1971,7 @@
         },
         {
           "name": "username",
-          "type": "string",
+          "type": "String",
           "jsonName": "username",
           "originalType": "String",
           "validators": [
@@ -1742,7 +1983,7 @@
         },
         {
           "name": "email",
-          "type": "string",
+          "type": "String",
           "jsonName": "email",
           "originalType": "String",
           "validators": [
@@ -1762,7 +2003,7 @@
       "fields": [
         {
           "name": "token",
-          "type": "string",
+          "type": "String",
           "jsonName": "token",
           "originalType": "String",
           "validators": [
@@ -1774,7 +2015,7 @@
         },
         {
           "name": "expires_at",
-          "type": "int",
+          "type": "Int",
           "jsonName": "expiresAt",
           "originalType": "Int",
           "validators": [
@@ -1794,7 +2035,7 @@
       "fields": [
         {
           "name": "username",
-          "type": "string",
+          "type": "String",
           "jsonName": "username",
           "originalType": "String",
           "validators": [
@@ -1832,7 +2073,7 @@
         },
         {
           "name": "email",
-          "type": "string",
+          "type": "String",
           "jsonName": "email",
           "originalType": "String",
           "validators": [
@@ -1848,7 +2089,7 @@
         },
         {
           "name": "mobile",
-          "type": "string",
+          "type": "String",
           "jsonName": "mobile",
           "originalType": "String",
           "validators": [
@@ -1863,7 +2104,7 @@
         },
         {
           "name": "password",
-          "type": "string",
+          "type": "String",
           "jsonName": "password",
           "originalType": "String",
           "validators": [
@@ -1896,7 +2137,7 @@
       "fields": [
         {
           "name": "id",
-          "type": "int",
+          "type": "Int",
           "jsonName": "id",
           "originalType": "Int",
           "validators": [
@@ -1908,7 +2149,7 @@
         },
         {
           "name": "email",
-          "type": "*string",
+          "type": "String",
           "jsonName": "email",
           "originalType": "String",
           "validators": [
@@ -1930,7 +2171,7 @@
       "fields": [
         {
           "name": "id",
-          "type": "int",
+          "type": "Int",
           "jsonName": "id",
           "originalType": "Int",
           "validators": [
@@ -1942,7 +2183,7 @@
         },
         {
           "name": "name",
-          "type": "string",
+          "type": "String",
           "jsonName": "name",
           "originalType": "String",
           "validators": [
@@ -1966,14 +2207,14 @@
         },
         {
           "name": "end_time",
-          "type": "*Int",
+          "type": "Int",
           "jsonName": "endTime",
           "originalType": "Int",
           "isUnion": false
         },
         {
           "name": "created_at",
-          "type": "*Int",
+          "type": "Int",
           "jsonName": "createdAt",
           "originalType": "Int",
           "isUnion": false
@@ -1988,7 +2229,7 @@
       "fields": [
         {
           "name": "name",
-          "type": "string",
+          "type": "String",
           "jsonName": "name",
           "originalType": "String",
           "validators": [
@@ -2032,28 +2273,28 @@
       "fields": [
         {
           "name": "after",
-          "type": "*Int",
+          "type": "Int",
           "jsonName": "after",
           "originalType": "Int",
           "isUnion": false
         },
         {
           "name": "before",
-          "type": "*Int",
+          "type": "Int",
           "jsonName": "before",
           "originalType": "Int",
           "isUnion": false
         },
         {
           "name": "page",
-          "type": "*int",
+          "type": "Int",
           "jsonName": "page",
           "originalType": "Int",
           "isUnion": false
         },
         {
           "name": "size",
-          "type": "*int",
+          "type": "Int",
           "jsonName": "size",
           "originalType": "Int",
           "isUnion": false
@@ -2068,7 +2309,7 @@
       "fields": [
         {
           "name": "title",
-          "type": "string",
+          "type": "String",
           "jsonName": "title",
           "originalType": "String",
           "validators": [
@@ -2080,7 +2321,7 @@
         },
         {
           "name": "summary",
-          "type": "string",
+          "type": "String",
           "jsonName": "summary",
           "originalType": "String",
           "validators": [
@@ -2100,7 +2341,7 @@
       "fields": [
         {
           "name": "title",
-          "type": "string",
+          "type": "String",
           "jsonName": "title",
           "originalType": "String",
           "validators": [
@@ -2112,7 +2353,7 @@
         },
         {
           "name": "content",
-          "type": "string",
+          "type": "String",
           "jsonName": "content",
           "originalType": "String",
           "validators": [
@@ -2132,7 +2373,7 @@
       "fields": [
         {
           "name": "name",
-          "type": "string",
+          "type": "String",
           "jsonName": "name",
           "originalType": "String",
           "validators": [
@@ -2144,9 +2385,94 @@
         },
         {
           "name": "email",
-          "type": "string",
+          "type": "String",
           "jsonName": "email",
           "originalType": "String",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ],
+          "isUnion": false
+        }
+      ]
+    },
+    {
+      "name": "AddressInput",
+      "doc": "多层嵌套子模型：地址信息",
+      "module": "ContentTypeDemo",
+      "isInput": true,
+      "isWrapper": false,
+      "fields": [
+        {
+          "name": "city",
+          "type": "String",
+          "jsonName": "city",
+          "originalType": "String",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ],
+          "isUnion": false
+        },
+        {
+          "name": "street",
+          "type": "String",
+          "jsonName": "street",
+          "originalType": "String",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ],
+          "isUnion": false
+        },
+        {
+          "name": "zip_code",
+          "type": "String",
+          "jsonName": "zipCode",
+          "originalType": "String",
+          "isUnion": false
+        }
+      ]
+    },
+    {
+      "name": "NestedFormInput",
+      "doc": "多层嵌套表单输入模型",
+      "module": "ContentTypeDemo",
+      "isInput": true,
+      "isWrapper": false,
+      "fields": [
+        {
+          "name": "name",
+          "type": "String",
+          "jsonName": "name",
+          "originalType": "String",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ],
+          "isUnion": false
+        },
+        {
+          "name": "age",
+          "type": "Int",
+          "jsonName": "age",
+          "originalType": "Int",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ],
+          "isUnion": false
+        },
+        {
+          "name": "address",
+          "type": "AddressInput",
+          "jsonName": "address",
+          "originalType": "AddressInput",
           "validators": [
             {
               "name": "Required"
@@ -2180,7 +2506,7 @@
         },
         {
           "name": "total",
-          "type": "int",
+          "type": "Int",
           "jsonName": "total",
           "originalType": "Int",
           "validators": [
@@ -2192,7 +2518,7 @@
         },
         {
           "name": "page",
-          "type": "int",
+          "type": "Int",
           "jsonName": "page",
           "originalType": "Int",
           "validators": [
@@ -2213,7 +2539,7 @@
       "fields": [
         {
           "name": "total",
-          "type": "int",
+          "type": "Int",
           "jsonName": "total",
           "originalType": "Int",
           "validators": [
@@ -2225,7 +2551,7 @@
         },
         {
           "name": "page",
-          "type": "int",
+          "type": "Int",
           "jsonName": "page",
           "originalType": "Int",
           "validators": [
@@ -2245,7 +2571,7 @@
       "fields": [
         {
           "name": "id",
-          "type": "int",
+          "type": "Int",
           "jsonName": "id",
           "originalType": "Int",
           "validators": [
@@ -2257,7 +2583,7 @@
         },
         {
           "name": "name",
-          "type": "string",
+          "type": "String",
           "jsonName": "name",
           "originalType": "String",
           "validators": [
@@ -2269,7 +2595,7 @@
         },
         {
           "name": "price",
-          "type": "float64",
+          "type": "Float",
           "jsonName": "price",
           "originalType": "Float",
           "validators": [
@@ -2289,7 +2615,7 @@
       "fields": [
         {
           "name": "name",
-          "type": "string",
+          "type": "String",
           "jsonName": "name",
           "originalType": "String",
           "validators": [
@@ -2301,7 +2627,7 @@
         },
         {
           "name": "price",
-          "type": "float64",
+          "type": "Float",
           "jsonName": "price",
           "originalType": "Float",
           "validators": [
@@ -2322,7 +2648,7 @@
       "fields": [
         {
           "name": "user_id",
-          "type": "int",
+          "type": "Int",
           "jsonName": "userId",
           "originalType": "Int",
           "validators": [
@@ -2335,7 +2661,7 @@
         {
           "name": "avatar",
           "doc": "仅允许 JPG/PNG，最大 2MB（2097152 字节）",
-          "type": "*multipart.FileHeader",
+          "type": "File",
           "jsonName": "avatar",
           "originalType": "File",
           "validators": [
@@ -2386,7 +2712,7 @@
       "fields": [
         {
           "name": "title",
-          "type": "string",
+          "type": "String",
           "jsonName": "title",
           "originalType": "String",
           "validators": [
@@ -2398,7 +2724,7 @@
         },
         {
           "name": "description",
-          "type": "*string",
+          "type": "String",
           "jsonName": "description",
           "originalType": "String",
           "isUnion": false
@@ -2406,7 +2732,7 @@
         {
           "name": "document",
           "doc": "仅允许 PDF，最大 10MB",
-          "type": "*multipart.FileHeader",
+          "type": "File",
           "jsonName": "document",
           "originalType": "File",
           "validators": [
@@ -2449,7 +2775,7 @@
         {
           "name": "cover",
           "doc": "可选封面图片",
-          "type": "*multipart.FileHeader",
+          "type": "File",
           "jsonName": "cover",
           "originalType": "File",
           "validators": [
@@ -2497,7 +2823,7 @@
       "fields": [
         {
           "name": "file_url",
-          "type": "string",
+          "type": "String",
           "jsonName": "fileUrl",
           "originalType": "String",
           "validators": [
@@ -2509,7 +2835,7 @@
         },
         {
           "name": "file_size",
-          "type": "int",
+          "type": "Int",
           "jsonName": "fileSize",
           "originalType": "Int",
           "validators": [
@@ -2521,7 +2847,7 @@
         },
         {
           "name": "mime_type",
-          "type": "string",
+          "type": "String",
           "jsonName": "mimeType",
           "originalType": "String",
           "validators": [
@@ -2541,7 +2867,7 @@
       "fields": [
         {
           "name": "title",
-          "type": "string",
+          "type": "String",
           "jsonName": "title",
           "originalType": "String",
           "validators": [
@@ -2553,7 +2879,7 @@
         },
         {
           "name": "content",
-          "type": "string",
+          "type": "String",
           "jsonName": "content",
           "originalType": "String",
           "validators": [
@@ -2573,7 +2899,7 @@
       "fields": [
         {
           "name": "title",
-          "type": "string",
+          "type": "String",
           "jsonName": "title",
           "originalType": "String",
           "validators": [
@@ -2585,7 +2911,7 @@
         },
         {
           "name": "url",
-          "type": "string",
+          "type": "String",
           "jsonName": "url",
           "originalType": "String",
           "validators": [
@@ -2597,7 +2923,7 @@
         },
         {
           "name": "duration",
-          "type": "int",
+          "type": "Int",
           "jsonName": "duration",
           "originalType": "Int",
           "validators": [
@@ -2631,7 +2957,7 @@
         {
           "name": "payload",
           "doc": "2. 联合类型字段，通过 (type) 显式关联同级的判别器字段",
-          "type": "*ContentPayload",
+          "type": "ContentPayload",
           "jsonName": "payload",
           "originalType": "ContentPayload",
           "isUnion": true,
@@ -2647,7 +2973,7 @@
       "fields": [
         {
           "name": "id",
-          "type": "int",
+          "type": "Int",
           "jsonName": "id",
           "originalType": "Int",
           "validators": [
@@ -2671,11 +2997,139 @@
         },
         {
           "name": "payload",
-          "type": "*ContentPayload",
+          "type": "ContentPayload",
           "jsonName": "payload",
           "originalType": "ContentPayload",
           "isUnion": true,
           "unionParamExp": "type"
+        }
+      ]
+    },
+    {
+      "name": "PostDetailInput",
+      "doc": "----------------------------------------------------\n多级结构 + 联合类型：嵌套对象与数组切片\n----------------------------------------------------\n多级嵌套模型：单个帖子项（包含作者与联合类型 payload）",
+      "module": "UnionDemo",
+      "isInput": true,
+      "isWrapper": false,
+      "fields": [
+        {
+          "name": "author",
+          "type": "String",
+          "jsonName": "author",
+          "originalType": "String",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ],
+          "isUnion": false
+        },
+        {
+          "name": "type",
+          "type": "UnionKind",
+          "jsonName": "type",
+          "originalType": "UnionKind",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ],
+          "isUnion": false
+        },
+        {
+          "name": "payload",
+          "type": "ContentPayload",
+          "jsonName": "payload",
+          "originalType": "ContentPayload",
+          "isUnion": true,
+          "unionParamExp": "type"
+        }
+      ]
+    },
+    {
+      "name": "BatchCreatePostInput",
+      "doc": "多级复合入参模型：同时包含普通字段、嵌套单对象、嵌套数组切片中的多态",
+      "module": "UnionDemo",
+      "isInput": true,
+      "isWrapper": false,
+      "fields": [
+        {
+          "name": "batch_name",
+          "type": "String",
+          "jsonName": "batchName",
+          "originalType": "String",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ],
+          "isUnion": false
+        },
+        {
+          "name": "pinned_post",
+          "doc": "1. 嵌套单对象中的联合类型 (可空)",
+          "type": "PostDetailInput",
+          "jsonName": "pinnedPost",
+          "originalType": "PostDetailInput",
+          "isUnion": false
+        },
+        {
+          "name": "items",
+          "doc": "2. 嵌套数组切片中的联合类型 (列表)",
+          "type": "PostDetailInput",
+          "jsonName": "items",
+          "originalType": "PostDetailInput",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ],
+          "isUnion": false
+        }
+      ]
+    },
+    {
+      "name": "BatchCreatePostResult",
+      "doc": "批量创建返回结果模型",
+      "module": "UnionDemo",
+      "isInput": false,
+      "isWrapper": false,
+      "fields": [
+        {
+          "name": "batch_name",
+          "type": "String",
+          "jsonName": "batchName",
+          "originalType": "String",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ],
+          "isUnion": false
+        },
+        {
+          "name": "total",
+          "type": "Int",
+          "jsonName": "total",
+          "originalType": "Int",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ],
+          "isUnion": false
+        },
+        {
+          "name": "items",
+          "type": "ContentPostItem",
+          "jsonName": "items",
+          "originalType": "ContentPostItem",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ],
+          "isUnion": false
         }
       ]
     },
@@ -2687,28 +3141,28 @@
       "fields": [
         {
           "name": "id",
-          "type": "*string",
+          "type": "String",
           "jsonName": "id",
           "originalType": "String",
           "isUnion": false
         },
         {
           "name": "role",
-          "type": "*UserRole",
+          "type": "UserRole",
           "jsonName": "role",
           "originalType": "UserRole",
           "isUnion": false
         },
         {
           "name": "status",
-          "type": "*RecordStatus",
+          "type": "RecordStatus",
           "jsonName": "status",
           "originalType": "RecordStatus",
           "isUnion": false
         },
         {
           "name": "created_at",
-          "type": "*SpecialTime",
+          "type": "SpecialTime",
           "jsonName": "createdAt",
           "originalType": "SpecialTime",
           "isUnion": false
@@ -2747,7 +3201,7 @@
         },
         {
           "name": "created_at",
-          "type": "*SpecialTime",
+          "type": "SpecialTime",
           "jsonName": "createdAt",
           "originalType": "SpecialTime",
           "isUnion": false
@@ -2763,7 +3217,7 @@
       "fields": [
         {
           "name": "rows",
-          "type": "[]Article",
+          "type": "Article",
           "jsonName": "rows",
           "originalType": "Article",
           "validators": [
@@ -2775,7 +3229,40 @@
         },
         {
           "name": "total",
-          "type": "int",
+          "type": "Int",
+          "jsonName": "total",
+          "originalType": "Int",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ],
+          "isUnion": false
+        }
+      ]
+    },
+    {
+      "name": "TreeResCategoryTreeNode",
+      "doc": "4. 通用树形结构响应包装器 (单态化展开自 TreeRes\u003cCategoryTreeNode\u003e)",
+      "module": "EnumDemo",
+      "isInput": false,
+      "isWrapper": false,
+      "fields": [
+        {
+          "name": "items",
+          "type": "CategoryTreeNode",
+          "jsonName": "items",
+          "originalType": "CategoryTreeNode",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ],
+          "isUnion": false
+        },
+        {
+          "name": "total",
+          "type": "Int",
           "jsonName": "total",
           "originalType": "Int",
           "validators": [
@@ -3560,13 +4047,20 @@
             `;
         }
 
+        function formatDisplayType(rawType) {
+            if (!rawType) return '';
+            return rawType.replace(/^\*/, '').replace(/\*\[\]/g, '[]').replace(/\[\*([a-zA-Z0-9_]+)\]/g, '[$1]');
+        }
+
         function renderTypeStructure(baseType, typeInfo) {
-            const model = apiData.models && apiData.models.find(m => m.name === baseType);
-            const union = apiData.unions && apiData.unions.find(u => u.name === baseType);
+            const cleanBase = baseType ? baseType.replace(/[*[\]!]/g, '') : '';
+            const model = apiData.models && apiData.models.find(m => m.name === cleanBase);
+            const union = apiData.unions && apiData.unions.find(u => u.name === cleanBase);
             if (model) {
                 let rows = '';
                 let discMap = {};
                 try { discMap = getDiscriminatorMap(model); } catch(e) {}
+                const visited = new Set([cleanBase]);
                 model.fields.forEach(f => {
                     let displayType = f.type;
                     if (typeInfo && model.typeParams && model.typeParams.length > 0) {
@@ -3582,7 +4076,7 @@
                         ...f,
                         name: f.jsonName || f.name,
                         type: displayType,
-                    }, 0, true, '', discMap ? discMap[f.name] : null, discMap ? discMap['__field_' + f.name] : null);
+                    }, 0, true, '', discMap ? discMap[f.name] : null, discMap ? discMap['__field_' + f.name] : null, visited);
                 });
                 return rows;
             } else if (union) {
@@ -3683,13 +4177,14 @@
             return js;
         }
 
-        function renderRow(arg, depth = 0, hideSource = false, extraClass = '', discInfo = null, unionFieldInfo = null) {
+        function renderRow(arg, depth = 0, hideSource = false, extraClass = '', discInfo = null, unionFieldInfo = null, visitedModels = new Set()) {
             const padding = depth * 16;
             const isRequired = arg.validators && arg.validators.some(v => v.name === 'Required');
             const displayValidators = arg.validators ? arg.validators.filter(v => v.name !== 'Required') : [];
-            const displayType = (arg.type.endsWith('!') || !isRequired) ? arg.type : `${arg.type}!`;
+            const formattedType = formatDisplayType(arg.type);
+            const displayType = (formattedType.endsWith('!') || !isRequired) ? formattedType : `${formattedType}!`;
 
-            const cleanTypeForEnum = arg.type.replace(/[*[\]!]/g, '');
+            const cleanTypeForEnum = formattedType.replace(/[*[\]!]/g, '');
             const enm = apiData.enums && apiData.enums.find(e => e.name === cleanTypeForEnum);
             let enumHtml = '';
             if (enm) {
@@ -3703,13 +4198,14 @@
                 </div>`;
             }
 
-            const cleanType = arg.type.split('(')[0].replace(/[*[\]!]/g, '');
+            const cleanType = formattedType.split('(')[0].replace(/[*[\]!]/g, '');
+            const isSelfRef = visitedModels && visitedModels.has(cleanType);
             const model = apiData.models && apiData.models.find(m => m.name === cleanType);
             const union = apiData.unions && apiData.unions.find(u => u.name === cleanType);
 
             let unionUid = unionFieldInfo ? unionFieldInfo.uid : null;
             let selectorHtml = '';
-            if (union && (depth < 4)) {
+            if (union && (depth < 6)) {
                 if (!unionUid) {
                     unionUid = 'utab-' + Math.random().toString(36).substring(2, 7);
                 }
@@ -3738,6 +4234,8 @@
                 typeCellContent = enumHtml;
             } else if (union && selectorHtml) {
                 typeCellContent = selectorHtml;
+            } else if (isSelfRef) {
+                typeCellContent = `<span class="flex items-center gap-1.5 flex-wrap"><span>${displayType}</span><span class="text-[9px] font-mono font-semibold text-cyan-400/90 bg-cyan-500/10 border border-cyan-500/20 px-1.5 py-0.5 rounded tracking-wide">Self-ref Tree Node</span></span>`;
             }
 
             let row = `
@@ -3757,7 +4255,17 @@
                 </tr>
             `;
 
-            if (union && (depth < 4)) {
+            // 如果是自引用结构，终止向内递归展开，避免死循环和多层重复展开
+            if (isSelfRef) {
+                return row;
+            }
+
+            const nextVisited = new Set(visitedModels || []);
+            if (cleanType) {
+                nextVisited.add(cleanType);
+            }
+
+            if (union && (depth < 6)) {
                 const uid = unionUid;
                 union.cases.forEach((c, idx) => {
                     const caseModel = apiData.models && apiData.models.find(m => m.name === c.type.replace(/[*[\]!]/g, ''));
@@ -3775,11 +4283,11 @@
                                 doc: f.doc,
                                 isUnion: f.isUnion,
                                 unionParamExp: f.unionParamExp
-                            }, depth + 1, hideSource, cls, cDiscInfo, cUnionFieldInfo);
+                            }, depth + 1, hideSource, cls, cDiscInfo, cUnionFieldInfo, nextVisited);
                         });
                     }
                 });
-            } else if (model && (depth < 4)) { 
+            } else if (model && (depth < 6)) { 
                 const subDiscMap = getDiscriminatorMap(model);
                 model.fields.forEach(f => {
                     const subDiscInfo = subDiscMap[f.name];
@@ -3792,7 +4300,7 @@
                         doc: f.doc,
                         isUnion: f.isUnion,
                         unionParamExp: f.unionParamExp
-                    }, depth + 1, hideSource, extraClass, subDiscInfo, subUnionFieldInfo);
+                    }, depth + 1, hideSource, extraClass, subDiscInfo, subUnionFieldInfo, nextVisited);
                 });
             }
             return row;

@@ -183,15 +183,33 @@ input CreatePostInput {
 - **全自动多态绑定**：在代码生成时，Resgen 编译器会进行约束校验。运行期 `bind` 函数会自动提取 JSON 中的判别器值（即 `type` 的值），然后调用 `ResolveContentPayload`，将底层的 `map[string]any` 完美转换为对应的 `*Article` 或 `*Video` 强类型指针注入到 Payload 中！
 
 ### 响应包装器 (Wrappers)
-使用 `wrap` 关键字定义通用的响应格式，支持泛型 `T`。
+使用 `wrap` 关键字定义通用的统一响应格式，支持泛型 `T`。无论是单实体对象、分页列表还是树形层级结构，均可使用包装器标准化输出：
 
-```go
+```graphql
+# 1. 通用单对象响应包装器
 wrap ResData<T> {
-    code: Int
-    msg: String
+    code: Int!
+    msg: String!
     data: T
 }
+
+# 2. 通用列表/分页响应包装器
+wrap ListRes<T> {
+    rows: [T!]! # 列表数据
+    total: Int! # 总条数
+}
+
+# 3. 通用树形结构响应包装器
+wrap TreeRes<T> {
+    items: [T!]! # 顶层树节点列表
+    total: Int!  # 树节点总数
+}
 ```
+
+> [!TIP]
+> **自引用树形结构与 API 文档保护**：
+> Resgen 原生支持自引用（Self-referential）树形模型，例如分类树节点 `CategoryTreeNode` 内部嵌套子节点切片 `children: [CategoryTreeNode!]`。
+> 在生成的交互式 API 文档中，内置了循环引用保护机制，智能识别自引用节点并标记为 `Self-ref Tree Node`，防止无限递归展开。
 
 ### 模块与组 (Groups)
 使用 `group` 组织相关的接口。
@@ -220,31 +238,50 @@ group /users [wrap=ResData] {
 支持标准 HTTP 方法（不区分大小写，生成时自动转为大写）。通过在方法路径后加 **`[ctype=别名]`** 指定请求 Content-Type：
 
 - `POST /path [ctype=json]`：默认 JSON（可省略）。
-- `POST /path [ctype=form]`：表单提交。
-- `POST /path [ctype=multipart]`：文件上传。
+- `POST /path [ctype=form]`：表单提交（支持普通扁平字段与多层嵌套结构，如 `address.city`）。
+- `POST /path [ctype=multipart]`：文件上传（支持多文件与混合字段）。
 
 > [!IMPORTANT]
-> **别名的解析逻辑**：
-> 括号中的关键字通过 `resgen.yaml` 中的 `content_type_aliases` 映射到标准 MIME 类型：
+> **别名的解析逻辑与多协议配置**：
+> 括号中的关键字通过 `resgen.yaml` 中的 `content_types` 映射到字段 Tag 与编解码规则：
 > ```yaml
-> content_type_aliases:
->   form: "application/x-www-form-urlencoded"
->   multipart: "multipart/form-data"
+> content_types:
+>   form:
+>     mime: "application/x-www-form-urlencoded"
+>     tag: "form"
+>     case: "snake"
+>   multipart:
+>     mime: "multipart/form-data"
+>     tag: "form"
+>     case: "snake"
+>   xml:
+>     mime: "application/xml"
+>     tag: "xml"
+>     case: "camel"
 > ```
-> 如需支持 `xml` 等格式，只需在配置文件中添加映射即可。
 
-```go
-# 请求使用 multipart 提交
+```graphql
+# 请求使用 multipart 提交文件
 POST /avatar [ctype=multipart] => UploadAvatar(file: File!): ResData<String>
 
-# GET 请求无需指定 ctype
-GET /users/:id => GetUser(id: Int @path): User
+# 请求使用 form 提交多层嵌套结构
+POST /form/nested [ctype=form] => SubmitNestedForm(input: NestedFormInput): ResData<String>
+
+# 成功时下载裸文件流 (wrap=none)，失败时安全退化为 JSON 错误响应 (etype=json)
+GET /download/:id => DownloadFile(id: Int @path): File [ctype=stream, etype=json, wrap=none]
 ```
 
 > [!TIP]
-> **响应 Content-Type 别名**：
-> 响应元数据中的 `ctype` (成功时) 和 `etype` (失败时) 也是别名，会根据 `resgen.yaml` 配置映射到真实的 MIME 类型。Resgen 会根据这些使用到的类型，在生成的 `engine.gen.go` 中自动生成对应的类型化渲染方法（如 `RenderJson`, `RenderText`）。
-
+> **文件下载与强类型载体 `LocalFileDownload`**：
+> 当接口出参声明为 `File`（或 `ctype=stream`）时，Go 侧的 Resolver 业务接口会自动推导为返回 **`*resolver.LocalFileDownload`** 强类型结构体：
+> ```go
+> type LocalFileDownload struct {
+>     FilePath    string // 本地物理文件路径
+>     Filename    string // 客户端下载时的文件名
+>     ContentType string // 文件 MIME 类型，如 "application/pdf"
+> }
+> ```
+> 底层引擎通过 `RenderStream(code int, localFileDownload LocalFileDownload)` 统一安全流式输出。
 
 ### 参数绑定
 - `@path`: 路径参数
@@ -257,8 +294,8 @@ GET /users/:id => GetUser(id: Int @path): User
 
 > [!NOTE]
 > `@path`/`@query`/`@header` 字段可以出现在 `input` 结构体字段中，也可以直接作为顶层参数。
-> `File` 类型字段会自动推断为 multipart 传输，若未指定 `ctype`，生成器会自动将接口的 `ctype` 升级为 `multipart`；
-> 若明确指定了 `ctype=json` 或 `ctype=form` 但 input 中含有 `File` 字段，生成器会在生成阶段报错。
+> `File` 类型字段在入参时代表上传文件（Go 类型 `*multipart.FileHeader`），会自动推断为 multipart 传输；若未指定 `ctype`，生成器会自动将接口的 `ctype` 升级为 `multipart`；
+> 若明确指定了 `ctype=json` 或 `ctype=form` 但 input 中含有 `File` 字段，生成器会在编译阶段智能报错拦截。
 
 
 ### 参数规范
@@ -415,9 +452,9 @@ DSL 的生成行为可以通过项目根目录下的 `resgen.yaml` 进行深度�
 
 ### 代码生成配置
 - **`package`**: 指定生成代码的 Go 包名。
-- **`struct_tags`**: 定义结构体标签的生成策略（如 `json`, `form`）及命名风格（`snake`, `camel`, `lower`）。
+- **`default_case`**: 全局默认的结构体字段命名风格（`snake`, `camel`, `lower`, `keep`）。
 - **`default_content_type`**: 接口未定义时的默认请求/响应类型别名（如 `json`）。
-- **`content_type_aliases`**: 定义别名（如 `form`）到标准 MIME 类型（如 `application/x-www-form-urlencoded`）的映射。
+- **`content_types`**: 统一协议规格表，合并定义 MIME 类型、结构体 Tag 名称、专属命名风格（`case`）以及多态延迟编解码类型（`raw_type`, `import_pkg`, `unmarshal_fn`）。
 - **`scalar_style`**: 自定义标量的代码生成风格，可选 `isolation`（默认）或 `direct`，详见下方 [自定义标量](#7-自定义标量-scalar) 章节。
 
 ### API 文档配置
