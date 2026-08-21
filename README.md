@@ -13,6 +13,80 @@
 - **语言无关，易于扩展**：核心是解析 DSL 产出的标准 AST/JSON，可以快速适配不同语言的框架或存根生成。
 - **交互式文档集成**：自动生成极其美观且功能完备的交互式 API 文档，确保契约即文档。
 
+## 🏗️ 业务处理全景架构图 (Execution Lifecycle)
+
+Resgen 负责搞定 90% 的网络协议、数据绑定、安全校验和统一包装的脏活累活，让业务开发人员把 100% 的精力聚焦在最核心的业务逻辑上：
+
+```mermaid
+flowchart TD
+    classDef clientStyle fill:#1e293b,stroke:#3b82f6,stroke-width:2px,color:#fff;
+    classDef frameworkStyle fill:#0f172a,stroke:#64748b,stroke-width:2px,color:#fff;
+    classDef genStageStyle fill:#1e1e38,stroke:#8b5cf6,stroke-width:2px,color:#fff;
+    classDef devEntryStyle fill:#064e3b,stroke:#10b981,stroke-width:3px,color:#fff,stroke-dasharray: 5 5;
+    classDef respStageStyle fill:#172554,stroke:#38bdf8,stroke-width:2px,color:#fff;
+
+    Client(["🌐 Client / 前端 / 移动端"]):::clientStyle
+
+    subgraph WebFramework ["1. Web 框架适配层 (Adapter)"]
+        Adapter["GinContext / HttpContext<br/>(实现 ServerContextBase 契约)"]:::frameworkStyle
+    end
+
+    subgraph GeneratedExecutor ["2. Resgen 自动化执行管道 (Executor Pipeline)"]
+        direction TB
+        Step1["① Request Decorators<br/><b>全局与特化请求拦截</b><br/>(Auth, RateLimit, LoginRequired)"]:::genStageStyle
+        Step2["② Binding & Codec<br/><b>多协议参数自动提取与多态反序列化</b><br/>(JSON / Form点分嵌套 / Multipart / ResolveUnions)"]:::genStageStyle
+        Step3["③ Validation<br/><b>强类型与跨字段规则校验</b><br/>(Required, Email, FileRule, 跨字段 LCA)"]:::genStageStyle
+        Step4["④ Invoke Decorators<br/><b>调用前特化处理</b><br/>(OwnerCheck, TraceInject)"]:::genStageStyle
+        
+        Step1 --> Step2 --> Step3 --> Step4
+    end
+
+    subgraph DevCore ["🌟 3. 业务逻辑核心 (开发人员核心切入点)"]
+        BizHandler[["<b>业务 Resolver 实现</b><br/><code>type XxxHandler struct{}</code><br/>- 纯粹业务逻辑，0 框架侵入<br/>- 强类型入参 & 强类型出参<br/>- 返回实体 / LocalFileDownload"]]:::devEntryStyle
+    end
+
+    subgraph GeneratedResponse ["4. 响应流水线与渲染 (Response Pipeline)"]
+        direction TB
+        Step5["⑤ Response Decorators<br/><b>响应脱敏与审计</b><br/>(MaskEmail, LogAudit)"]:::respStageStyle
+        Step6["⑥ Standard Wrapping & Error Map<br/><b>统一包装器或裸流判定</b><br/>(ResData / TreeRes / ListRes / wrap=none)"]:::respStageStyle
+        Step7["⑦ Protocol Render<br/><b>协议编码响应</b><br/>(RenderJson / RenderXml / RenderStream)"]:::respStageStyle
+
+        Step5 --> Step6 --> Step7
+    end
+
+    %% 流程连接
+    Client -->|"HTTP 请求 (JSON/Form/XML/File)"| Adapter
+    Adapter --> GeneratedExecutor
+    Step4 -->|"强类型参数传入"| BizHandler
+    BizHandler -->|"返回强类型 Result / error"| Step5
+    Step7 -->|"HTTP 响应输出"| Adapter
+    Adapter -->|"标准格式响应"| Client
+
+    %% 异常分支
+    Step1 -.->|"校验/鉴权拦截"| Step6
+    Step2 -.->|"绑定失败"| Step6
+    Step3 -.->|"规则不符"| Step6
+```
+
+### 🎯 开发人员切入点 (Developer Entry Points)
+
+| 切入阶段 | 核心任务 | 开发人员职责 |
+| :--- | :--- | :--- |
+| **1. 契约设计** | 编写 `.res` Schema 文件 | 声明接口路径、入参、出参、包装器、校验规则及安全装饰器。 |
+| **2. 业务实现** | **实现 `XxxResolver` 接口 (🌟 核心)** | **90% 的日常工作**：编写纯粹的 Go 业务逻辑，无需处理任何 HTTP 底层细节。 |
+| **3. 通用切面** | 实现 `Decorator` / `Validator` | 注入项目级通用鉴权（如 `@auth`）、限流或业务校验逻辑。 |
+| **4. 统一响应** | 实现 `Responder` 契约 | 自定义统一的错误码映射与 `ResData` / `TreeRes` 包装结构装配。 |
+| **5. 宿主集成** | 在 `main.go` 中挂载引擎 | 通过 `MountXxx` 一键挂载到 Gin、Echo 或标准库 HTTP 引擎中。 |
+
+### 💡 核心优化亮点 (Key Innovations)
+
+- **0 反射静态生成**：所有路由分发、参数提取、校验全部编译期静态生成，无运行时反射开销。
+- **按需 Tag 精准推导**：基于端点实际使用的 `ctype`/`etype` 全集生成 Tag，模型极致纯净无污染。
+- **多协议天然正交**：JSON、Form（支持 `address.city` 点语法嵌套）、Multipart、XML、Stream 流式传输统一支持。
+- **强类型文件下载**：出参返回 `File` 自动绑定强类型载体 `*LocalFileDownload` 与 `RenderStream`。
+- **树形自引用与防死锁**：内置 `TreeRes<T>` 包装器，API 文档智能识别自引用树结构，防止页面无限递归。
+- **极速代码定位 (HandlerPos)**：控制台日志输出处理器源码行号，点击即可直达代码实现。
+
 ## 📦 内置数据类型 (Built-in Data Types)
 
 Resgen DSL 原生支持以下基础数据类型，引擎会自动将其映射到目标编程语言的对应类型：
