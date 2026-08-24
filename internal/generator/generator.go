@@ -18,7 +18,7 @@ import (
 	"golang.org/x/tools/imports"
 )
 
-const Version = "v0.6.0"
+const Version = "v0.6.1"
 
 //go:embed templates/engine.tmpl
 var engineTmpl string
