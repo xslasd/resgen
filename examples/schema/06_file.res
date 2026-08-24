@@ -38,8 +38,10 @@ group /files [wrap=ResData] {
     POST /avatar[ctype=multipart] => UploadAvatar(input: UploadAvatarInput): ResData<UploadResult> [state=201]
     # 混合表单上传：文档 + 封面
     POST /document[ctype=multipart] => UploadDocument(input: UploadDocumentInput): ResData<UploadResult> [state=201]
-    # 文件下载：成功响应为裸字节流 (wrap=none)，失败响应退化为 JSON (etype=json)
-    GET /download/:id => DownloadFile(id: Int @path): File [ctype=stream, etype=json]
-    # 导出 CSV：同为裸流式响应 (wrap=none)，失败响应退化为 JSON (etype=json)
-    GET /export/csv => ExportCsv(ids: String @query): File [ctype=stream, etype=json, wrap=none]
+    # 文件下载：成功响应为 PDF 裸流 (wrap=none)，文档精准显示 application/pdf，失败退化为 JSON (etype=json)
+    GET /download/:id => DownloadFile(id: Int @path): File [ctype=pdf, etype=json]
+    # 导出 CSV：成功响应为 CSV 裸流 (wrap=none)，文档精准显示 text/csv，失败退化为 JSON (etype=json)
+    GET /export/csv => ExportCsv(ids: String @query): File [ctype=csv, etype=json]
+    # 动态流下载：通用动态流，业务动态指定 ContentType，失败退化为 JSON (etype=json)
+    GET /dynamic/:id => DownloadDynamic(id: Int @path): File [ctype=stream, etype=json]
 }

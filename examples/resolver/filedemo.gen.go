@@ -51,10 +51,13 @@ type FileDemoResolver[T any] interface {
 	UploadDocument(ctx context.Context, input *UploadDocumentInput) (*UploadResult, error)
 
 	// DownloadFile GET /files/download/:id
-	DownloadFile(ctx context.Context, id *int) (*LocalFileDownload, error)
+	DownloadFile(ctx context.Context, id *int) (*LocalFile, error)
 
 	// ExportCsv GET /files/export/csv
-	ExportCsv(ctx context.Context, ids *string) (*LocalFileDownload, error)
+	ExportCsv(ctx context.Context, ids *string) (*LocalFile, error)
+
+	// DownloadDynamic GET /files/dynamic/:id
+	DownloadDynamic(ctx context.Context, id *int) (*LocalFileDownload, error)
 }
 
 // ==========================================
@@ -133,6 +136,15 @@ func (e *FileDemoExecutor[T, C]) mount() {
 		Path:   "/files/export/csv",
 	}
 	e.register(infoExportCsv, e.handleExportCsv)
+
+	infoDownloadDynamic := MethodInfo{
+		Module: "FileDemo",
+		Group:  "/files",
+		Method: "GET",
+		Name:   "DownloadDynamic",
+		Path:   "/files/dynamic/:id",
+	}
+	e.register(infoDownloadDynamic, e.handleDownloadDynamic)
 }
 
 func (e *FileDemoExecutor[T, C]) register(info MethodInfo, handler HandlerFunc[C]) {
@@ -257,7 +269,11 @@ func (e *FileDemoExecutor[T, C]) handleDownloadFile(request C, info MethodInfo) 
 		return
 	}
 	if result != nil {
-		request.RenderStream(200, *result)
+		request.RenderStream(200, LocalFileDownload{
+			FilePath:    result.FilePath,
+			Filename:    result.Filename,
+			ContentType: "application/pdf",
+		})
 	}
 }
 
@@ -271,10 +287,41 @@ func (e *FileDemoExecutor[T, C]) handleExportCsv(request C, info MethodInfo) {
 	}
 	result, err := e.biz.ExportCsv(request.Context(), idsVal)
 	if err != nil {
-		request.RenderJson(e.r.ErrorToStatus(native, err), err.Error())
+		request.RenderJson(e.r.ErrorToStatus(native, err), e.r.BindResData(native, nil, err))
 		return
 	}
 	if result != nil {
+		request.RenderStream(200, LocalFileDownload{
+			FilePath:    result.FilePath,
+			Filename:    result.Filename,
+			ContentType: "text/csv",
+		})
+	}
+}
+
+// handleDownloadDynamic 封装了端点的自动化执行流
+func (e *FileDemoExecutor[T, C]) handleDownloadDynamic(request C, info MethodInfo) {
+	native := request.Native()
+	var idVal *int
+
+	if val := request.GetPath("id"); val != "" {
+		if v, err := IntFromParam(val); err == nil {
+			v2 := v
+			idVal = &v2
+		} else {
+			request.RenderJson(e.r.ErrorToStatus(native, err), e.r.BindResData(native, nil, err))
+			return
+		}
+	}
+	result, err := e.biz.DownloadDynamic(request.Context(), idVal)
+	if err != nil {
+		request.RenderJson(e.r.ErrorToStatus(native, err), e.r.BindResData(native, nil, err))
+		return
+	}
+	if result != nil {
+		if result.ContentType == "" {
+			result.ContentType = "application/octet-stream"
+		}
 		request.RenderStream(200, *result)
 	}
 }

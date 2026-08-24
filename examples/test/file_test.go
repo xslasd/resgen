@@ -29,19 +29,25 @@ func (b *mockFileDemoBiz) UploadDocument(ctx context.Context, input *resolver.Up
 	}, nil
 }
 
-func (b *mockFileDemoBiz) DownloadFile(ctx context.Context, id *int) (*resolver.LocalFileDownload, error) {
-	return &resolver.LocalFileDownload{
-		FilePath:    "/tmp/storage/sample.pdf",
-		Filename:    "sample.pdf",
-		ContentType: "application/pdf",
+func (b *mockFileDemoBiz) DownloadFile(ctx context.Context, id *int) (*resolver.LocalFile, error) {
+	return &resolver.LocalFile{
+		FilePath: "/tmp/storage/sample.pdf",
+		Filename: "sample.pdf",
 	}, nil
 }
 
-func (b *mockFileDemoBiz) ExportCsv(ctx context.Context, ids *string) (*resolver.LocalFileDownload, error) {
+func (b *mockFileDemoBiz) ExportCsv(ctx context.Context, ids *string) (*resolver.LocalFile, error) {
+	return &resolver.LocalFile{
+		FilePath: "/tmp/storage/report.csv",
+		Filename: "report.csv",
+	}, nil
+}
+
+func (b *mockFileDemoBiz) DownloadDynamic(ctx context.Context, id *int) (*resolver.LocalFileDownload, error) {
 	return &resolver.LocalFileDownload{
-		FilePath:    "/tmp/storage/report.csv",
-		Filename:    "report.csv",
-		ContentType: "text/csv",
+		FilePath:    "/tmp/storage/dynamic.bin",
+		Filename:    "dynamic.bin",
+		ContentType: "application/octet-stream",
 	}, nil
 }
 
@@ -125,7 +131,7 @@ func TestFileDemo_UploadAndRules(t *testing.T) {
 		}
 	})
 
-	t.Run("4. GET /files/download/:id 文件下载流式响应", func(t *testing.T) {
+	t.Run("4. GET /files/download/:id PDF 静态已知文件下载流式响应", func(t *testing.T) {
 		h := handlers["GET /files/download/:id"]
 		ctx := NewTestContext(httptest.NewRequest("GET", "/files/download/10", nil))
 		ctx.SetPathParam("id", "10")
@@ -141,7 +147,7 @@ func TestFileDemo_UploadAndRules(t *testing.T) {
 		}
 	})
 
-	t.Run("5. GET /files/export/csv 导出 CSV 文件流式响应", func(t *testing.T) {
+	t.Run("5. GET /files/export/csv CSV 静态已知文件导出流式响应", func(t *testing.T) {
 		h := handlers["GET /files/export/csv"]
 		ctx := NewTestContext(httptest.NewRequest("GET", "/files/export/csv?ids=1,2,3", nil))
 
@@ -153,6 +159,22 @@ func TestFileDemo_UploadAndRules(t *testing.T) {
 		downloadInfo, ok := ctx.resBody.(resolver.LocalFileDownload)
 		if !ok || downloadInfo.Filename != "report.csv" || downloadInfo.ContentType != "text/csv" {
 			t.Fatalf("CSV 导出载体数据异常: %+v", ctx.resBody)
+		}
+	})
+
+	t.Run("6. GET /files/dynamic/:id 动态通用文件流下载", func(t *testing.T) {
+		h := handlers["GET /files/dynamic/:id"]
+		ctx := NewTestContext(httptest.NewRequest("GET", "/files/dynamic/10", nil))
+		ctx.SetPathParam("id", "10")
+
+		h(ctx, resolver.MethodInfo{Name: "DownloadDynamic"})
+
+		if ctx.resCode != 200 {
+			t.Fatalf("期望状态码 200, 实际为: %d", ctx.resCode)
+		}
+		downloadInfo, ok := ctx.resBody.(resolver.LocalFileDownload)
+		if !ok || downloadInfo.Filename != "dynamic.bin" || downloadInfo.ContentType != "application/octet-stream" {
+			t.Fatalf("动态文件流下载载体数据异常: %+v", ctx.resBody)
 		}
 	})
 }

@@ -323,18 +323,23 @@ func (h *FileDemoHandler) UploadAvatar(ctx context.Context, input *resolver.Uplo
 func (h *FileDemoHandler) UploadDocument(ctx context.Context, input *resolver.UploadDocumentInput) (*resolver.UploadResult, error) {
 	return &resolver.UploadResult{FileUrl: "/uploads/document.pdf"}, nil
 }
-func (h *FileDemoHandler) DownloadFile(ctx context.Context, id *int) (*resolver.LocalFileDownload, error) {
-	return &resolver.LocalFileDownload{
-		FilePath:    "./temp/sample.pdf",
-		Filename:    "sample.pdf",
-		ContentType: "application/pdf",
+func (h *FileDemoHandler) DownloadFile(ctx context.Context, id *int) (*resolver.LocalFile, error) {
+	return &resolver.LocalFile{
+		FilePath: "./temp/sample.pdf",
+		Filename: "sample.pdf",
 	}, nil
 }
-func (h *FileDemoHandler) ExportCsv(ctx context.Context, ids *string) (*resolver.LocalFileDownload, error) {
+func (h *FileDemoHandler) ExportCsv(ctx context.Context, ids *string) (*resolver.LocalFile, error) {
+	return &resolver.LocalFile{
+		FilePath: "./temp/export.csv",
+		Filename: "export.csv",
+	}, nil
+}
+func (h *FileDemoHandler) DownloadDynamic(ctx context.Context, id *int) (*resolver.LocalFileDownload, error) {
 	return &resolver.LocalFileDownload{
-		FilePath:    "./temp/export.csv",
-		Filename:    "export.csv",
-		ContentType: "text/csv",
+		FilePath:    "./temp/dynamic.bin",
+		Filename:    "dynamic.bin",
+		ContentType: "application/octet-stream",
 	}, nil
 }
 func (h *FileDemoHandler) CreatePost(ctx context.Context, input *resolver.CreatePostInput) (*resolver.ContentPostItem, error) {

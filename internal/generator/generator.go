@@ -141,8 +141,10 @@ func ToGoType(t parser.TypeRef, conf *config.Config, extraImports *[]string, con
 	case "Boolean":
 		goBaseType = "bool"
 	case "File":
-		if strings.HasSuffix(context, ".Return") || strings.HasSuffix(context, ".InnerReturn") {
+		if strings.HasSuffix(context, ".DynamicReturn") {
 			goBaseType = "*LocalFileDownload"
+		} else if strings.HasSuffix(context, ".Return") || strings.HasSuffix(context, ".InnerReturn") {
+			goBaseType = "*LocalFile"
 		} else {
 			goBaseType = "*multipart.FileHeader"
 		}
@@ -338,6 +340,7 @@ type MethodInfo struct {
 	ErrorTypeBase       string         `json:"errorTypeBase,omitempty"`
 	IsNoWrap            bool           `json:"isNoWrap"`
 	IsSuccessNoWrap     bool           `json:"isSuccessNoWrap"`
+	IsDynamicStream     bool           `json:"-"`
 	SuccessStatus       int            `json:"successStatus"`
 	Permission          string         `json:"permission,omitempty"`
 	RequestDecorators   []MetaInfo     `json:"-"`
@@ -1164,117 +1167,180 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 						return fmt.Errorf("语义错误：接口 [%s %s] 的出参不能声明为文件数组 '[File]'。单个 HTTP 响应无法承载多个独立文件流。推荐方案：1) 打包为 ZIP 压缩流返回 (返回类型设为 File [ctype=zip])；2) 或返回包含下载地址的文件列表结构 (例如 ResData<[FileItem]>)。", ep.Method, ep.Path)
 					}
 
-					fullReturnType = ToGoType(*ep.ReturnType, ctx.Config, &ctx.ExtraImports, ep.Name+".Return", ctx.ModelMap)
-					innerReturnType = fullReturnType
-					if baseModel, ok := ctx.ModelMap[ep.ReturnType.Name]; ok && baseModel.IsWrapper {
-						isReturnWrapped = true
-						returnTypeBase = baseModel.Name
-						if len(ep.ReturnType.TypeArgs) > 0 {
-							innerReturnType = ToGoType(ep.ReturnType.TypeArgs[0], ctx.Config, &ctx.ExtraImports, ep.Name+".InnerReturn", ctx.ModelMap)
-							isReturnArray = ep.ReturnType.TypeArgs[0].IsArray
-						}
-					} else {
-						isReturnArray = ep.ReturnType.IsArray
+				// 响应 MIME 类型：优先接口 ResponseMeta[ctype]，无则 fallback 到 default_content_type
+				var responseContentType string
+				if v, ok := metaGet(ep.ResponseMeta, "ctype"); ok {
+					responseContentType = v
+				} else {
+					responseContentType = ctx.Config.Generator.DefaultContentType
+				}
+				responseMimeType := resolveMimeType(responseContentType, ctx.Config)
+
+				isStreamResp := false
+				if ep.ReturnType != nil && ep.ReturnType.Name == "File" {
+					isStreamResp = true
+				}
+				if isStreamMime(responseMimeType) {
+					isStreamResp = true
+				}
+
+				isDynamicStream := false
+				if isStreamResp {
+					rawCType := strings.ToLower(responseContentType)
+					if rawCType == "stream" || rawCType == "bin" || rawCType == "octet-stream" || responseMimeType == "application/octet-stream" {
+						isDynamicStream = true
 					}
 				}
 
-				// 从接口级 ResponseMeta 读取 wrap/state；接口优先于组级
-				errorType := groupErrorType
-				successStatus := groupSuccessStatus
-				if v, ok := metaGet(ep.ResponseMeta, "wrap"); ok {
-					errorType = v
-				}
-				if v, ok := metaGetInt(ep.ResponseMeta, "state"); ok {
-					successStatus = v
+				contextStr := ep.Name + ".Return"
+				if isDynamicStream {
+					contextStr = ep.Name + ".DynamicReturn"
 				}
 
-				// 接口级装饰器（组级已统一继承）
-				var filteredDirectives []parser.DirectiveUsage
-				for _, d := range decl.Group.Directives {
-					filteredDirectives = append(filteredDirectives, d)
+				fullReturnType = ToGoType(*ep.ReturnType, ctx.Config, &ctx.ExtraImports, contextStr, ctx.ModelMap)
+				innerReturnType = fullReturnType
+				if baseModel, ok := ctx.ModelMap[ep.ReturnType.Name]; ok && baseModel.IsWrapper {
+					isReturnWrapped = true
+					returnTypeBase = baseModel.Name
+					if len(ep.ReturnType.TypeArgs) > 0 {
+						innerReturnType = ToGoType(ep.ReturnType.TypeArgs[0], ctx.Config, &ctx.ExtraImports, ep.Name+".InnerReturn", ctx.ModelMap)
+						isReturnArray = ep.ReturnType.TypeArgs[0].IsArray
+					}
+				} else {
+					isReturnArray = ep.ReturnType.IsArray
 				}
-				for _, d := range ep.Directives {
-					filteredDirectives = append(filteredDirectives, d)
-				}
+			}
 
-				isErrorWrapped := false
-				errorTypeBase := ""
-				if baseModel, ok := ctx.ModelMap[errorType]; ok && baseModel.IsWrapper {
-					isErrorWrapped = true
-					errorTypeBase = baseModel.Name
-				}
+			// 从接口级 ResponseMeta 读取 wrap/state；接口优先于组级
+			errorType := groupErrorType
+			successStatus := groupSuccessStatus
+			if v, ok := metaGet(ep.ResponseMeta, "wrap"); ok {
+				errorType = v
+			}
+			if v, ok := metaGetInt(ep.ResponseMeta, "state"); ok {
+				successStatus = v
+			}
 
-				isNoWrap := false
-				if strings.ToLower(errorType) == "none" {
-					isNoWrap = true
-				}
+			// 接口级装饰器（组级已统一继承）
+			var filteredDirectives []parser.DirectiveUsage
+			for _, d := range decl.Group.Directives {
+				filteredDirectives = append(filteredDirectives, d)
+			}
+			for _, d := range ep.Directives {
+				filteredDirectives = append(filteredDirectives, d)
+			}
 
-				isSuccessNoWrap := false
-				if ep.ReturnType != nil && ep.ReturnType.Name == "File" {
+			isErrorWrapped := false
+			errorTypeBase := ""
+			if baseModel, ok := ctx.ModelMap[errorType]; ok && baseModel.IsWrapper {
+				isErrorWrapped = true
+				errorTypeBase = baseModel.Name
+			}
+
+			isNoWrap := false
+			if strings.ToLower(errorType) == "none" {
+				isNoWrap = true
+			}
+
+			isSuccessNoWrap := false
+			if ep.ReturnType != nil && ep.ReturnType.Name == "File" {
+				isSuccessNoWrap = true
+			}
+			if v, ok := metaGet(ep.ResponseMeta, "ctype"); ok {
+				ctypeLower := strings.ToLower(v)
+				if ctypeLower == "stream" || ctypeLower == "multipart" || isStreamMime(resolveMimeType(v, ctx.Config)) {
 					isSuccessNoWrap = true
 				}
-				if v, ok := metaGet(ep.ResponseMeta, "ctype"); ok {
-					ctypeLower := strings.ToLower(v)
-					if ctypeLower == "stream" || ctypeLower == "multipart" {
-						isSuccessNoWrap = true
+			}
+
+			var responseContentType string
+			if v, ok := metaGet(ep.ResponseMeta, "ctype"); ok {
+				responseContentType = v
+			} else {
+				responseContentType = ctx.Config.Generator.DefaultContentType
+			}
+			responseMimeType := resolveMimeType(responseContentType, ctx.Config)
+
+			isStreamResp := false
+			if ep.ReturnType != nil && ep.ReturnType.Name == "File" {
+				isStreamResp = true
+			}
+			if isStreamMime(responseMimeType) {
+				isStreamResp = true
+			}
+
+			isDynamicStream := false
+			if isStreamResp {
+				rawCType := strings.ToLower(responseContentType)
+				if rawCType == "stream" || rawCType == "bin" || rawCType == "octet-stream" || responseMimeType == "application/octet-stream" {
+					isDynamicStream = true
+				}
+			}
+
+			method := MethodInfo{
+				Name:       ep.Name,
+				Doc:        ep.Doc,
+				Method:     strings.ToUpper(ep.Method),
+				Path:       ep.Path,
+				FullPath:   decl.Group.Path + ep.Path,
+				ReturnType: fullReturnType,
+				ReturnTypeDSL: func() string {
+					if ep.ReturnType != nil {
+						dsl := formatTypeRef(*ep.ReturnType)
+						if !isReturnWrapped && !isSuccessNoWrap && !isNoWrap && errorType != "" && strings.ToLower(errorType) != "none" {
+							return errorType + "<" + dsl + ">"
+						}
+						return dsl
+					}
+					return ""
+				}(),
+				InnerReturnType: innerReturnType,
+				IsReturnWrapped: isReturnWrapped,
+				ReturnTypeBase:  returnTypeBase,
+				InnerReturnModel: func() *ModelInfo {
+					if ep.ReturnType != nil && isReturnWrapped && len(ep.ReturnType.TypeArgs) > 0 {
+						return ctx.ModelMap[ep.ReturnType.TypeArgs[0].Name]
+					}
+					return nil
+				}(),
+				ErrorType:           errorType,
+				IsErrorWrapped:      isErrorWrapped,
+				ErrorTypeBase:       errorTypeBase,
+				IsNoWrap:            isNoWrap,
+				IsSuccessNoWrap:     isSuccessNoWrap,
+				IsDynamicStream:     isDynamicStream,
+				IsReturnArray:       isReturnArray,
+				SuccessStatus:       successStatus,
+				IsArgsWrapped:       true,
+				ResponseContentType: responseContentType,
+				ResponseMimeType:    responseMimeType,
+			}
+
+			if isStreamResp {
+				method.ResponseRenderFunc = "Stream"
+				hasStreamRF := false
+				for _, rf := range ctx.RenderFuncs {
+					if rf.Name == "Stream" {
+						hasStreamRF = true
+						break
 					}
 				}
-
-				method := MethodInfo{
-					Name:       ep.Name,
-					Doc:        ep.Doc,
-					Method:     strings.ToUpper(ep.Method),
-					Path:       ep.Path,
-					FullPath:   decl.Group.Path + ep.Path,
-					ReturnType: fullReturnType,
-					ReturnTypeDSL: func() string {
-						if ep.ReturnType != nil {
-							dsl := formatTypeRef(*ep.ReturnType)
-							if !isReturnWrapped && !isSuccessNoWrap && !isNoWrap && errorType != "" && strings.ToLower(errorType) != "none" {
-								return errorType + "<" + dsl + ">"
-							}
-							return dsl
-						}
-						return ""
-					}(),
-					InnerReturnType: innerReturnType,
-					IsReturnWrapped: isReturnWrapped,
-					ReturnTypeBase:  returnTypeBase,
-					InnerReturnModel: func() *ModelInfo {
-						if ep.ReturnType != nil && isReturnWrapped && len(ep.ReturnType.TypeArgs) > 0 {
-							return ctx.ModelMap[ep.ReturnType.TypeArgs[0].Name]
-						}
-						return nil
-					}(),
-					ErrorType:       errorType,
-					IsErrorWrapped:  isErrorWrapped,
-					ErrorTypeBase:   errorTypeBase,
-					IsNoWrap:        isNoWrap,
-					IsSuccessNoWrap: isSuccessNoWrap,
-					IsReturnArray:   isReturnArray,
-					SuccessStatus:   successStatus,
-					IsArgsWrapped:   true,
+				if !hasStreamRF {
+					ctx.RenderFuncs = append(ctx.RenderFuncs, RenderFuncInfo{Name: "Stream", MimeType: "application/octet-stream"})
 				}
-
-				// 响应 MIME 类型：优先接口 ResponseMeta[ctype]，无则 fallback 到 default_content_type
-				if v, ok := metaGet(ep.ResponseMeta, "ctype"); ok {
-					method.ResponseContentType = v
-					method.ResponseMimeType = resolveMimeType(v, ctx.Config)
-				} else {
-					method.ResponseContentType = ctx.Config.Generator.DefaultContentType
-					method.ResponseMimeType = resolveMimeType(ctx.Config.Generator.DefaultContentType, ctx.Config)
-				}
+			} else {
 				method.ResponseRenderFunc = addRenderFunc(ctx, method.ResponseMimeType)
+			}
 
-				// 错误响应 MIME 类型：ResponseMeta[etype]，无则 fallback 到 default_content_type
-				if v, ok := metaGet(ep.ResponseMeta, "etype"); ok {
-					method.ErrorContentType = v
-					method.ErrorMimeType = resolveMimeType(v, ctx.Config)
-				} else {
-					method.ErrorContentType = ctx.Config.Generator.DefaultContentType
-					method.ErrorMimeType = resolveMimeType(ctx.Config.Generator.DefaultContentType, ctx.Config)
-				}
-				method.ErrorRenderFunc = addRenderFunc(ctx, method.ErrorMimeType)
+			// 错误响应 MIME 类型：ResponseMeta[etype]，无则 fallback 到 default_content_type
+			if v, ok := metaGet(ep.ResponseMeta, "etype"); ok {
+				method.ErrorContentType = v
+				method.ErrorMimeType = resolveMimeType(v, ctx.Config)
+			} else {
+				method.ErrorContentType = ctx.Config.Generator.DefaultContentType
+				method.ErrorMimeType = resolveMimeType(ctx.Config.Generator.DefaultContentType, ctx.Config)
+			}
+			method.ErrorRenderFunc = addRenderFunc(ctx, method.ErrorMimeType)
 
 				var args []ArgumentInfo
 				for _, arg := range ep.Args {
@@ -2099,10 +2165,28 @@ func resolveMimeType(symbol string, conf *config.Config) string {
 		return "multipart/form-data"
 	case "xml", "application/xml":
 		return "application/xml"
-	case "text", "text/plain":
+	case "text", "txt", "text/plain":
 		return "text/plain"
 	case "html", "text/html":
 		return "text/html"
+	case "pdf", "application/pdf":
+		return "application/pdf"
+	case "csv", "text/csv":
+		return "text/csv"
+	case "png", "image/png":
+		return "image/png"
+	case "jpg", "jpeg", "image/jpeg":
+		return "image/jpeg"
+	case "gif", "image/gif":
+		return "image/gif"
+	case "svg", "image/svg+xml":
+		return "image/svg+xml"
+	case "excel", "xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+		return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+	case "zip", "application/zip":
+		return "application/zip"
+	case "stream", "bin", "octet-stream", "application/octet-stream":
+		return "application/octet-stream"
 	}
 	if spec, ok := conf.Generator.ContentTypes[symbol]; ok && spec.MIME != "" {
 		return spec.MIME
@@ -2115,10 +2199,27 @@ func resolveMimeType(symbol string, conf *config.Config) string {
 	return symbol
 }
 
+func isStreamMime(mime string) bool {
+	mime = strings.ToLower(mime)
+	if strings.HasPrefix(mime, "image/") || strings.HasPrefix(mime, "audio/") || strings.HasPrefix(mime, "video/") {
+		return true
+	}
+	switch mime {
+	case "application/octet-stream", "application/pdf", "text/csv", "application/zip",
+		"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+		"application/vnd.ms-excel", "application/msword",
+		"application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+		return true
+	}
+	return false
+}
+
 // mimeToFuncName 将 MIME 类型转换为 CamelCase 函数名后缀，如 "application/json" -> "Json"
 func mimeToFuncName(mime string) string {
 	mime = strings.ToLower(mime)
 	switch mime {
+	case "stream", "application/octet-stream":
+		return "Stream"
 	case "application/json":
 		return "Json"
 	case "text/plain":

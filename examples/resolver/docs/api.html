@@ -1312,10 +1312,72 @@
             },
             {
               "name": "DownloadFile",
-              "doc": "文件下载：成功响应为裸字节流 (wrap=none)，失败响应退化为 JSON (etype=json)",
+              "doc": "文件下载：成功响应为 PDF 裸流 (wrap=none)，文档精准显示 application/pdf，失败退化为 JSON (etype=json)",
               "method": "GET",
               "path": "/download/:id",
               "fullPath": "/files/download/:id",
+              "returnType": "File",
+              "returnTypeDSL": "File",
+              "innerReturnType": "LocalFile",
+              "isReturnWrapped": false,
+              "isReturnArray": false,
+              "errorType": "ResDataError",
+              "isErrorWrapped": true,
+              "errorTypeBase": "ResDataError",
+              "isNoWrap": false,
+              "isSuccessNoWrap": true,
+              "successStatus": 200,
+              "args": [
+                {
+                  "name": "id",
+                  "type": "Int",
+                  "isScalar": false,
+                  "isEnum": false,
+                  "source": "Path"
+                }
+              ],
+              "isArgsWrapped": false,
+              "contentType": "application/json",
+              "responseContentType": "application/pdf",
+              "errorContentType": "application/json"
+            },
+            {
+              "name": "ExportCsv",
+              "doc": "导出 CSV：成功响应为 CSV 裸流 (wrap=none)，文档精准显示 text/csv，失败退化为 JSON (etype=json)",
+              "method": "GET",
+              "path": "/export/csv",
+              "fullPath": "/files/export/csv",
+              "returnType": "File",
+              "returnTypeDSL": "File",
+              "innerReturnType": "LocalFile",
+              "isReturnWrapped": false,
+              "isReturnArray": false,
+              "errorType": "ResDataError",
+              "isErrorWrapped": true,
+              "errorTypeBase": "ResDataError",
+              "isNoWrap": false,
+              "isSuccessNoWrap": true,
+              "successStatus": 200,
+              "args": [
+                {
+                  "name": "ids",
+                  "type": "String",
+                  "isScalar": false,
+                  "isEnum": false,
+                  "source": "Query"
+                }
+              ],
+              "isArgsWrapped": false,
+              "contentType": "application/json",
+              "responseContentType": "text/csv",
+              "errorContentType": "application/json"
+            },
+            {
+              "name": "DownloadDynamic",
+              "doc": "动态流下载：通用动态流，业务动态指定 ContentType，失败退化为 JSON (etype=json)",
+              "method": "GET",
+              "path": "/dynamic/:id",
+              "fullPath": "/files/dynamic/:id",
               "returnType": "File",
               "returnTypeDSL": "File",
               "innerReturnType": "LocalFileDownload",
@@ -1338,37 +1400,7 @@
               ],
               "isArgsWrapped": false,
               "contentType": "application/json",
-              "responseContentType": "stream",
-              "errorContentType": "application/json"
-            },
-            {
-              "name": "ExportCsv",
-              "doc": "导出 CSV：同为裸流式响应 (wrap=none)，失败响应退化为 JSON (etype=json)",
-              "method": "GET",
-              "path": "/export/csv",
-              "fullPath": "/files/export/csv",
-              "returnType": "File",
-              "returnTypeDSL": "File",
-              "innerReturnType": "LocalFileDownload",
-              "isReturnWrapped": false,
-              "isReturnArray": false,
-              "errorType": "none",
-              "isErrorWrapped": false,
-              "isNoWrap": true,
-              "isSuccessNoWrap": true,
-              "successStatus": 200,
-              "args": [
-                {
-                  "name": "ids",
-                  "type": "String",
-                  "isScalar": false,
-                  "isEnum": false,
-                  "source": "Query"
-                }
-              ],
-              "isArgsWrapped": false,
-              "contentType": "application/json",
-              "responseContentType": "stream",
+              "responseContentType": "application/octet-stream",
               "errorContentType": "application/json"
             }
           ]
