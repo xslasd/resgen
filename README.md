@@ -17,58 +17,7 @@
 
 ![Resgen 业务处理全景架构图](./docs/images/architecture.svg)
 
-Resgen 负责搞定 90% 的网络协议、数据绑定、安全校验和统一包装的脏活累活，让业务开发人员把 100% 的精力聚焦在最核心的业务逻辑上：
-
-```mermaid
-flowchart TD
-    classDef clientStyle fill:#1e293b,stroke:#3b82f6,stroke-width:2px,color:#fff;
-    classDef frameworkStyle fill:#0f172a,stroke:#64748b,stroke-width:2px,color:#fff;
-    classDef genStageStyle fill:#1e1e38,stroke:#8b5cf6,stroke-width:2px,color:#fff;
-    classDef devEntryStyle fill:#064e3b,stroke:#10b981,stroke-width:3px,color:#fff,stroke-dasharray: 5 5;
-    classDef respStageStyle fill:#172554,stroke:#38bdf8,stroke-width:2px,color:#fff;
-
-    Client(["🌐 Client / 前端 / 移动端"]):::clientStyle
-
-    subgraph WebFramework ["1. Web 框架适配层 (Adapter)"]
-        Adapter["GinContext / HttpContext<br/>(实现 ServerContextBase 契约)"]:::frameworkStyle
-    end
-
-    subgraph GeneratedExecutor ["2. Resgen 自动化执行管道 (Executor Pipeline)"]
-        direction TB
-        Step1["① Request Decorators<br/><b>全局与特化请求拦截</b><br/>(Auth, RateLimit, LoginRequired)"]:::genStageStyle
-        Step2["② Binding & Codec<br/><b>多协议参数自动提取与多态反序列化</b><br/>(JSON / Form点分嵌套 / Multipart / ResolveUnions)"]:::genStageStyle
-        Step3["③ Validation<br/><b>强类型与跨字段规则校验</b><br/>(Required, Email, FileRule, 跨字段 LCA)"]:::genStageStyle
-        Step4["④ Invoke Decorators<br/><b>调用前特化处理</b><br/>(OwnerCheck, TraceInject)"]:::genStageStyle
-        
-        Step1 --> Step2 --> Step3 --> Step4
-    end
-
-    subgraph DevCore ["🌟 3. 业务逻辑核心 (开发人员核心切入点)"]
-        BizHandler[["<b>业务 Resolver 实现</b><br/><code>type XxxHandler struct{}</code><br/>- 纯粹业务逻辑，0 框架侵入<br/>- 强类型入参 & 强类型出参<br/>- 返回实体 / LocalFileDownload"]]:::devEntryStyle
-    end
-
-    subgraph GeneratedResponse ["4. 响应流水线与渲染 (Response Pipeline)"]
-        direction TB
-        Step5["⑤ Response Decorators<br/><b>响应脱敏与审计</b><br/>(MaskEmail, LogAudit)"]:::respStageStyle
-        Step6["⑥ Standard Wrapping & Error Map<br/><b>统一包装器或裸流判定</b><br/>(ResData / TreeRes / ListRes / wrap=none)"]:::respStageStyle
-        Step7["⑦ Protocol Render<br/><b>协议编码响应</b><br/>(RenderJson / RenderXml / RenderStream)"]:::respStageStyle
-
-        Step5 --> Step6 --> Step7
-    end
-
-    %% 流程连接
-    Client -->|"HTTP 请求 (JSON/Form/XML/File)"| Adapter
-    Adapter --> GeneratedExecutor
-    Step4 -->|"强类型参数传入"| BizHandler
-    BizHandler -->|"返回强类型 Result / error"| Step5
-    Step7 -->|"HTTP 响应输出"| Adapter
-    Adapter -->|"标准格式响应"| Client
-
-    %% 异常分支
-    Step1 -.->|"校验/鉴权拦截"| Step6
-    Step2 -.->|"绑定失败"| Step6
-    Step3 -.->|"规则不符"| Step6
-```
+Resgen 负责搞定 90% 的网络协议、数据绑定、安全校验和统一包装的脏活累活，让业务开发人员把 100% 的精力聚焦在最核心的业务逻辑上。
 
 ### 🎯 开发人员切入点 (Developer Entry Points)
 
@@ -89,19 +38,24 @@ flowchart TD
 - **树形自引用与防死锁**：内置 `TreeRes<T>` 包装器，API 文档智能识别自引用树结构，防止页面无限递归。
 - **极速代码定位 (HandlerPos)**：控制台日志输出处理器源码行号，点击即可直达代码实现。
 
-## 📦 内置数据类型 (Built-in Data Types)
+## 📦 内置类型体系 (Built-in Types)
 
-Resgen DSL 原生支持以下基础数据类型，引擎会自动将其映射到目标编程语言的对应类型：
+Resgen DSL 原生支持以下类型体系，引擎会自动将其映射到目标编程语言的对应强类型：
+
+### 1. 数据载体类型 (Data Types)
+用于在 `type` (输出)、`input` (输入) 和 `wrap` (包装器) 中定义实体属性与接口入参：
 
 - `String`：字符串
 - `Int`：整数数值
 - `Float`：浮点数值
 - `Boolean`：布尔值
-- `File`：文件类型（支持 Multipart 表单文件上传或 Stream 下载流）
-- `Any`：任意类型（未知或动态结构的逃生舱，底层映射为 Go 语言的 `any`）
-- `Field`：字段引用类型（专用于校验器参数声明，用于动态捕获并对比结构体中的其他字段。**⚠️ 警告：坚决不能作为普通 `type`/`input`/`wrap` 等模型中的属性字段类型！若需表达动态结构，请选用 `Any`**）
+- `File`：文件类型（入参时为上传文件 `*multipart.FileHeader`，出参时为流式下载载体 `*LocalFileDownload`）
+- `Any`：任意类型（动态未知结构的逃生舱，底层映射为 Go 语言的 `any`）
 
 > 💡 **类型修饰符**：支持 GraphQL 风格的修饰符。类型后追加 `!` 表示非空（必填），使用 `[]` 声明数组。例如 `[String!]!` 代表一个必定存在且内部元素不可为空的字符串列表。
+
+### 2. 规则元类型 (Meta Reference Types)
+- `Field`：**校验器字段引用元类型**（专用于 `validator` 形参声明，用于动态捕获同级或跨层级子字段 `parent.child` 进行强类型关联比对。**⚠️ 警告：坚决不能作为普通 `type`/`input`/`wrap` 模型中的属性类型；若需表达动态结构，请选用 `Any`**）。
 
 ## 📖 语法一瞥 (DSL at a glance)
 
