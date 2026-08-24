@@ -93,6 +93,114 @@ Resgen DSL 拥有一套强类型的系统，确保从接口定义到代码生成
   如果您遇到涉及多个跨层级字段的复杂关联校验，**最健康的架构做法是：将校验器挂载在能同时“俯瞰”到这两个字段的“最高公共祖先节点（通常是顶层/父级 Model）”上！** 
   这不仅能顺畅地向下进行点分路径穿透，更是从设计上强迫您写出高内聚、低耦合的殿堂级高品质 API 契约！
 
+#### 3. `File` 类型与 `LocalFileDownload` 最佳实践指南
+
+在 Resgen 强类型体系中，`File` 承载着文件上传（入参）与文件流式下载（出参）两大核心场景。
+
+##### 📥 1. 文件上传场景 (Input)
+- **DSL 声明**：在 `input` 模型中声明 `File!`（单文件）或 `[File!]!`（多文件批量上传）；
+- **Go 侧映射**：分别映射为 `*multipart.FileHeader` 与 `[]*multipart.FileHeader`；
+- **校验搭配**：通常搭配 `@fileRule(maxSize: Int!, types: [String!]!, msg: String)` 限制文件最大字节与允许的 MIME 格式；
+- **协议约束**：上传端点必须标记 `[ctype=multipart]`。
+
+```graphql
+input UploadDocumentInput {
+    title: String!
+    # 限制不超过 10MB，仅允许 PDF
+    document: File! @fileRule(maxSize: 10485760, types: ["application/pdf"], msg: "仅支持 PDF 文件且不超过 10MB")
+    # 可选封面图片
+    cover: File @fileRule(maxSize: 1048576, types: ["image/jpeg", "image/png"])
+}
+
+POST /files/document[ctype=multipart] => UploadDocument(input: UploadDocumentInput): ResData<UploadResult>
+```
+
+---
+
+##### 📤 2. 文件流式下载场景 (Output) 与 `LocalFileDownload` 载体
+- **DSL 声明**：出参必须作为端点的顶层出参返回 `File`（如 `=> Download(): File [ctype=pdf]`）；
+- **⚠️ 核心约束**：
+  - 坚决禁止在普通 `type` 响应结构体中嵌套 `File` 字段；
+  - 坚决禁止声明出参为 `[File]`（HTTP 协议不支持同时输出多个独立流，批量下载请打包为 ZIP 压缩包：`=> BatchDownload(): File [ctype=zip]`）；
+- **Go 业务方法统一返回载体**：无论静态已知格式还是动态流，业务 Resolver 统一返回 **`*resolver.LocalFileDownload`**。
+
+##### 📦 `LocalFileDownload` 结构体详解
+```go
+// LocalFileDownload 专门用于封装本地文件流式下载的信息
+type LocalFileDownload struct {
+    FilePath    string // 本地存储的物理文件绝对或相对路径 (必填，底层用于读取并流式发送文件)
+    Filename    string // 客户端接收时的建议另存为文件名 (必填，对应 Content-Disposition: attachment; filename=...)
+    ContentType string // 文件 MIME 类型 (可选。若 DSL 已声明已知格式如 ctype=pdf，留空即可；若为动态流 ctype=stream，可动态传入)
+}
+```
+
+---
+
+##### 🌟 典型下载场景实战与执行机制
+
+###### 场景 A：静态已知格式文件下载（如 PDF、CSV、Excel 等）
+当接口返回的文件格式在契约中是明确固定的（如导出对账单必定是 PDF）：
+* **DSL 声明**：直接在端点声明具体格式别名（如 `[ctype=pdf]`、`[ctype=csv]`、`[ctype=png]`）：
+  ```graphql
+  # 下载 PDF 对账单 (文档精准显示 application/pdf，失败安全退化为 JSON)
+  GET /statement/:id => ExportStatement(id: Int @path): File [ctype=pdf, etype=json]
+  ```
+* **业务 Handler 实现（最干净省心）**：
+  开发人员**只需填写 `FilePath` 和 `Filename`，无需手动指定 `ContentType`**：
+  ```go
+  func (h *FileHandler) ExportStatement(ctx context.Context, id *int) (*resolver.LocalFileDownload, error) {
+      return &resolver.LocalFileDownload{
+          FilePath: "./temp/statement_202608.pdf",
+          Filename: "statement_202608.pdf",
+          // ContentType 留空即可，执行器会自动注入契约的 application/pdf！
+      }, nil
+  }
+  ```
+* **执行器行为**：执行器检测到契约声明为 `pdf`，会自动强行锁定并将 `result.ContentType` 设为标准 `"application/pdf"`，传给 `request.RenderStream(...)`；
+* **API 文档**：`api.json` 与 `api.html` 精准呈现 `Response Content-Type: application/pdf`。
+
+---
+
+###### 场景 B：多格式动态通用附件下载
+当接口根据数据库或运行时动态返回任意类型附件时：
+* **DSL 声明**：声明为通用流 `[ctype=stream]`（文档展示为标准通用二进制流 `application/octet-stream`）：
+  ```graphql
+  # 动态附件下载接口
+  GET /attachments/:id => DownloadAttachment(id: Int @path): File [ctype=stream, etype=json]
+  ```
+* **业务 Handler 实现（动态指定 MIME）**：
+  ```go
+  func (h *FileHandler) DownloadAttachment(ctx context.Context, id *int) (*resolver.LocalFileDownload, error) {
+      record := db.FindAttachment(*id) // 获取数据库中的文件元数据
+      
+      return &resolver.LocalFileDownload{
+          FilePath:    record.PhysicalPath,
+          Filename:    record.OriginalName,
+          ContentType: record.MimeType, // 👈 动态传入 "image/png" 或 "application/zip"
+      }, nil
+  }
+  ```
+* **执行器行为**：执行器尊重业务代码运行时的动态 `ContentType`；若业务未指定（留空），则自动安全兜底为 `"application/octet-stream"`。
+
+---
+
+##### 📋 内置高频流式文件格式别名速查表
+无需在 `resgen.yaml` 中繁琐配置，DSL 原生支持以下别名开箱即用：
+
+| DSL `[ctype=...]` 别名 | 标准 MIME 字符串 (`ResponseMimeType`) | 常见说明 |
+| :--- | :--- | :--- |
+| `pdf` | `application/pdf` | PDF 文档 |
+| `csv` | `text/csv` | CSV 表格报表 |
+| `png` | `image/png` | PNG 图片 |
+| `jpg` / `jpeg` | `image/jpeg` | JPEG 图片 |
+| `gif` | `image/gif` | GIF 动图 |
+| `svg` | `image/svg+xml` | SVG 矢量图 |
+| `excel` / `xlsx` | `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` | 现代 Excel 工作表 |
+| `zip` | `application/zip` | ZIP 压缩包 |
+| `text` / `txt` | `text/plain` | 纯文本 |
+| `stream` / `bin` | `application/octet-stream` | 通用动态二进制流 |
+| 完整 MIME 字符串 | 如 `[ctype="application/x-tar"]` | 原样支持自定义扩展 |
+
 ---
 
 ## 1. 核心声明项
