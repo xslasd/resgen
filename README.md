@@ -49,7 +49,7 @@ Resgen DSL 原生支持以下类型体系，引擎会自动将其映射到目标
 - `Int`：整数数值
 - `Float`：浮点数值
 - `Boolean`：布尔值
-- `File`：文件类型（入参时为上传文件 `*multipart.FileHeader`，出参时为流式下载载体 `*LocalFileDownload`）
+- `File`：文件类型（**入参**可在 `input` 模型或顶层参数中使用，底层映射为 `*multipart.FileHeader`；**出参**只能作为端点的顶层返回值声明为裸文件流 `*LocalFileDownload`，**坚决不能作为 `type`/`wrap` 等输出模型中的内部属性嵌套返回**）
 - `Any`：任意类型（动态未知结构的逃生舱，底层映射为 Go 语言的 `any`）
 
 > 💡 **类型修饰符**：支持 GraphQL 风格的修饰符。类型后追加 `!` 表示非空（必填），使用 `[]` 声明数组。例如 `[String!]!` 代表一个必定存在且内部元素不可为空的字符串列表。

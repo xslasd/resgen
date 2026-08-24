@@ -906,6 +906,9 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 				if field.Type.Name == "Field" {
 					return fmt.Errorf("语义错误：模型属性 '%s.%s' 不能使用 'Field' 类型。'Field' 是专属于校验器形参的字段引用元类型，绝对不能作为普通属性类型！若需表达动态或任意结构数据，请选用 'Any' 类型", decl.Model.Name, field.Name)
 				}
+				if !m.IsInput && field.Type.Name == "File" {
+					return fmt.Errorf("语义错误：输出模型 '%s.%s' 不能包含 'File' 属性字段。文件流无法在 JSON/XML 结构体内部嵌套序列化返回；若接口需返回/下载文件，请将接口的返回值直接声明为 'File' (例如 => Download(): File [ctype=stream])", decl.Model.Name, field.Name)
+				}
 				fieldType := ToGoType(field.Type, ctx.Config, &ctx.ExtraImports, m.Name+"."+field.Name, ctx.ModelMap)
 				goType := fieldType
 				if m.IsWrapper {

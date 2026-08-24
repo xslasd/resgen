@@ -547,6 +547,17 @@ func publishDiagnostics(context *glsp.Context, uri, content string) {
 							Message:  fmt.Sprintf("语义错误：模型属性 '%s.%s' 不能使用 'Field' 类型。'Field' 是专属于校验器形参的字段引用元类型，绝对不能作为普通属性类型！若需表达动态或任意结构数据，请选用 'Any' 类型", decl.Model.Name, prop.Name),
 						})
 					}
+					if decl.Model.Keyword != "input" && prop.Type.Name == "File" {
+						diagnostics = append(diagnostics, protocol.Diagnostic{
+							Range: protocol.Range{
+								Start: protocol.Position{Line: uint32(prop.Pos.Line - 1), Character: uint32(prop.Pos.Column - 1)},
+								End:   protocol.Position{Line: uint32(prop.Pos.Line - 1), Character: uint32(prop.Pos.Column + len(prop.Name))},
+							},
+							Severity: &severity,
+							Source:   &source,
+							Message:  fmt.Sprintf("语义错误：输出模型 '%s.%s' 不能包含 'File' 属性字段。文件流无法在 JSON/XML 结构体内部嵌套序列化返回；若接口需返回/下载文件，请将接口的返回值直接声明为 'File' (例如 => Download(): File [ctype=stream])", decl.Model.Name, prop.Name),
+						})
+					}
 				}
 			}
 			if decl.Group != nil {
