@@ -15,6 +15,8 @@
 
 ## 🏗️ 业务处理全景架构图 (Execution Lifecycle)
 
+![Resgen 业务处理全景架构图](./docs/images/architecture.svg)
+
 Resgen 负责搞定 90% 的网络协议、数据绑定、安全校验和统一包装的脏活累活，让业务开发人员把 100% 的精力聚焦在最核心的业务逻辑上：
 
 ```mermaid
