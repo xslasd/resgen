@@ -1148,6 +1148,22 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 				returnTypeBase := ""
 				isReturnArray := false
 				if ep.ReturnType != nil {
+					var checkFileArray func(t parser.TypeRef) bool
+					checkFileArray = func(t parser.TypeRef) bool {
+						if t.Name == "File" && t.IsArray {
+							return true
+						}
+						for _, arg := range t.TypeArgs {
+							if checkFileArray(arg) {
+								return true
+							}
+						}
+						return false
+					}
+					if checkFileArray(*ep.ReturnType) {
+						return fmt.Errorf("语义错误：接口 [%s %s] 的出参不能声明为文件数组 '[File]'。单个 HTTP 响应无法承载多个独立文件流。推荐方案：1) 打包为 ZIP 压缩流返回 (返回类型设为 File [ctype=zip])；2) 或返回包含下载地址的文件列表结构 (例如 ResData<[FileItem]>)。", ep.Method, ep.Path)
+					}
+
 					fullReturnType = ToGoType(*ep.ReturnType, ctx.Config, &ctx.ExtraImports, ep.Name+".Return", ctx.ModelMap)
 					innerReturnType = fullReturnType
 					if baseModel, ok := ctx.ModelMap[ep.ReturnType.Name]; ok && baseModel.IsWrapper {

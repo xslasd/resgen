@@ -579,6 +579,32 @@ func publishDiagnostics(context *glsp.Context, uri, content string) {
 						}
 					}
 
+					if ep.ReturnType != nil {
+						var checkFileArray func(t parser.TypeRef) bool
+						checkFileArray = func(t parser.TypeRef) bool {
+							if t.Name == "File" && t.IsArray {
+								return true
+							}
+							for _, arg := range t.TypeArgs {
+								if checkFileArray(arg) {
+									return true
+								}
+							}
+							return false
+						}
+						if checkFileArray(*ep.ReturnType) {
+							diagnostics = append(diagnostics, protocol.Diagnostic{
+								Range: protocol.Range{
+									Start: protocol.Position{Line: uint32(ep.ReturnType.Pos.Line - 1), Character: uint32(ep.ReturnType.Pos.Column - 1)},
+									End:   protocol.Position{Line: uint32(ep.ReturnType.Pos.Line - 1), Character: uint32(ep.ReturnType.Pos.Column + len(ep.ReturnType.Name) + 2)},
+								},
+								Severity: &severity,
+								Source:   &source,
+								Message:  fmt.Sprintf("语义错误：接口 [%s %s] 的出参不能声明为文件数组 '[File]'。单个 HTTP 响应无法承载多个独立文件流。推荐方案：1) 打包为 ZIP 压缩流返回 (返回类型设为 File [ctype=zip])；2) 或返回包含下载地址的文件列表结构 (例如 ResData<[FileItem]>)。", ep.Method, ep.Path),
+							})
+						}
+					}
+
 					hasFile := false
 					for _, arg := range ep.Args {
 						if checkHasFile(arg.Type) {
