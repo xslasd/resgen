@@ -21,19 +21,12 @@ import (
 
 var _ embed.FS // 确保 embed 被使用
 
-// LocalFile 专门用于封装已知静态格式的本地文件下载信息（如 ctype=pdf, ctype=csv 等）
-// 此时 ContentType 已由 DSL 契约锁定，业务人员只需提供文件物理路径与文件名
-type LocalFile struct {
-	FilePath string
-	Filename string
-}
-
-// LocalFileDownload 专门用于封装动态通用流式的本地文件下载信息（如 ctype=stream 等）
-// 当在 DSL 中返回通用 File 流时，底层的业务方法应当返回此载体并可在运行时动态指定 ContentType
+// LocalFileDownload 专门用于封装本地文件下载的信息
+// 当在 DSL 中将返回类型设为 File 时，底层的业务方法统一返回此载体
 type LocalFileDownload struct {
-	FilePath    string
-	Filename    string
-	ContentType string
+	FilePath    string // 本地物理文件路径
+	Filename    string // 客户端下载时的文件名
+	ContentType string // 文件 MIME 类型。若 DSL 中已声明已知格式 (如 ctype=pdf)，留空即可由执行器强行注入契约 MIME
 }
 
 // Core Engine Definitions

@@ -52,8 +52,7 @@ Resgen DSL 原生支持以下类型体系，引擎会自动将其映射到目标
 - `Boolean`：布尔值
 - `File`：文件载体类型。
   - **入参（上传）**：可在 `input` 模型中使用 `File` / `[File]`，Go 侧分别映射为 `*multipart.FileHeader` 与 `[]*multipart.FileHeader`；
-  - **出参（静态已知下载，如 `[ctype=pdf]`, `[ctype=csv]`）**：Go 业务接口返回 **`*resolver.LocalFile`**（仅需 `FilePath` 和 `Filename`，编译器自动强行注入契约 MIME，杜绝误设）；
-  - **出参（动态通用下载，如 `[ctype=stream]`）**：Go 业务接口返回 **`*resolver.LocalFileDownload`**（支持运行时动态填充 `ContentType`）；
+  - **出参（下载）**：必须作为端点顶层出参，Go 业务接口统一返回 **`*resolver.LocalFileDownload`**（包含 `FilePath`、`Filename` 与可选 `ContentType`；若在 DSL 中声明了已知格式如 `[ctype=pdf]`，执行器自动强行锁定并注入标准契约 MIME，业务代码无需重复指定）；
   - **⚠️ 约束**：禁止在普通 `type` 响应结构体中作为属性，禁止将接口出参声明为 `[File]`（HTTP 协议不支持同时输出多个独立流，批量下载推荐打包为 ZIP 压缩流：`=> BatchDownload(): File [ctype=zip]`）。
 - `Any`：任意类型（动态未知结构的逃生舱，底层映射为 Go 语言的 `any`）
 
@@ -98,10 +97,10 @@ group /api/v1 [wrap=ResData] {  # 组级应用默认响应包装器
     @auth("admin")
     GET /users => GetUsers(page: Int, size: Int): ResData<[User!]!> [state=200, ctype=json]
     
-    # 精细控制：已知格式下载 PDF (ctype=pdf, 业务返回 *LocalFile)，失败时安全退化为 JSON 错误响应(etype=json)
+    # 精细控制：已知格式下载 PDF (ctype=pdf, 编译器自动注入 application/pdf)，失败时安全退化为 JSON 错误响应(etype=json)
     GET /users/export/pdf => ExportUsersPdf(date: String!): File [ctype=pdf, etype=json]
 
-    # 通用动态下载 (ctype=stream, 业务返回 *LocalFileDownload，支持运行时动态指定 MIME)
+    # 通用动态下载 (ctype=stream, 业务可在运行时动态填充 ContentType)
     GET /users/export/raw => ExportUsersRaw(id: Int!): File [ctype=stream, etype=json]
 }
 ```

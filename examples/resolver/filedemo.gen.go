@@ -51,10 +51,10 @@ type FileDemoResolver[T any] interface {
 	UploadDocument(ctx context.Context, input *UploadDocumentInput) (*UploadResult, error)
 
 	// DownloadFile GET /files/download/:id
-	DownloadFile(ctx context.Context, id *int) (*LocalFile, error)
+	DownloadFile(ctx context.Context, id *int) (*LocalFileDownload, error)
 
 	// ExportCsv GET /files/export/csv
-	ExportCsv(ctx context.Context, ids *string) (*LocalFile, error)
+	ExportCsv(ctx context.Context, ids *string) (*LocalFileDownload, error)
 
 	// DownloadDynamic GET /files/dynamic/:id
 	DownloadDynamic(ctx context.Context, id *int) (*LocalFileDownload, error)
@@ -269,11 +269,8 @@ func (e *FileDemoExecutor[T, C]) handleDownloadFile(request C, info MethodInfo) 
 		return
 	}
 	if result != nil {
-		request.RenderStream(200, LocalFileDownload{
-			FilePath:    result.FilePath,
-			Filename:    result.Filename,
-			ContentType: "application/pdf",
-		})
+		result.ContentType = "application/pdf"
+		request.RenderStream(200, *result)
 	}
 }
 
@@ -291,11 +288,8 @@ func (e *FileDemoExecutor[T, C]) handleExportCsv(request C, info MethodInfo) {
 		return
 	}
 	if result != nil {
-		request.RenderStream(200, LocalFileDownload{
-			FilePath:    result.FilePath,
-			Filename:    result.Filename,
-			ContentType: "text/csv",
-		})
+		result.ContentType = "text/csv"
+		request.RenderStream(200, *result)
 	}
 }
 

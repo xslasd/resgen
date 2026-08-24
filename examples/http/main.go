@@ -323,14 +323,14 @@ func (h *FileDemoHandler) UploadAvatar(ctx context.Context, input *resolver.Uplo
 func (h *FileDemoHandler) UploadDocument(ctx context.Context, input *resolver.UploadDocumentInput) (*resolver.UploadResult, error) {
 	return &resolver.UploadResult{FileUrl: "/uploads/document.pdf"}, nil
 }
-func (h *FileDemoHandler) DownloadFile(ctx context.Context, id *int) (*resolver.LocalFile, error) {
-	return &resolver.LocalFile{
+func (h *FileDemoHandler) DownloadFile(ctx context.Context, id *int) (*resolver.LocalFileDownload, error) {
+	return &resolver.LocalFileDownload{
 		FilePath: "./temp/sample.pdf",
 		Filename: "sample.pdf",
 	}, nil
 }
-func (h *FileDemoHandler) ExportCsv(ctx context.Context, ids *string) (*resolver.LocalFile, error) {
-	return &resolver.LocalFile{
+func (h *FileDemoHandler) ExportCsv(ctx context.Context, ids *string) (*resolver.LocalFileDownload, error) {
+	return &resolver.LocalFileDownload{
 		FilePath: "./temp/export.csv",
 		Filename: "export.csv",
 	}, nil

@@ -141,10 +141,8 @@ func ToGoType(t parser.TypeRef, conf *config.Config, extraImports *[]string, con
 	case "Boolean":
 		goBaseType = "bool"
 	case "File":
-		if strings.HasSuffix(context, ".DynamicReturn") {
+		if strings.HasSuffix(context, ".Return") || strings.HasSuffix(context, ".InnerReturn") || strings.HasSuffix(context, ".DynamicReturn") {
 			goBaseType = "*LocalFileDownload"
-		} else if strings.HasSuffix(context, ".Return") || strings.HasSuffix(context, ".InnerReturn") {
-			goBaseType = "*LocalFile"
 		} else {
 			goBaseType = "*multipart.FileHeader"
 		}

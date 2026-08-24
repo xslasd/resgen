@@ -13,7 +13,7 @@ Resgen DSL 拥有一套强类型的系统，确保从接口定义到代码生成
 | `Int` | `int` | 整数 |
 | `Float` | `float64` | 浮点数 |
 | `Boolean` | `bool` | 布尔值 |
-| `File` | `*multipart.FileHeader` / `*LocalFile` / `*LocalFileDownload` | 入参映射为文件上传头；静态已知下载出参映射为 `*LocalFile`；动态流出参映射为 `*LocalFileDownload` |
+| `File` | `*multipart.FileHeader` / `*LocalFileDownload` | 入参映射为文件上传头；出参统一映射为 `*LocalFileDownload` 强类型文件下载载体 |
 | `Any` | `any` | 逃生舱，表示任意动态数据类型 |
 | `Field` | `any` | 字段引用元类型（专用于校验器参数声明，用于关联对比字段，⚠️ 警告：坚决不能作为普通属性类型！） |
 

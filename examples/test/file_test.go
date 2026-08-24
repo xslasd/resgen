@@ -29,15 +29,15 @@ func (b *mockFileDemoBiz) UploadDocument(ctx context.Context, input *resolver.Up
 	}, nil
 }
 
-func (b *mockFileDemoBiz) DownloadFile(ctx context.Context, id *int) (*resolver.LocalFile, error) {
-	return &resolver.LocalFile{
+func (b *mockFileDemoBiz) DownloadFile(ctx context.Context, id *int) (*resolver.LocalFileDownload, error) {
+	return &resolver.LocalFileDownload{
 		FilePath: "/tmp/storage/sample.pdf",
 		Filename: "sample.pdf",
 	}, nil
 }
 
-func (b *mockFileDemoBiz) ExportCsv(ctx context.Context, ids *string) (*resolver.LocalFile, error) {
-	return &resolver.LocalFile{
+func (b *mockFileDemoBiz) ExportCsv(ctx context.Context, ids *string) (*resolver.LocalFileDownload, error) {
+	return &resolver.LocalFileDownload{
 		FilePath: "/tmp/storage/report.csv",
 		Filename: "report.csv",
 	}, nil
