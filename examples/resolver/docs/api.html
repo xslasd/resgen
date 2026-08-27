@@ -97,7 +97,7 @@
     <script>
         // Data injected by Go
         const apiData = {
-  "version": "v0.6.2",
+  "version": "v0.7.0",
   "package": "resolver",
   "info": {
     "title": "Resgen Generated API",
@@ -149,6 +149,21 @@
       ]
     },
     {
+      "name": "TimeBefore",
+      "doc": "🌟 声明高级跨字段关联校验器：Field! 自动捕获同级或子级目标字段并在编译期转为强类型路径",
+      "stage": "request",
+      "scope": "global",
+      "args": [
+        {
+          "name": "TargetField",
+          "type": "any",
+          "jsonName": "",
+          "originalType": "",
+          "isUnion": false
+        }
+      ]
+    },
+    {
       "name": "FileRule",
       "doc": "文件校验器：大小（字节）、允许的 MIME 类型、自定义错误消息",
       "stage": "request",
@@ -188,7 +203,7 @@
           "endpoints": [
             {
               "name": "GetArticle",
-              "doc": "返回单个对象：ResData\u003cArticle\u003e",
+              "doc": "显式声明泛型包装器：ResData\u003cArticle\u003e（与省略外壳直接声明 Article 效果等价，支持显式写法）",
               "method": "GET",
               "path": "/:id",
               "fullPath": "/articles/:id",
@@ -220,7 +235,7 @@
             },
             {
               "name": "ListArticles",
-              "doc": "返回扁平列表：ResData\u003c[Article]\u003e",
+              "doc": "隐式自动包装：直接声明业务类型 [Article]，由配置文件的 default_wrap 自动包装为 ResData\u003c[Article]\u003e",
               "method": "GET",
               "path": "/list",
               "fullPath": "/articles/list",
@@ -228,9 +243,8 @@
               "returnType": "ResData\u003c[Article]\u003e",
               "returnTypeDSL": "ResData\u003c[Article]\u003e",
               "innerReturnType": "[]*Article",
-              "isReturnWrapped": true,
+              "isReturnWrapped": false,
               "isReturnArray": true,
-              "returnTypeBase": "ResData",
               "errorType": "ResDataError",
               "isErrorWrapped": true,
               "errorTypeBase": "ResDataError",
@@ -260,7 +274,7 @@
             },
             {
               "name": "ListArticlesV2",
-              "doc": "返回通用列表/分页响应：ResData\u003cListRes\u003cArticle\u003e\u003e",
+              "doc": "返回通用列表/分页响应（嵌套包装器）：ResData\u003cListRes\u003cArticle\u003e\u003e",
               "method": "GET",
               "path": "/list/v2",
               "fullPath": "/articles/list/v2",
@@ -300,7 +314,7 @@
             },
             {
               "name": "GetCategoryTree",
-              "doc": "🌟 返回树形结构数据：ResData\u003cTreeRes\u003cCategoryTreeNode\u003e\u003e",
+              "doc": "🌟 返回树形结构数据（嵌套包装器）：ResData\u003cTreeRes\u003cCategoryTreeNode\u003e\u003e",
               "method": "GET",
               "path": "/categories/tree",
               "fullPath": "/articles/categories/tree",
@@ -323,7 +337,7 @@
             },
             {
               "name": "GetCategoryTreeRaw",
-              "doc": "🌟 裸返回树形结构数据（接口级 wrap=none 覆盖组级 wrap）",
+              "doc": "🌟 裸返回树形结构数据（显式声明 wrap=none 禁用外壳包装）",
               "method": "GET",
               "path": "/categories/tree/raw",
               "fullPath": "/articles/categories/tree/raw",
@@ -345,7 +359,7 @@
             },
             {
               "name": "CreateArticle",
-              "doc": "创建成功返回 201，数据包裹在 ResData 中",
+              "doc": "创建成功返回 201，自动包裹在 default_wrap 中",
               "method": "POST",
               "path": "/create",
               "fullPath": "/articles/create",
@@ -353,9 +367,8 @@
               "returnType": "ResData\u003cArticle\u003e",
               "returnTypeDSL": "ResData\u003cArticle\u003e",
               "innerReturnType": "Article",
-              "isReturnWrapped": true,
+              "isReturnWrapped": false,
               "isReturnArray": false,
-              "returnTypeBase": "ResData",
               "errorType": "ResDataError",
               "isErrorWrapped": true,
               "errorTypeBase": "ResDataError",
@@ -395,7 +408,7 @@
             },
             {
               "name": "GetArticleRaw",
-              "doc": "不使用 ResData 包装，直接返回原始对象（接口级覆盖组级 wrap）",
+              "doc": "不使用 ResData 包装，直接返回原始裸对象",
               "method": "GET",
               "path": "/raw/:id",
               "fullPath": "/articles/raw/:id",
@@ -466,9 +479,8 @@
               "returnType": "ResData\u003cUser\u003e",
               "returnTypeDSL": "ResData\u003cUser\u003e",
               "innerReturnType": "User",
-              "isReturnWrapped": true,
+              "isReturnWrapped": false,
               "isReturnArray": false,
-              "returnTypeBase": "ResData",
               "errorType": "ResDataError",
               "isErrorWrapped": true,
               "errorTypeBase": "ResDataError",
@@ -490,6 +502,38 @@
               "errorContentType": "application/json"
             },
             {
+              "name": "SetPeriod",
+              "doc": "跨字段关联校验：校验 startTime 是否早于 endTime",
+              "method": "POST",
+              "path": "/period",
+              "fullPath": "/auth/period",
+              "inputName": "TaskPeriodInput",
+              "returnType": "ResData\u003cString\u003e",
+              "returnTypeDSL": "ResData\u003cString\u003e",
+              "innerReturnType": "string",
+              "isReturnWrapped": false,
+              "isReturnArray": false,
+              "errorType": "ResDataError",
+              "isErrorWrapped": true,
+              "errorTypeBase": "ResDataError",
+              "isNoWrap": false,
+              "isSuccessNoWrap": false,
+              "successStatus": 200,
+              "args": [
+                {
+                  "name": "input",
+                  "type": "TaskPeriodInput",
+                  "isScalar": false,
+                  "isEnum": false,
+                  "source": "Body"
+                }
+              ],
+              "isArgsWrapped": false,
+              "contentType": "application/json",
+              "responseContentType": "application/json",
+              "errorContentType": "application/json"
+            },
+            {
               "name": "Login",
               "doc": "登录：完全接管绑定与校验逻辑（业务层手动处理）",
               "method": "POST",
@@ -499,9 +543,8 @@
               "returnType": "ResData\u003cToken\u003e",
               "returnTypeDSL": "ResData\u003cToken\u003e",
               "innerReturnType": "Token",
-              "isReturnWrapped": true,
+              "isReturnWrapped": false,
               "isReturnArray": false,
-              "returnTypeBase": "ResData",
               "errorType": "ResDataError",
               "isErrorWrapped": true,
               "errorTypeBase": "ResDataError",
@@ -538,9 +581,8 @@
               "returnType": "ResData\u003cUser\u003e",
               "returnTypeDSL": "ResData\u003cUser\u003e",
               "innerReturnType": "User",
-              "isReturnWrapped": true,
+              "isReturnWrapped": false,
               "isReturnArray": false,
-              "returnTypeBase": "ResData",
               "errorType": "ResDataError",
               "isErrorWrapped": true,
               "errorTypeBase": "ResDataError",
@@ -562,9 +604,8 @@
               "returnType": "ResData\u003cUser\u003e",
               "returnTypeDSL": "ResData\u003cUser\u003e",
               "innerReturnType": "User",
-              "isReturnWrapped": true,
+              "isReturnWrapped": false,
               "isReturnArray": false,
-              "returnTypeBase": "ResData",
               "errorType": "ResDataError",
               "isErrorWrapped": true,
               "errorTypeBase": "ResDataError",
@@ -594,9 +635,8 @@
               "returnType": "ResData\u003cString\u003e",
               "returnTypeDSL": "ResData\u003cString\u003e",
               "innerReturnType": "string",
-              "isReturnWrapped": true,
+              "isReturnWrapped": false,
               "isReturnArray": false,
-              "returnTypeBase": "ResData",
               "errorType": "ResDataError",
               "isErrorWrapped": true,
               "errorTypeBase": "ResDataError",
@@ -660,9 +700,8 @@
               "returnType": "ResData\u003cEvent\u003e",
               "returnTypeDSL": "ResData\u003cEvent\u003e",
               "innerReturnType": "Event",
-              "isReturnWrapped": true,
+              "isReturnWrapped": false,
               "isReturnArray": false,
-              "returnTypeBase": "ResData",
               "errorType": "ResDataError",
               "isErrorWrapped": true,
               "errorTypeBase": "ResDataError",
@@ -694,9 +733,8 @@
               "returnType": "ResData\u003c[Event]\u003e",
               "returnTypeDSL": "ResData\u003c[Event]\u003e",
               "innerReturnType": "[]*Event",
-              "isReturnWrapped": true,
+              "isReturnWrapped": false,
               "isReturnArray": true,
-              "returnTypeBase": "ResData",
               "errorType": "ResDataError",
               "isErrorWrapped": true,
               "errorTypeBase": "ResDataError",
@@ -720,7 +758,7 @@
             },
             {
               "name": "CreateEvent",
-              "doc": "标量在请求 Body 中，由序列化层（isolation 模式用 FromValue，direct 模式由用户控制）处理",
+              "doc": "标量在请求 Body 中，由序列化层处理",
               "method": "POST",
               "path": "/create",
               "fullPath": "/events/create",
@@ -728,9 +766,8 @@
               "returnType": "ResData\u003cEvent\u003e",
               "returnTypeDSL": "ResData\u003cEvent\u003e",
               "innerReturnType": "Event",
-              "isReturnWrapped": true,
+              "isReturnWrapped": false,
               "isReturnArray": false,
-              "returnTypeBase": "ResData",
               "errorType": "ResDataError",
               "isErrorWrapped": true,
               "errorTypeBase": "ResDataError",
@@ -775,9 +812,8 @@
               "returnType": "ResData\u003cString\u003e",
               "returnTypeDSL": "ResData\u003cString\u003e",
               "innerReturnType": "string",
-              "isReturnWrapped": true,
+              "isReturnWrapped": false,
               "isReturnArray": false,
-              "returnTypeBase": "ResData",
               "errorType": "ResDataError",
               "isErrorWrapped": true,
               "errorTypeBase": "ResDataError",
@@ -808,9 +844,8 @@
               "returnType": "ResData\u003cString\u003e",
               "returnTypeDSL": "ResData\u003cString\u003e",
               "innerReturnType": "string",
-              "isReturnWrapped": true,
+              "isReturnWrapped": false,
               "isReturnArray": false,
-              "returnTypeBase": "ResData",
               "errorType": "ResDataError",
               "isErrorWrapped": true,
               "errorTypeBase": "ResDataError",
@@ -841,9 +876,8 @@
               "returnType": "ResData\u003cString\u003e",
               "returnTypeDSL": "ResData\u003cString\u003e",
               "innerReturnType": "string",
-              "isReturnWrapped": true,
+              "isReturnWrapped": false,
               "isReturnArray": false,
-              "returnTypeBase": "ResData",
               "errorType": "ResDataError",
               "isErrorWrapped": true,
               "errorTypeBase": "ResDataError",
@@ -873,9 +907,8 @@
               "returnType": "ResData\u003cString\u003e",
               "returnTypeDSL": "ResData\u003cString\u003e",
               "innerReturnType": "string",
-              "isReturnWrapped": true,
+              "isReturnWrapped": false,
               "isReturnArray": false,
-              "returnTypeBase": "ResData",
               "errorType": "ResDataError",
               "isErrorWrapped": true,
               "errorTypeBase": "ResDataError",
@@ -910,7 +943,7 @@
           "endpoints": [
             {
               "name": "ExportText",
-              "doc": "响应为纯文本，错误时退化为 JSON（错误使用 ResData 包装）",
+              "doc": "响应为纯文本，错误时退化为 JSON（默认由 default_wrap 包装）",
               "method": "GET",
               "path": "/text",
               "fullPath": "/export/text",
@@ -956,7 +989,7 @@
             },
             {
               "name": "ExportXml",
-              "doc": "响应为 XML（需在 resgen.yaml content_type_aliases 中定义 xml 别名）",
+              "doc": "响应为 XML（需在 resgen.yaml content_types 中定义 xml 规格）",
               "method": "GET",
               "path": "/xml",
               "fullPath": "/export/xml",
@@ -988,21 +1021,20 @@
       "groups": [
         {
           "name": "Products",
-          "doc": "组级默认：成功 200，错误用 ResData 包装",
+          "doc": "默认遵循配置文件的 default_wrap: 成功 200，错误用 ResData 包装",
           "path": "/products",
           "endpoints": [
             {
               "name": "GetProduct",
-              "doc": "使用组级默认：200 + ResData",
+              "doc": "默认成功 200 + ResData 包装",
               "method": "GET",
               "path": "/:id",
               "fullPath": "/products/:id",
               "returnType": "ResData\u003cProduct\u003e",
               "returnTypeDSL": "ResData\u003cProduct\u003e",
               "innerReturnType": "Product",
-              "isReturnWrapped": true,
+              "isReturnWrapped": false,
               "isReturnArray": false,
-              "returnTypeBase": "ResData",
               "errorType": "ResDataError",
               "isErrorWrapped": true,
               "errorTypeBase": "ResDataError",
@@ -1025,7 +1057,7 @@
             },
             {
               "name": "CreateProduct",
-              "doc": "创建资源：成功改为 201 Created",
+              "doc": "创建资源：成功状态码改为 201 Created",
               "method": "POST",
               "path": "/create",
               "fullPath": "/products/create",
@@ -1033,9 +1065,8 @@
               "returnType": "ResData\u003cProduct\u003e",
               "returnTypeDSL": "ResData\u003cProduct\u003e",
               "innerReturnType": "Product",
-              "isReturnWrapped": true,
+              "isReturnWrapped": false,
               "isReturnArray": false,
-              "returnTypeBase": "ResData",
               "errorType": "ResDataError",
               "isErrorWrapped": true,
               "errorTypeBase": "ResDataError",
@@ -1058,16 +1089,15 @@
             },
             {
               "name": "BatchUpdate",
-              "doc": "批量更新：成功改为 202 Accepted（异步处理）",
+              "doc": "批量更新：成功状态码改为 202 Accepted（异步处理）",
               "method": "POST",
               "path": "/batch-update",
               "fullPath": "/products/batch-update",
               "returnType": "ResData\u003cString\u003e",
               "returnTypeDSL": "ResData\u003cString\u003e",
               "innerReturnType": "string",
-              "isReturnWrapped": true,
+              "isReturnWrapped": false,
               "isReturnArray": false,
-              "returnTypeBase": "ResData",
               "errorType": "ResDataError",
               "isErrorWrapped": true,
               "errorTypeBase": "ResDataError",
@@ -1095,7 +1125,7 @@
             },
             {
               "name": "DeleteProduct",
-              "doc": "无内容删除：成功改为 204 No Content，直接返回空响应",
+              "doc": "无内容删除：成功状态码改为 204 No Content，直接返回空响应（wrap=none）",
               "method": "DELETE",
               "path": "/:id",
               "fullPath": "/products/:id",
@@ -1125,7 +1155,7 @@
             },
             {
               "name": "ListProducts",
-              "doc": "接口级覆盖 wrap：使用分页包装器替换 ResData",
+              "doc": "接口级覆盖 wrap：使用分页包装器替换默认的 ResData",
               "method": "GET",
               "path": "/list",
               "fullPath": "/products/list",
@@ -1254,9 +1284,8 @@
               "returnType": "ResData\u003cUploadResult\u003e",
               "returnTypeDSL": "ResData\u003cUploadResult\u003e",
               "innerReturnType": "UploadResult",
-              "isReturnWrapped": true,
+              "isReturnWrapped": false,
               "isReturnArray": false,
-              "returnTypeBase": "ResData",
               "errorType": "ResDataError",
               "isErrorWrapped": true,
               "errorTypeBase": "ResDataError",
@@ -1287,9 +1316,8 @@
               "returnType": "ResData\u003cUploadResult\u003e",
               "returnTypeDSL": "ResData\u003cUploadResult\u003e",
               "innerReturnType": "UploadResult",
-              "isReturnWrapped": true,
+              "isReturnWrapped": false,
               "isReturnArray": false,
-              "returnTypeBase": "ResData",
               "errorType": "ResDataError",
               "isErrorWrapped": true,
               "errorTypeBase": "ResDataError",
@@ -1638,6 +1666,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "code",
+            "application/toml": "code",
+            "application/x-www-form-urlencoded": "code",
+            "application/x-yaml": "code",
+            "application/xml": "code",
+            "form": "code",
+            "html": "code",
+            "json": "code",
+            "multipart": "code",
+            "multipart/form-data": "code",
+            "text": "code",
+            "text/html": "code",
+            "text/plain": "code",
+            "toml": "code",
+            "xml": "code",
+            "yaml": "code"
+          },
           "isUnion": false
         },
         {
@@ -1650,6 +1696,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "msg",
+            "application/toml": "msg",
+            "application/x-www-form-urlencoded": "msg",
+            "application/x-yaml": "msg",
+            "application/xml": "msg",
+            "form": "msg",
+            "html": "msg",
+            "json": "msg",
+            "multipart": "msg",
+            "multipart/form-data": "msg",
+            "text": "msg",
+            "text/html": "msg",
+            "text/plain": "msg",
+            "toml": "msg",
+            "xml": "msg",
+            "yaml": "msg"
+          },
           "isUnion": false
         },
         {
@@ -1657,6 +1721,24 @@
           "type": "T",
           "jsonName": "data",
           "originalType": "T",
+          "tags": {
+            "application/json": "data",
+            "application/toml": "data",
+            "application/x-www-form-urlencoded": "data",
+            "application/x-yaml": "data",
+            "application/xml": "data",
+            "form": "data",
+            "html": "data",
+            "json": "data",
+            "multipart": "data",
+            "multipart/form-data": "data",
+            "text": "data",
+            "text/html": "data",
+            "text/plain": "data",
+            "toml": "data",
+            "xml": "data",
+            "yaml": "data"
+          },
           "isUnion": false
         }
       ]
@@ -1678,6 +1760,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "code",
+            "application/toml": "code",
+            "application/x-www-form-urlencoded": "code",
+            "application/x-yaml": "code",
+            "application/xml": "code",
+            "form": "code",
+            "html": "code",
+            "json": "code",
+            "multipart": "code",
+            "multipart/form-data": "code",
+            "text": "code",
+            "text/html": "code",
+            "text/plain": "code",
+            "toml": "code",
+            "xml": "code",
+            "yaml": "code"
+          },
           "isUnion": false
         },
         {
@@ -1690,6 +1790,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "msg",
+            "application/toml": "msg",
+            "application/x-www-form-urlencoded": "msg",
+            "application/x-yaml": "msg",
+            "application/xml": "msg",
+            "form": "msg",
+            "html": "msg",
+            "json": "msg",
+            "multipart": "msg",
+            "multipart/form-data": "msg",
+            "text": "msg",
+            "text/html": "msg",
+            "text/plain": "msg",
+            "toml": "msg",
+            "xml": "msg",
+            "yaml": "msg"
+          },
           "isUnion": false
         }
       ]
@@ -1714,6 +1832,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "rows",
+            "application/toml": "rows",
+            "application/x-www-form-urlencoded": "rows",
+            "application/x-yaml": "rows",
+            "application/xml": "rows",
+            "form": "rows",
+            "html": "rows",
+            "json": "rows",
+            "multipart": "rows",
+            "multipart/form-data": "rows",
+            "text": "rows",
+            "text/html": "rows",
+            "text/plain": "rows",
+            "toml": "rows",
+            "xml": "rows",
+            "yaml": "rows"
+          },
           "isUnion": false
         },
         {
@@ -1726,6 +1862,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "total",
+            "application/toml": "total",
+            "application/x-www-form-urlencoded": "total",
+            "application/x-yaml": "total",
+            "application/xml": "total",
+            "form": "total",
+            "html": "total",
+            "json": "total",
+            "multipart": "total",
+            "multipart/form-data": "total",
+            "text": "total",
+            "text/html": "total",
+            "text/plain": "total",
+            "toml": "total",
+            "xml": "total",
+            "yaml": "total"
+          },
           "isUnion": false
         }
       ]
@@ -1747,6 +1901,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "total",
+            "application/toml": "total",
+            "application/x-www-form-urlencoded": "total",
+            "application/x-yaml": "total",
+            "application/xml": "total",
+            "form": "total",
+            "html": "total",
+            "json": "total",
+            "multipart": "total",
+            "multipart/form-data": "total",
+            "text": "total",
+            "text/html": "total",
+            "text/plain": "total",
+            "toml": "total",
+            "xml": "total",
+            "yaml": "total"
+          },
           "isUnion": false
         }
       ]
@@ -1771,6 +1943,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "items",
+            "application/toml": "items",
+            "application/x-www-form-urlencoded": "items",
+            "application/x-yaml": "items",
+            "application/xml": "items",
+            "form": "items",
+            "html": "items",
+            "json": "items",
+            "multipart": "items",
+            "multipart/form-data": "items",
+            "text": "items",
+            "text/html": "items",
+            "text/plain": "items",
+            "toml": "items",
+            "xml": "items",
+            "yaml": "items"
+          },
           "isUnion": false
         },
         {
@@ -1783,6 +1973,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "total",
+            "application/toml": "total",
+            "application/x-www-form-urlencoded": "total",
+            "application/x-yaml": "total",
+            "application/xml": "total",
+            "form": "total",
+            "html": "total",
+            "json": "total",
+            "multipart": "total",
+            "multipart/form-data": "total",
+            "text": "total",
+            "text/html": "total",
+            "text/plain": "total",
+            "toml": "total",
+            "xml": "total",
+            "yaml": "total"
+          },
           "isUnion": false
         }
       ]
@@ -1804,6 +2012,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "total",
+            "application/toml": "total",
+            "application/x-www-form-urlencoded": "total",
+            "application/x-yaml": "total",
+            "application/xml": "total",
+            "form": "total",
+            "html": "total",
+            "json": "total",
+            "multipart": "total",
+            "multipart/form-data": "total",
+            "text": "total",
+            "text/html": "total",
+            "text/plain": "total",
+            "toml": "total",
+            "xml": "total",
+            "yaml": "total"
+          },
           "isUnion": false
         }
       ]
@@ -1825,6 +2051,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "id",
+            "application/toml": "id",
+            "application/x-www-form-urlencoded": "id",
+            "application/x-yaml": "id",
+            "application/xml": "id",
+            "form": "id",
+            "html": "id",
+            "json": "id",
+            "multipart": "id",
+            "multipart/form-data": "id",
+            "text": "id",
+            "text/html": "id",
+            "text/plain": "id",
+            "toml": "id",
+            "xml": "id",
+            "yaml": "id"
+          },
           "isUnion": false
         },
         {
@@ -1837,6 +2081,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "title",
+            "application/toml": "title",
+            "application/x-www-form-urlencoded": "title",
+            "application/x-yaml": "title",
+            "application/xml": "title",
+            "form": "title",
+            "html": "title",
+            "json": "title",
+            "multipart": "title",
+            "multipart/form-data": "title",
+            "text": "title",
+            "text/html": "title",
+            "text/plain": "title",
+            "toml": "title",
+            "xml": "title",
+            "yaml": "title"
+          },
           "isUnion": false
         },
         {
@@ -1849,6 +2111,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "content",
+            "application/toml": "content",
+            "application/x-www-form-urlencoded": "content",
+            "application/x-yaml": "content",
+            "application/xml": "content",
+            "form": "content",
+            "html": "content",
+            "json": "content",
+            "multipart": "content",
+            "multipart/form-data": "content",
+            "text": "content",
+            "text/html": "content",
+            "text/plain": "content",
+            "toml": "content",
+            "xml": "content",
+            "yaml": "content"
+          },
           "isUnion": false
         }
       ]
@@ -1870,6 +2150,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "id",
+            "application/toml": "id",
+            "application/x-www-form-urlencoded": "id",
+            "application/x-yaml": "id",
+            "application/xml": "id",
+            "form": "id",
+            "html": "id",
+            "json": "id",
+            "multipart": "id",
+            "multipart/form-data": "id",
+            "text": "id",
+            "text/html": "id",
+            "text/plain": "id",
+            "toml": "id",
+            "xml": "id",
+            "yaml": "id"
+          },
           "isUnion": false
         },
         {
@@ -1882,6 +2180,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "parent_id",
+            "application/toml": "parent_id",
+            "application/x-www-form-urlencoded": "parent_id",
+            "application/x-yaml": "parent_id",
+            "application/xml": "parentId",
+            "form": "parent_id",
+            "html": "parent_id",
+            "json": "parent_id",
+            "multipart": "parent_id",
+            "multipart/form-data": "parent_id",
+            "text": "parent_id",
+            "text/html": "parent_id",
+            "text/plain": "parent_id",
+            "toml": "parent_id",
+            "xml": "parentId",
+            "yaml": "parent_id"
+          },
           "isUnion": false
         },
         {
@@ -1894,6 +2210,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "name",
+            "application/toml": "name",
+            "application/x-www-form-urlencoded": "name",
+            "application/x-yaml": "name",
+            "application/xml": "name",
+            "form": "name",
+            "html": "name",
+            "json": "name",
+            "multipart": "name",
+            "multipart/form-data": "name",
+            "text": "name",
+            "text/html": "name",
+            "text/plain": "name",
+            "toml": "name",
+            "xml": "name",
+            "yaml": "name"
+          },
           "isUnion": false
         },
         {
@@ -1906,6 +2240,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "sort",
+            "application/toml": "sort",
+            "application/x-www-form-urlencoded": "sort",
+            "application/x-yaml": "sort",
+            "application/xml": "sort",
+            "form": "sort",
+            "html": "sort",
+            "json": "sort",
+            "multipart": "sort",
+            "multipart/form-data": "sort",
+            "text": "sort",
+            "text/html": "sort",
+            "text/plain": "sort",
+            "toml": "sort",
+            "xml": "sort",
+            "yaml": "sort"
+          },
           "isUnion": false
         },
         {
@@ -1918,6 +2270,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "children",
+            "application/toml": "children",
+            "application/x-www-form-urlencoded": "children",
+            "application/x-yaml": "children",
+            "application/xml": "children",
+            "form": "children",
+            "html": "children",
+            "json": "children",
+            "multipart": "children",
+            "multipart/form-data": "children",
+            "text": "children",
+            "text/html": "children",
+            "text/plain": "children",
+            "toml": "children",
+            "xml": "children",
+            "yaml": "children"
+          },
           "isUnion": false
         }
       ]
@@ -1942,6 +2312,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "list",
+            "application/toml": "list",
+            "application/x-www-form-urlencoded": "list",
+            "application/x-yaml": "list",
+            "application/xml": "list",
+            "form": "list",
+            "html": "list",
+            "json": "list",
+            "multipart": "list",
+            "multipart/form-data": "list",
+            "text": "list",
+            "text/html": "list",
+            "text/plain": "list",
+            "toml": "list",
+            "xml": "list",
+            "yaml": "list"
+          },
           "isUnion": false
         },
         {
@@ -1954,6 +2342,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "total",
+            "application/toml": "total",
+            "application/x-www-form-urlencoded": "total",
+            "application/x-yaml": "total",
+            "application/xml": "total",
+            "form": "total",
+            "html": "total",
+            "json": "total",
+            "multipart": "total",
+            "multipart/form-data": "total",
+            "text": "total",
+            "text/html": "total",
+            "text/plain": "total",
+            "toml": "total",
+            "xml": "total",
+            "yaml": "total"
+          },
           "isUnion": false
         },
         {
@@ -1966,6 +2372,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "page",
+            "application/toml": "page",
+            "application/x-www-form-urlencoded": "page",
+            "application/x-yaml": "page",
+            "application/xml": "page",
+            "form": "page",
+            "html": "page",
+            "json": "page",
+            "multipart": "page",
+            "multipart/form-data": "page",
+            "text": "page",
+            "text/html": "page",
+            "text/plain": "page",
+            "toml": "page",
+            "xml": "page",
+            "yaml": "page"
+          },
           "isUnion": false
         },
         {
@@ -1978,6 +2402,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "size",
+            "application/toml": "size",
+            "application/x-www-form-urlencoded": "size",
+            "application/x-yaml": "size",
+            "application/xml": "size",
+            "form": "size",
+            "html": "size",
+            "json": "size",
+            "multipart": "size",
+            "multipart/form-data": "size",
+            "text": "size",
+            "text/html": "size",
+            "text/plain": "size",
+            "toml": "size",
+            "xml": "size",
+            "yaml": "size"
+          },
           "isUnion": false
         }
       ]
@@ -1999,6 +2441,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "id",
+            "application/toml": "id",
+            "application/x-www-form-urlencoded": "id",
+            "application/x-yaml": "id",
+            "application/xml": "id",
+            "form": "id",
+            "html": "id",
+            "json": "id",
+            "multipart": "id",
+            "multipart/form-data": "id",
+            "text": "id",
+            "text/html": "id",
+            "text/plain": "id",
+            "toml": "id",
+            "xml": "id",
+            "yaml": "id"
+          },
           "isUnion": false
         },
         {
@@ -2011,6 +2471,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "username",
+            "application/toml": "username",
+            "application/x-www-form-urlencoded": "username",
+            "application/x-yaml": "username",
+            "application/xml": "username",
+            "form": "username",
+            "html": "username",
+            "json": "username",
+            "multipart": "username",
+            "multipart/form-data": "username",
+            "text": "username",
+            "text/html": "username",
+            "text/plain": "username",
+            "toml": "username",
+            "xml": "username",
+            "yaml": "username"
+          },
           "isUnion": false
         },
         {
@@ -2023,6 +2501,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "email",
+            "application/toml": "email",
+            "application/x-www-form-urlencoded": "email",
+            "application/x-yaml": "email",
+            "application/xml": "email",
+            "form": "email",
+            "html": "email",
+            "json": "email",
+            "multipart": "email",
+            "multipart/form-data": "email",
+            "text": "email",
+            "text/html": "email",
+            "text/plain": "email",
+            "toml": "email",
+            "xml": "email",
+            "yaml": "email"
+          },
           "isUnion": false
         }
       ]
@@ -2043,6 +2539,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "token",
+            "application/toml": "token",
+            "application/x-www-form-urlencoded": "token",
+            "application/x-yaml": "token",
+            "application/xml": "token",
+            "form": "token",
+            "html": "token",
+            "json": "token",
+            "multipart": "token",
+            "multipart/form-data": "token",
+            "text": "token",
+            "text/html": "token",
+            "text/plain": "token",
+            "toml": "token",
+            "xml": "token",
+            "yaml": "token"
+          },
           "isUnion": false
         },
         {
@@ -2055,6 +2569,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "expires_at",
+            "application/toml": "expires_at",
+            "application/x-www-form-urlencoded": "expires_at",
+            "application/x-yaml": "expires_at",
+            "application/xml": "expiresAt",
+            "form": "expires_at",
+            "html": "expires_at",
+            "json": "expires_at",
+            "multipart": "expires_at",
+            "multipart/form-data": "expires_at",
+            "text": "expires_at",
+            "text/html": "expires_at",
+            "text/plain": "expires_at",
+            "toml": "expires_at",
+            "xml": "expiresAt",
+            "yaml": "expires_at"
+          },
           "isUnion": false
         }
       ]
@@ -2101,6 +2633,24 @@
               ]
             }
           ],
+          "tags": {
+            "application/json": "username",
+            "application/toml": "username",
+            "application/x-www-form-urlencoded": "username",
+            "application/x-yaml": "username",
+            "application/xml": "username",
+            "form": "username",
+            "html": "username",
+            "json": "username",
+            "multipart": "username",
+            "multipart/form-data": "username",
+            "text": "username",
+            "text/html": "username",
+            "text/plain": "username",
+            "toml": "username",
+            "xml": "username",
+            "yaml": "username"
+          },
           "isUnion": false
         },
         {
@@ -2117,6 +2667,24 @@
               "doc": "公共定义（ResData）已在 00_common.res 中声明，此处直接使用\n── 校验器定义 ──────────────────────────────────────────"
             }
           ],
+          "tags": {
+            "application/json": "email",
+            "application/toml": "email",
+            "application/x-www-form-urlencoded": "email",
+            "application/x-yaml": "email",
+            "application/xml": "email",
+            "form": "email",
+            "html": "email",
+            "json": "email",
+            "multipart": "email",
+            "multipart/form-data": "email",
+            "text": "email",
+            "text/html": "email",
+            "text/plain": "email",
+            "toml": "email",
+            "xml": "email",
+            "yaml": "email"
+          },
           "isUnion": false
         },
         {
@@ -2132,6 +2700,24 @@
               "name": "Mobile"
             }
           ],
+          "tags": {
+            "application/json": "mobile",
+            "application/toml": "mobile",
+            "application/x-www-form-urlencoded": "mobile",
+            "application/x-yaml": "mobile",
+            "application/xml": "mobile",
+            "form": "mobile",
+            "html": "mobile",
+            "json": "mobile",
+            "multipart": "mobile",
+            "multipart/form-data": "mobile",
+            "text": "mobile",
+            "text/html": "mobile",
+            "text/plain": "mobile",
+            "toml": "mobile",
+            "xml": "mobile",
+            "yaml": "mobile"
+          },
           "isUnion": false
         },
         {
@@ -2157,6 +2743,24 @@
               ]
             }
           ],
+          "tags": {
+            "application/json": "password",
+            "application/toml": "password",
+            "application/x-www-form-urlencoded": "password",
+            "application/x-yaml": "password",
+            "application/xml": "password",
+            "form": "password",
+            "html": "password",
+            "json": "password",
+            "multipart": "password",
+            "multipart/form-data": "password",
+            "text": "password",
+            "text/html": "password",
+            "text/plain": "password",
+            "toml": "password",
+            "xml": "password",
+            "yaml": "password"
+          },
           "isUnion": false
         }
       ]
@@ -2177,6 +2781,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "id",
+            "application/toml": "id",
+            "application/x-www-form-urlencoded": "id",
+            "application/x-yaml": "id",
+            "application/xml": "id",
+            "form": "id",
+            "html": "id",
+            "json": "id",
+            "multipart": "id",
+            "multipart/form-data": "id",
+            "text": "id",
+            "text/html": "id",
+            "text/plain": "id",
+            "toml": "id",
+            "xml": "id",
+            "yaml": "id"
+          },
           "isUnion": false
         },
         {
@@ -2190,6 +2812,107 @@
               "doc": "公共定义（ResData）已在 00_common.res 中声明，此处直接使用\n── 校验器定义 ──────────────────────────────────────────"
             }
           ],
+          "tags": {
+            "application/json": "email",
+            "application/toml": "email",
+            "application/x-www-form-urlencoded": "email",
+            "application/x-yaml": "email",
+            "application/xml": "email",
+            "form": "email",
+            "html": "email",
+            "json": "email",
+            "multipart": "email",
+            "multipart/form-data": "email",
+            "text": "email",
+            "text/html": "email",
+            "text/plain": "email",
+            "toml": "email",
+            "xml": "email",
+            "yaml": "email"
+          },
+          "isUnion": false
+        }
+      ]
+    },
+    {
+      "name": "TaskPeriodInput",
+      "doc": "跨字段校验输入模型：startTime 关联校验 endTime",
+      "module": "AuthDemo",
+      "isInput": true,
+      "isWrapper": false,
+      "fields": [
+        {
+          "name": "start_time",
+          "type": "Int",
+          "jsonName": "startTime",
+          "originalType": "Int",
+          "validators": [
+            {
+              "name": "Required"
+            },
+            {
+              "name": "TimeBefore",
+              "doc": "🌟 声明高级跨字段关联校验器：Field! 自动捕获同级或子级目标字段并在编译期转为强类型路径",
+              "args": [
+                {
+                  "name": "TargetField",
+                  "type": "",
+                  "jsonName": "",
+                  "originalType": "",
+                  "value": "input.EndTime",
+                  "isUnion": false
+                }
+              ]
+            }
+          ],
+          "tags": {
+            "application/json": "start_time",
+            "application/toml": "start_time",
+            "application/x-www-form-urlencoded": "start_time",
+            "application/x-yaml": "start_time",
+            "application/xml": "startTime",
+            "form": "start_time",
+            "html": "start_time",
+            "json": "start_time",
+            "multipart": "start_time",
+            "multipart/form-data": "start_time",
+            "text": "start_time",
+            "text/html": "start_time",
+            "text/plain": "start_time",
+            "toml": "start_time",
+            "xml": "startTime",
+            "yaml": "start_time"
+          },
+          "isUnion": false
+        },
+        {
+          "name": "end_time",
+          "type": "Int",
+          "jsonName": "endTime",
+          "originalType": "Int",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ],
+          "tags": {
+            "application/json": "end_time",
+            "application/toml": "end_time",
+            "application/x-www-form-urlencoded": "end_time",
+            "application/x-yaml": "end_time",
+            "application/xml": "endTime",
+            "form": "end_time",
+            "html": "end_time",
+            "json": "end_time",
+            "multipart": "end_time",
+            "multipart/form-data": "end_time",
+            "text": "end_time",
+            "text/html": "end_time",
+            "text/plain": "end_time",
+            "toml": "end_time",
+            "xml": "endTime",
+            "yaml": "end_time"
+          },
           "isUnion": false
         }
       ]
@@ -2211,6 +2934,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "id",
+            "application/toml": "id",
+            "application/x-www-form-urlencoded": "id",
+            "application/x-yaml": "id",
+            "application/xml": "id",
+            "form": "id",
+            "html": "id",
+            "json": "id",
+            "multipart": "id",
+            "multipart/form-data": "id",
+            "text": "id",
+            "text/html": "id",
+            "text/plain": "id",
+            "toml": "id",
+            "xml": "id",
+            "yaml": "id"
+          },
           "isUnion": false
         },
         {
@@ -2223,6 +2964,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "name",
+            "application/toml": "name",
+            "application/x-www-form-urlencoded": "name",
+            "application/x-yaml": "name",
+            "application/xml": "name",
+            "form": "name",
+            "html": "name",
+            "json": "name",
+            "multipart": "name",
+            "multipart/form-data": "name",
+            "text": "name",
+            "text/html": "name",
+            "text/plain": "name",
+            "toml": "name",
+            "xml": "name",
+            "yaml": "name"
+          },
           "isUnion": false
         },
         {
@@ -2235,6 +2994,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "start_time",
+            "application/toml": "start_time",
+            "application/x-www-form-urlencoded": "start_time",
+            "application/x-yaml": "start_time",
+            "application/xml": "startTime",
+            "form": "start_time",
+            "html": "start_time",
+            "json": "start_time",
+            "multipart": "start_time",
+            "multipart/form-data": "start_time",
+            "text": "start_time",
+            "text/html": "start_time",
+            "text/plain": "start_time",
+            "toml": "start_time",
+            "xml": "startTime",
+            "yaml": "start_time"
+          },
           "isUnion": false
         },
         {
@@ -2242,6 +3019,24 @@
           "type": "Int",
           "jsonName": "endTime",
           "originalType": "Int",
+          "tags": {
+            "application/json": "end_time",
+            "application/toml": "end_time",
+            "application/x-www-form-urlencoded": "end_time",
+            "application/x-yaml": "end_time",
+            "application/xml": "endTime",
+            "form": "end_time",
+            "html": "end_time",
+            "json": "end_time",
+            "multipart": "end_time",
+            "multipart/form-data": "end_time",
+            "text": "end_time",
+            "text/html": "end_time",
+            "text/plain": "end_time",
+            "toml": "end_time",
+            "xml": "endTime",
+            "yaml": "end_time"
+          },
           "isUnion": false
         },
         {
@@ -2249,6 +3044,24 @@
           "type": "Int",
           "jsonName": "createdAt",
           "originalType": "Int",
+          "tags": {
+            "application/json": "created_at",
+            "application/toml": "created_at",
+            "application/x-www-form-urlencoded": "created_at",
+            "application/x-yaml": "created_at",
+            "application/xml": "createdAt",
+            "form": "created_at",
+            "html": "created_at",
+            "json": "created_at",
+            "multipart": "created_at",
+            "multipart/form-data": "created_at",
+            "text": "created_at",
+            "text/html": "created_at",
+            "text/plain": "created_at",
+            "toml": "created_at",
+            "xml": "createdAt",
+            "yaml": "created_at"
+          },
           "isUnion": false
         }
       ]
@@ -2269,30 +3082,87 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "name",
+            "application/toml": "name",
+            "application/x-www-form-urlencoded": "name",
+            "application/x-yaml": "name",
+            "application/xml": "name",
+            "form": "name",
+            "html": "name",
+            "json": "name",
+            "multipart": "name",
+            "multipart/form-data": "name",
+            "text": "name",
+            "text/html": "name",
+            "text/plain": "name",
+            "toml": "name",
+            "xml": "name",
+            "yaml": "name"
+          },
           "isUnion": false
         },
         {
-          "name": "start_time",
+          "name": "st_time",
+          "doc": "使用 @alias 自定义传输别名，兼容老前端/老系统不规范命名",
           "type": "Int",
-          "jsonName": "startTime",
+          "jsonName": "st_time",
+          "alias": "st_time",
           "originalType": "Int",
           "validators": [
             {
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "st_time",
+            "application/toml": "st_time",
+            "application/x-www-form-urlencoded": "st_time",
+            "application/x-yaml": "st_time",
+            "application/xml": "st_time",
+            "form": "st_time",
+            "html": "st_time",
+            "json": "st_time",
+            "multipart": "st_time",
+            "multipart/form-data": "st_time",
+            "text": "st_time",
+            "text/html": "st_time",
+            "text/plain": "st_time",
+            "toml": "st_time",
+            "xml": "st_time",
+            "yaml": "st_time"
+          },
           "isUnion": false
         },
         {
           "name": "end_time",
           "type": "Int",
-          "jsonName": "endTime",
+          "jsonName": "end_time",
+          "alias": "end_time",
           "originalType": "Int",
           "validators": [
             {
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "end_time",
+            "application/toml": "end_time",
+            "application/x-www-form-urlencoded": "end_time",
+            "application/x-yaml": "end_time",
+            "application/xml": "end_time",
+            "form": "end_time",
+            "html": "end_time",
+            "json": "end_time",
+            "multipart": "end_time",
+            "multipart/form-data": "end_time",
+            "text": "end_time",
+            "text/html": "end_time",
+            "text/plain": "end_time",
+            "toml": "end_time",
+            "xml": "end_time",
+            "yaml": "end_time"
+          },
           "isUnion": false
         }
       ]
@@ -2304,17 +3174,55 @@
       "isWrapper": false,
       "fields": [
         {
-          "name": "after",
+          "name": "from_tm",
           "type": "Int",
-          "jsonName": "after",
+          "jsonName": "from_tm",
+          "alias": "from_tm",
           "originalType": "Int",
+          "tags": {
+            "application/json": "from_tm",
+            "application/toml": "from_tm",
+            "application/x-www-form-urlencoded": "from_tm",
+            "application/x-yaml": "from_tm",
+            "application/xml": "from_tm",
+            "form": "from_tm",
+            "html": "from_tm",
+            "json": "from_tm",
+            "multipart": "from_tm",
+            "multipart/form-data": "from_tm",
+            "text": "from_tm",
+            "text/html": "from_tm",
+            "text/plain": "from_tm",
+            "toml": "from_tm",
+            "xml": "from_tm",
+            "yaml": "from_tm"
+          },
           "isUnion": false
         },
         {
-          "name": "before",
+          "name": "to_tm",
           "type": "Int",
-          "jsonName": "before",
+          "jsonName": "to_tm",
+          "alias": "to_tm",
           "originalType": "Int",
+          "tags": {
+            "application/json": "to_tm",
+            "application/toml": "to_tm",
+            "application/x-www-form-urlencoded": "to_tm",
+            "application/x-yaml": "to_tm",
+            "application/xml": "to_tm",
+            "form": "to_tm",
+            "html": "to_tm",
+            "json": "to_tm",
+            "multipart": "to_tm",
+            "multipart/form-data": "to_tm",
+            "text": "to_tm",
+            "text/html": "to_tm",
+            "text/plain": "to_tm",
+            "toml": "to_tm",
+            "xml": "to_tm",
+            "yaml": "to_tm"
+          },
           "isUnion": false
         },
         {
@@ -2322,6 +3230,24 @@
           "type": "Int",
           "jsonName": "page",
           "originalType": "Int",
+          "tags": {
+            "application/json": "page",
+            "application/toml": "page",
+            "application/x-www-form-urlencoded": "page",
+            "application/x-yaml": "page",
+            "application/xml": "page",
+            "form": "page",
+            "html": "page",
+            "json": "page",
+            "multipart": "page",
+            "multipart/form-data": "page",
+            "text": "page",
+            "text/html": "page",
+            "text/plain": "page",
+            "toml": "page",
+            "xml": "page",
+            "yaml": "page"
+          },
           "isUnion": false
         },
         {
@@ -2329,6 +3255,24 @@
           "type": "Int",
           "jsonName": "size",
           "originalType": "Int",
+          "tags": {
+            "application/json": "size",
+            "application/toml": "size",
+            "application/x-www-form-urlencoded": "size",
+            "application/x-yaml": "size",
+            "application/xml": "size",
+            "form": "size",
+            "html": "size",
+            "json": "size",
+            "multipart": "size",
+            "multipart/form-data": "size",
+            "text": "size",
+            "text/html": "size",
+            "text/plain": "size",
+            "toml": "size",
+            "xml": "size",
+            "yaml": "size"
+          },
           "isUnion": false
         }
       ]
@@ -2349,6 +3293,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "title",
+            "application/toml": "title",
+            "application/x-www-form-urlencoded": "title",
+            "application/x-yaml": "title",
+            "application/xml": "title",
+            "form": "title",
+            "html": "title",
+            "json": "title",
+            "multipart": "title",
+            "multipart/form-data": "title",
+            "text": "title",
+            "text/html": "title",
+            "text/plain": "title",
+            "toml": "title",
+            "xml": "title",
+            "yaml": "title"
+          },
           "isUnion": false
         },
         {
@@ -2361,6 +3323,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "summary",
+            "application/toml": "summary",
+            "application/x-www-form-urlencoded": "summary",
+            "application/x-yaml": "summary",
+            "application/xml": "summary",
+            "form": "summary",
+            "html": "summary",
+            "json": "summary",
+            "multipart": "summary",
+            "multipart/form-data": "summary",
+            "text": "summary",
+            "text/html": "summary",
+            "text/plain": "summary",
+            "toml": "summary",
+            "xml": "summary",
+            "yaml": "summary"
+          },
           "isUnion": false
         }
       ]
@@ -2381,6 +3361,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "title",
+            "application/toml": "title",
+            "application/x-www-form-urlencoded": "title",
+            "application/x-yaml": "title",
+            "application/xml": "title",
+            "form": "title",
+            "html": "title",
+            "json": "title",
+            "multipart": "title",
+            "multipart/form-data": "title",
+            "text": "title",
+            "text/html": "title",
+            "text/plain": "title",
+            "toml": "title",
+            "xml": "title",
+            "yaml": "title"
+          },
           "isUnion": false
         },
         {
@@ -2393,6 +3391,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "content",
+            "application/toml": "content",
+            "application/x-www-form-urlencoded": "content",
+            "application/x-yaml": "content",
+            "application/xml": "content",
+            "form": "content",
+            "html": "content",
+            "json": "content",
+            "multipart": "content",
+            "multipart/form-data": "content",
+            "text": "content",
+            "text/html": "content",
+            "text/plain": "content",
+            "toml": "content",
+            "xml": "content",
+            "yaml": "content"
+          },
           "isUnion": false
         }
       ]
@@ -2413,6 +3429,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "name",
+            "application/toml": "name",
+            "application/x-www-form-urlencoded": "name",
+            "application/x-yaml": "name",
+            "application/xml": "name",
+            "form": "name",
+            "html": "name",
+            "json": "name",
+            "multipart": "name",
+            "multipart/form-data": "name",
+            "text": "name",
+            "text/html": "name",
+            "text/plain": "name",
+            "toml": "name",
+            "xml": "name",
+            "yaml": "name"
+          },
           "isUnion": false
         },
         {
@@ -2425,6 +3459,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "email",
+            "application/toml": "email",
+            "application/x-www-form-urlencoded": "email",
+            "application/x-yaml": "email",
+            "application/xml": "email",
+            "form": "email",
+            "html": "email",
+            "json": "email",
+            "multipart": "email",
+            "multipart/form-data": "email",
+            "text": "email",
+            "text/html": "email",
+            "text/plain": "email",
+            "toml": "email",
+            "xml": "email",
+            "yaml": "email"
+          },
           "isUnion": false
         }
       ]
@@ -2446,6 +3498,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "city",
+            "application/toml": "city",
+            "application/x-www-form-urlencoded": "city",
+            "application/x-yaml": "city",
+            "application/xml": "city",
+            "form": "city",
+            "html": "city",
+            "json": "city",
+            "multipart": "city",
+            "multipart/form-data": "city",
+            "text": "city",
+            "text/html": "city",
+            "text/plain": "city",
+            "toml": "city",
+            "xml": "city",
+            "yaml": "city"
+          },
           "isUnion": false
         },
         {
@@ -2458,6 +3528,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "street",
+            "application/toml": "street",
+            "application/x-www-form-urlencoded": "street",
+            "application/x-yaml": "street",
+            "application/xml": "street",
+            "form": "street",
+            "html": "street",
+            "json": "street",
+            "multipart": "street",
+            "multipart/form-data": "street",
+            "text": "street",
+            "text/html": "street",
+            "text/plain": "street",
+            "toml": "street",
+            "xml": "street",
+            "yaml": "street"
+          },
           "isUnion": false
         },
         {
@@ -2465,6 +3553,24 @@
           "type": "String",
           "jsonName": "zipCode",
           "originalType": "String",
+          "tags": {
+            "application/json": "zip_code",
+            "application/toml": "zip_code",
+            "application/x-www-form-urlencoded": "zip_code",
+            "application/x-yaml": "zip_code",
+            "application/xml": "zipCode",
+            "form": "zip_code",
+            "html": "zip_code",
+            "json": "zip_code",
+            "multipart": "zip_code",
+            "multipart/form-data": "zip_code",
+            "text": "zip_code",
+            "text/html": "zip_code",
+            "text/plain": "zip_code",
+            "toml": "zip_code",
+            "xml": "zipCode",
+            "yaml": "zip_code"
+          },
           "isUnion": false
         }
       ]
@@ -2486,6 +3592,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "name",
+            "application/toml": "name",
+            "application/x-www-form-urlencoded": "name",
+            "application/x-yaml": "name",
+            "application/xml": "name",
+            "form": "name",
+            "html": "name",
+            "json": "name",
+            "multipart": "name",
+            "multipart/form-data": "name",
+            "text": "name",
+            "text/html": "name",
+            "text/plain": "name",
+            "toml": "name",
+            "xml": "name",
+            "yaml": "name"
+          },
           "isUnion": false
         },
         {
@@ -2498,6 +3622,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "age",
+            "application/toml": "age",
+            "application/x-www-form-urlencoded": "age",
+            "application/x-yaml": "age",
+            "application/xml": "age",
+            "form": "age",
+            "html": "age",
+            "json": "age",
+            "multipart": "age",
+            "multipart/form-data": "age",
+            "text": "age",
+            "text/html": "age",
+            "text/plain": "age",
+            "toml": "age",
+            "xml": "age",
+            "yaml": "age"
+          },
           "isUnion": false
         },
         {
@@ -2510,6 +3652,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "address",
+            "application/toml": "address",
+            "application/x-www-form-urlencoded": "address",
+            "application/x-yaml": "address",
+            "application/xml": "address",
+            "form": "address",
+            "html": "address",
+            "json": "address",
+            "multipart": "address",
+            "multipart/form-data": "address",
+            "text": "address",
+            "text/html": "address",
+            "text/plain": "address",
+            "toml": "address",
+            "xml": "address",
+            "yaml": "address"
+          },
           "isUnion": false
         }
       ]
@@ -2534,6 +3694,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "list",
+            "application/toml": "list",
+            "application/x-www-form-urlencoded": "list",
+            "application/x-yaml": "list",
+            "application/xml": "list",
+            "form": "list",
+            "html": "list",
+            "json": "list",
+            "multipart": "list",
+            "multipart/form-data": "list",
+            "text": "list",
+            "text/html": "list",
+            "text/plain": "list",
+            "toml": "list",
+            "xml": "list",
+            "yaml": "list"
+          },
           "isUnion": false
         },
         {
@@ -2546,6 +3724,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "total",
+            "application/toml": "total",
+            "application/x-www-form-urlencoded": "total",
+            "application/x-yaml": "total",
+            "application/xml": "total",
+            "form": "total",
+            "html": "total",
+            "json": "total",
+            "multipart": "total",
+            "multipart/form-data": "total",
+            "text": "total",
+            "text/html": "total",
+            "text/plain": "total",
+            "toml": "total",
+            "xml": "total",
+            "yaml": "total"
+          },
           "isUnion": false
         },
         {
@@ -2558,6 +3754,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "page",
+            "application/toml": "page",
+            "application/x-www-form-urlencoded": "page",
+            "application/x-yaml": "page",
+            "application/xml": "page",
+            "form": "page",
+            "html": "page",
+            "json": "page",
+            "multipart": "page",
+            "multipart/form-data": "page",
+            "text": "page",
+            "text/html": "page",
+            "text/plain": "page",
+            "toml": "page",
+            "xml": "page",
+            "yaml": "page"
+          },
           "isUnion": false
         }
       ]
@@ -2579,6 +3793,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "total",
+            "application/toml": "total",
+            "application/x-www-form-urlencoded": "total",
+            "application/x-yaml": "total",
+            "application/xml": "total",
+            "form": "total",
+            "html": "total",
+            "json": "total",
+            "multipart": "total",
+            "multipart/form-data": "total",
+            "text": "total",
+            "text/html": "total",
+            "text/plain": "total",
+            "toml": "total",
+            "xml": "total",
+            "yaml": "total"
+          },
           "isUnion": false
         },
         {
@@ -2591,6 +3823,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "page",
+            "application/toml": "page",
+            "application/x-www-form-urlencoded": "page",
+            "application/x-yaml": "page",
+            "application/xml": "page",
+            "form": "page",
+            "html": "page",
+            "json": "page",
+            "multipart": "page",
+            "multipart/form-data": "page",
+            "text": "page",
+            "text/html": "page",
+            "text/plain": "page",
+            "toml": "page",
+            "xml": "page",
+            "yaml": "page"
+          },
           "isUnion": false
         }
       ]
@@ -2611,6 +3861,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "id",
+            "application/toml": "id",
+            "application/x-www-form-urlencoded": "id",
+            "application/x-yaml": "id",
+            "application/xml": "id",
+            "form": "id",
+            "html": "id",
+            "json": "id",
+            "multipart": "id",
+            "multipart/form-data": "id",
+            "text": "id",
+            "text/html": "id",
+            "text/plain": "id",
+            "toml": "id",
+            "xml": "id",
+            "yaml": "id"
+          },
           "isUnion": false
         },
         {
@@ -2623,6 +3891,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "name",
+            "application/toml": "name",
+            "application/x-www-form-urlencoded": "name",
+            "application/x-yaml": "name",
+            "application/xml": "name",
+            "form": "name",
+            "html": "name",
+            "json": "name",
+            "multipart": "name",
+            "multipart/form-data": "name",
+            "text": "name",
+            "text/html": "name",
+            "text/plain": "name",
+            "toml": "name",
+            "xml": "name",
+            "yaml": "name"
+          },
           "isUnion": false
         },
         {
@@ -2635,6 +3921,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "price",
+            "application/toml": "price",
+            "application/x-www-form-urlencoded": "price",
+            "application/x-yaml": "price",
+            "application/xml": "price",
+            "form": "price",
+            "html": "price",
+            "json": "price",
+            "multipart": "price",
+            "multipart/form-data": "price",
+            "text": "price",
+            "text/html": "price",
+            "text/plain": "price",
+            "toml": "price",
+            "xml": "price",
+            "yaml": "price"
+          },
           "isUnion": false
         }
       ]
@@ -2655,6 +3959,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "name",
+            "application/toml": "name",
+            "application/x-www-form-urlencoded": "name",
+            "application/x-yaml": "name",
+            "application/xml": "name",
+            "form": "name",
+            "html": "name",
+            "json": "name",
+            "multipart": "name",
+            "multipart/form-data": "name",
+            "text": "name",
+            "text/html": "name",
+            "text/plain": "name",
+            "toml": "name",
+            "xml": "name",
+            "yaml": "name"
+          },
           "isUnion": false
         },
         {
@@ -2667,6 +3989,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "price",
+            "application/toml": "price",
+            "application/x-www-form-urlencoded": "price",
+            "application/x-yaml": "price",
+            "application/xml": "price",
+            "form": "price",
+            "html": "price",
+            "json": "price",
+            "multipart": "price",
+            "multipart/form-data": "price",
+            "text": "price",
+            "text/html": "price",
+            "text/plain": "price",
+            "toml": "price",
+            "xml": "price",
+            "yaml": "price"
+          },
           "isUnion": false
         }
       ]
@@ -2688,6 +4028,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "user_id",
+            "application/toml": "user_id",
+            "application/x-www-form-urlencoded": "user_id",
+            "application/x-yaml": "user_id",
+            "application/xml": "userId",
+            "form": "user_id",
+            "html": "user_id",
+            "json": "user_id",
+            "multipart": "user_id",
+            "multipart/form-data": "user_id",
+            "text": "user_id",
+            "text/html": "user_id",
+            "text/plain": "user_id",
+            "toml": "user_id",
+            "xml": "userId",
+            "yaml": "user_id"
+          },
           "isUnion": false
         },
         {
@@ -2731,6 +4089,24 @@
               ]
             }
           ],
+          "tags": {
+            "application/json": "avatar",
+            "application/toml": "avatar",
+            "application/x-www-form-urlencoded": "avatar",
+            "application/x-yaml": "avatar",
+            "application/xml": "avatar",
+            "form": "avatar",
+            "html": "avatar",
+            "json": "avatar",
+            "multipart": "avatar",
+            "multipart/form-data": "avatar",
+            "text": "avatar",
+            "text/html": "avatar",
+            "text/plain": "avatar",
+            "toml": "avatar",
+            "xml": "avatar",
+            "yaml": "avatar"
+          },
           "isUnion": false
         }
       ]
@@ -2752,6 +4128,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "title",
+            "application/toml": "title",
+            "application/x-www-form-urlencoded": "title",
+            "application/x-yaml": "title",
+            "application/xml": "title",
+            "form": "title",
+            "html": "title",
+            "json": "title",
+            "multipart": "title",
+            "multipart/form-data": "title",
+            "text": "title",
+            "text/html": "title",
+            "text/plain": "title",
+            "toml": "title",
+            "xml": "title",
+            "yaml": "title"
+          },
           "isUnion": false
         },
         {
@@ -2759,6 +4153,24 @@
           "type": "String",
           "jsonName": "description",
           "originalType": "String",
+          "tags": {
+            "application/json": "description",
+            "application/toml": "description",
+            "application/x-www-form-urlencoded": "description",
+            "application/x-yaml": "description",
+            "application/xml": "description",
+            "form": "description",
+            "html": "description",
+            "json": "description",
+            "multipart": "description",
+            "multipart/form-data": "description",
+            "text": "description",
+            "text/html": "description",
+            "text/plain": "description",
+            "toml": "description",
+            "xml": "description",
+            "yaml": "description"
+          },
           "isUnion": false
         },
         {
@@ -2802,6 +4214,24 @@
               ]
             }
           ],
+          "tags": {
+            "application/json": "document",
+            "application/toml": "document",
+            "application/x-www-form-urlencoded": "document",
+            "application/x-yaml": "document",
+            "application/xml": "document",
+            "form": "document",
+            "html": "document",
+            "json": "document",
+            "multipart": "document",
+            "multipart/form-data": "document",
+            "text": "document",
+            "text/html": "document",
+            "text/plain": "document",
+            "toml": "document",
+            "xml": "document",
+            "yaml": "document"
+          },
           "isUnion": false
         },
         {
@@ -2842,6 +4272,24 @@
               ]
             }
           ],
+          "tags": {
+            "application/json": "cover",
+            "application/toml": "cover",
+            "application/x-www-form-urlencoded": "cover",
+            "application/x-yaml": "cover",
+            "application/xml": "cover",
+            "form": "cover",
+            "html": "cover",
+            "json": "cover",
+            "multipart": "cover",
+            "multipart/form-data": "cover",
+            "text": "cover",
+            "text/html": "cover",
+            "text/plain": "cover",
+            "toml": "cover",
+            "xml": "cover",
+            "yaml": "cover"
+          },
           "isUnion": false
         }
       ]
@@ -2863,6 +4311,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "file_url",
+            "application/toml": "file_url",
+            "application/x-www-form-urlencoded": "file_url",
+            "application/x-yaml": "file_url",
+            "application/xml": "fileUrl",
+            "form": "file_url",
+            "html": "file_url",
+            "json": "file_url",
+            "multipart": "file_url",
+            "multipart/form-data": "file_url",
+            "text": "file_url",
+            "text/html": "file_url",
+            "text/plain": "file_url",
+            "toml": "file_url",
+            "xml": "fileUrl",
+            "yaml": "file_url"
+          },
           "isUnion": false
         },
         {
@@ -2875,6 +4341,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "file_size",
+            "application/toml": "file_size",
+            "application/x-www-form-urlencoded": "file_size",
+            "application/x-yaml": "file_size",
+            "application/xml": "fileSize",
+            "form": "file_size",
+            "html": "file_size",
+            "json": "file_size",
+            "multipart": "file_size",
+            "multipart/form-data": "file_size",
+            "text": "file_size",
+            "text/html": "file_size",
+            "text/plain": "file_size",
+            "toml": "file_size",
+            "xml": "fileSize",
+            "yaml": "file_size"
+          },
           "isUnion": false
         },
         {
@@ -2887,6 +4371,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "mime_type",
+            "application/toml": "mime_type",
+            "application/x-www-form-urlencoded": "mime_type",
+            "application/x-yaml": "mime_type",
+            "application/xml": "mimeType",
+            "form": "mime_type",
+            "html": "mime_type",
+            "json": "mime_type",
+            "multipart": "mime_type",
+            "multipart/form-data": "mime_type",
+            "text": "mime_type",
+            "text/html": "mime_type",
+            "text/plain": "mime_type",
+            "toml": "mime_type",
+            "xml": "mimeType",
+            "yaml": "mime_type"
+          },
           "isUnion": false
         }
       ]
@@ -2907,6 +4409,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "title",
+            "application/toml": "title",
+            "application/x-www-form-urlencoded": "title",
+            "application/x-yaml": "title",
+            "application/xml": "title",
+            "form": "title",
+            "html": "title",
+            "json": "title",
+            "multipart": "title",
+            "multipart/form-data": "title",
+            "text": "title",
+            "text/html": "title",
+            "text/plain": "title",
+            "toml": "title",
+            "xml": "title",
+            "yaml": "title"
+          },
           "isUnion": false
         },
         {
@@ -2919,6 +4439,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "content",
+            "application/toml": "content",
+            "application/x-www-form-urlencoded": "content",
+            "application/x-yaml": "content",
+            "application/xml": "content",
+            "form": "content",
+            "html": "content",
+            "json": "content",
+            "multipart": "content",
+            "multipart/form-data": "content",
+            "text": "content",
+            "text/html": "content",
+            "text/plain": "content",
+            "toml": "content",
+            "xml": "content",
+            "yaml": "content"
+          },
           "isUnion": false
         }
       ]
@@ -2939,6 +4477,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "title",
+            "application/toml": "title",
+            "application/x-www-form-urlencoded": "title",
+            "application/x-yaml": "title",
+            "application/xml": "title",
+            "form": "title",
+            "html": "title",
+            "json": "title",
+            "multipart": "title",
+            "multipart/form-data": "title",
+            "text": "title",
+            "text/html": "title",
+            "text/plain": "title",
+            "toml": "title",
+            "xml": "title",
+            "yaml": "title"
+          },
           "isUnion": false
         },
         {
@@ -2951,6 +4507,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "url",
+            "application/toml": "url",
+            "application/x-www-form-urlencoded": "url",
+            "application/x-yaml": "url",
+            "application/xml": "url",
+            "form": "url",
+            "html": "url",
+            "json": "url",
+            "multipart": "url",
+            "multipart/form-data": "url",
+            "text": "url",
+            "text/html": "url",
+            "text/plain": "url",
+            "toml": "url",
+            "xml": "url",
+            "yaml": "url"
+          },
           "isUnion": false
         },
         {
@@ -2963,6 +4537,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "duration",
+            "application/toml": "duration",
+            "application/x-www-form-urlencoded": "duration",
+            "application/x-yaml": "duration",
+            "application/xml": "duration",
+            "form": "duration",
+            "html": "duration",
+            "json": "duration",
+            "multipart": "duration",
+            "multipart/form-data": "duration",
+            "text": "duration",
+            "text/html": "duration",
+            "text/plain": "duration",
+            "toml": "duration",
+            "xml": "duration",
+            "yaml": "duration"
+          },
           "isUnion": false
         }
       ]
@@ -2984,6 +4576,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "type",
+            "application/toml": "type",
+            "application/x-www-form-urlencoded": "type",
+            "application/x-yaml": "type",
+            "application/xml": "type",
+            "form": "type",
+            "html": "type",
+            "json": "type",
+            "multipart": "type",
+            "multipart/form-data": "type",
+            "text": "type",
+            "text/html": "type",
+            "text/plain": "type",
+            "toml": "type",
+            "xml": "type",
+            "yaml": "type"
+          },
           "isUnion": false
         },
         {
@@ -2992,6 +4602,24 @@
           "type": "ContentPayload",
           "jsonName": "payload",
           "originalType": "ContentPayload",
+          "tags": {
+            "application/json": "payload",
+            "application/toml": "payload",
+            "application/x-www-form-urlencoded": "payload",
+            "application/x-yaml": "payload",
+            "application/xml": "payload",
+            "form": "payload",
+            "html": "payload",
+            "json": "payload",
+            "multipart": "payload",
+            "multipart/form-data": "payload",
+            "text": "payload",
+            "text/html": "payload",
+            "text/plain": "payload",
+            "toml": "payload",
+            "xml": "payload",
+            "yaml": "payload"
+          },
           "isUnion": true,
           "unionParamExp": "type"
         }
@@ -3013,6 +4641,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "id",
+            "application/toml": "id",
+            "application/x-www-form-urlencoded": "id",
+            "application/x-yaml": "id",
+            "application/xml": "id",
+            "form": "id",
+            "html": "id",
+            "json": "id",
+            "multipart": "id",
+            "multipart/form-data": "id",
+            "text": "id",
+            "text/html": "id",
+            "text/plain": "id",
+            "toml": "id",
+            "xml": "id",
+            "yaml": "id"
+          },
           "isUnion": false
         },
         {
@@ -3025,6 +4671,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "type",
+            "application/toml": "type",
+            "application/x-www-form-urlencoded": "type",
+            "application/x-yaml": "type",
+            "application/xml": "type",
+            "form": "type",
+            "html": "type",
+            "json": "type",
+            "multipart": "type",
+            "multipart/form-data": "type",
+            "text": "type",
+            "text/html": "type",
+            "text/plain": "type",
+            "toml": "type",
+            "xml": "type",
+            "yaml": "type"
+          },
           "isUnion": false
         },
         {
@@ -3032,6 +4696,24 @@
           "type": "ContentPayload",
           "jsonName": "payload",
           "originalType": "ContentPayload",
+          "tags": {
+            "application/json": "payload",
+            "application/toml": "payload",
+            "application/x-www-form-urlencoded": "payload",
+            "application/x-yaml": "payload",
+            "application/xml": "payload",
+            "form": "payload",
+            "html": "payload",
+            "json": "payload",
+            "multipart": "payload",
+            "multipart/form-data": "payload",
+            "text": "payload",
+            "text/html": "payload",
+            "text/plain": "payload",
+            "toml": "payload",
+            "xml": "payload",
+            "yaml": "payload"
+          },
           "isUnion": true,
           "unionParamExp": "type"
         }
@@ -3054,6 +4736,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "author",
+            "application/toml": "author",
+            "application/x-www-form-urlencoded": "author",
+            "application/x-yaml": "author",
+            "application/xml": "author",
+            "form": "author",
+            "html": "author",
+            "json": "author",
+            "multipart": "author",
+            "multipart/form-data": "author",
+            "text": "author",
+            "text/html": "author",
+            "text/plain": "author",
+            "toml": "author",
+            "xml": "author",
+            "yaml": "author"
+          },
           "isUnion": false
         },
         {
@@ -3066,6 +4766,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "type",
+            "application/toml": "type",
+            "application/x-www-form-urlencoded": "type",
+            "application/x-yaml": "type",
+            "application/xml": "type",
+            "form": "type",
+            "html": "type",
+            "json": "type",
+            "multipart": "type",
+            "multipart/form-data": "type",
+            "text": "type",
+            "text/html": "type",
+            "text/plain": "type",
+            "toml": "type",
+            "xml": "type",
+            "yaml": "type"
+          },
           "isUnion": false
         },
         {
@@ -3073,6 +4791,24 @@
           "type": "ContentPayload",
           "jsonName": "payload",
           "originalType": "ContentPayload",
+          "tags": {
+            "application/json": "payload",
+            "application/toml": "payload",
+            "application/x-www-form-urlencoded": "payload",
+            "application/x-yaml": "payload",
+            "application/xml": "payload",
+            "form": "payload",
+            "html": "payload",
+            "json": "payload",
+            "multipart": "payload",
+            "multipart/form-data": "payload",
+            "text": "payload",
+            "text/html": "payload",
+            "text/plain": "payload",
+            "toml": "payload",
+            "xml": "payload",
+            "yaml": "payload"
+          },
           "isUnion": true,
           "unionParamExp": "type"
         }
@@ -3095,6 +4831,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "batch_name",
+            "application/toml": "batch_name",
+            "application/x-www-form-urlencoded": "batch_name",
+            "application/x-yaml": "batch_name",
+            "application/xml": "batchName",
+            "form": "batch_name",
+            "html": "batch_name",
+            "json": "batch_name",
+            "multipart": "batch_name",
+            "multipart/form-data": "batch_name",
+            "text": "batch_name",
+            "text/html": "batch_name",
+            "text/plain": "batch_name",
+            "toml": "batch_name",
+            "xml": "batchName",
+            "yaml": "batch_name"
+          },
           "isUnion": false
         },
         {
@@ -3103,6 +4857,24 @@
           "type": "PostDetailInput",
           "jsonName": "pinnedPost",
           "originalType": "PostDetailInput",
+          "tags": {
+            "application/json": "pinned_post",
+            "application/toml": "pinned_post",
+            "application/x-www-form-urlencoded": "pinned_post",
+            "application/x-yaml": "pinned_post",
+            "application/xml": "pinnedPost",
+            "form": "pinned_post",
+            "html": "pinned_post",
+            "json": "pinned_post",
+            "multipart": "pinned_post",
+            "multipart/form-data": "pinned_post",
+            "text": "pinned_post",
+            "text/html": "pinned_post",
+            "text/plain": "pinned_post",
+            "toml": "pinned_post",
+            "xml": "pinnedPost",
+            "yaml": "pinned_post"
+          },
           "isUnion": false
         },
         {
@@ -3116,6 +4888,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "items",
+            "application/toml": "items",
+            "application/x-www-form-urlencoded": "items",
+            "application/x-yaml": "items",
+            "application/xml": "items",
+            "form": "items",
+            "html": "items",
+            "json": "items",
+            "multipart": "items",
+            "multipart/form-data": "items",
+            "text": "items",
+            "text/html": "items",
+            "text/plain": "items",
+            "toml": "items",
+            "xml": "items",
+            "yaml": "items"
+          },
           "isUnion": false
         }
       ]
@@ -3137,6 +4927,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "batch_name",
+            "application/toml": "batch_name",
+            "application/x-www-form-urlencoded": "batch_name",
+            "application/x-yaml": "batch_name",
+            "application/xml": "batchName",
+            "form": "batch_name",
+            "html": "batch_name",
+            "json": "batch_name",
+            "multipart": "batch_name",
+            "multipart/form-data": "batch_name",
+            "text": "batch_name",
+            "text/html": "batch_name",
+            "text/plain": "batch_name",
+            "toml": "batch_name",
+            "xml": "batchName",
+            "yaml": "batch_name"
+          },
           "isUnion": false
         },
         {
@@ -3149,6 +4957,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "total",
+            "application/toml": "total",
+            "application/x-www-form-urlencoded": "total",
+            "application/x-yaml": "total",
+            "application/xml": "total",
+            "form": "total",
+            "html": "total",
+            "json": "total",
+            "multipart": "total",
+            "multipart/form-data": "total",
+            "text": "total",
+            "text/html": "total",
+            "text/plain": "total",
+            "toml": "total",
+            "xml": "total",
+            "yaml": "total"
+          },
           "isUnion": false
         },
         {
@@ -3161,6 +4987,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "items",
+            "application/toml": "items",
+            "application/x-www-form-urlencoded": "items",
+            "application/x-yaml": "items",
+            "application/xml": "items",
+            "form": "items",
+            "html": "items",
+            "json": "items",
+            "multipart": "items",
+            "multipart/form-data": "items",
+            "text": "items",
+            "text/html": "items",
+            "text/plain": "items",
+            "toml": "items",
+            "xml": "items",
+            "yaml": "items"
+          },
           "isUnion": false
         }
       ]
@@ -3176,6 +5020,24 @@
           "type": "String",
           "jsonName": "id",
           "originalType": "String",
+          "tags": {
+            "application/json": "id",
+            "application/toml": "id",
+            "application/x-www-form-urlencoded": "id",
+            "application/x-yaml": "id",
+            "application/xml": "id",
+            "form": "id",
+            "html": "id",
+            "json": "id",
+            "multipart": "id",
+            "multipart/form-data": "id",
+            "text": "id",
+            "text/html": "id",
+            "text/plain": "id",
+            "toml": "id",
+            "xml": "id",
+            "yaml": "id"
+          },
           "isUnion": false
         },
         {
@@ -3183,6 +5045,24 @@
           "type": "UserRole",
           "jsonName": "role",
           "originalType": "UserRole",
+          "tags": {
+            "application/json": "role",
+            "application/toml": "role",
+            "application/x-www-form-urlencoded": "role",
+            "application/x-yaml": "role",
+            "application/xml": "role",
+            "form": "role",
+            "html": "role",
+            "json": "role",
+            "multipart": "role",
+            "multipart/form-data": "role",
+            "text": "role",
+            "text/html": "role",
+            "text/plain": "role",
+            "toml": "role",
+            "xml": "role",
+            "yaml": "role"
+          },
           "isUnion": false
         },
         {
@@ -3190,6 +5070,24 @@
           "type": "RecordStatus",
           "jsonName": "status",
           "originalType": "RecordStatus",
+          "tags": {
+            "application/json": "status",
+            "application/toml": "status",
+            "application/x-www-form-urlencoded": "status",
+            "application/x-yaml": "status",
+            "application/xml": "status",
+            "form": "status",
+            "html": "status",
+            "json": "status",
+            "multipart": "status",
+            "multipart/form-data": "status",
+            "text": "status",
+            "text/html": "status",
+            "text/plain": "status",
+            "toml": "status",
+            "xml": "status",
+            "yaml": "status"
+          },
           "isUnion": false
         },
         {
@@ -3197,6 +5095,24 @@
           "type": "SpecialTime",
           "jsonName": "createdAt",
           "originalType": "SpecialTime",
+          "tags": {
+            "application/json": "created_at",
+            "application/toml": "created_at",
+            "application/x-www-form-urlencoded": "created_at",
+            "application/x-yaml": "created_at",
+            "application/xml": "createdAt",
+            "form": "created_at",
+            "html": "created_at",
+            "json": "created_at",
+            "multipart": "created_at",
+            "multipart/form-data": "created_at",
+            "text": "created_at",
+            "text/html": "created_at",
+            "text/plain": "created_at",
+            "toml": "created_at",
+            "xml": "createdAt",
+            "yaml": "created_at"
+          },
           "isUnion": false
         }
       ]
@@ -3217,6 +5133,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "role",
+            "application/toml": "role",
+            "application/x-www-form-urlencoded": "role",
+            "application/x-yaml": "role",
+            "application/xml": "role",
+            "form": "role",
+            "html": "role",
+            "json": "role",
+            "multipart": "role",
+            "multipart/form-data": "role",
+            "text": "role",
+            "text/html": "role",
+            "text/plain": "role",
+            "toml": "role",
+            "xml": "role",
+            "yaml": "role"
+          },
           "isUnion": false
         },
         {
@@ -3229,6 +5163,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "status",
+            "application/toml": "status",
+            "application/x-www-form-urlencoded": "status",
+            "application/x-yaml": "status",
+            "application/xml": "status",
+            "form": "status",
+            "html": "status",
+            "json": "status",
+            "multipart": "status",
+            "multipart/form-data": "status",
+            "text": "status",
+            "text/html": "status",
+            "text/plain": "status",
+            "toml": "status",
+            "xml": "status",
+            "yaml": "status"
+          },
           "isUnion": false
         },
         {
@@ -3236,6 +5188,24 @@
           "type": "SpecialTime",
           "jsonName": "createdAt",
           "originalType": "SpecialTime",
+          "tags": {
+            "application/json": "created_at",
+            "application/toml": "created_at",
+            "application/x-www-form-urlencoded": "created_at",
+            "application/x-yaml": "created_at",
+            "application/xml": "createdAt",
+            "form": "created_at",
+            "html": "created_at",
+            "json": "created_at",
+            "multipart": "created_at",
+            "multipart/form-data": "created_at",
+            "text": "created_at",
+            "text/html": "created_at",
+            "text/plain": "created_at",
+            "toml": "created_at",
+            "xml": "createdAt",
+            "yaml": "created_at"
+          },
           "isUnion": false
         }
       ]
@@ -3257,6 +5227,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "rows",
+            "application/toml": "rows",
+            "application/x-www-form-urlencoded": "rows",
+            "application/x-yaml": "rows",
+            "application/xml": "rows",
+            "form": "rows",
+            "html": "rows",
+            "json": "rows",
+            "multipart": "rows",
+            "multipart/form-data": "rows",
+            "text": "rows",
+            "text/html": "rows",
+            "text/plain": "rows",
+            "toml": "rows",
+            "xml": "rows",
+            "yaml": "rows"
+          },
           "isUnion": false
         },
         {
@@ -3269,6 +5257,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "total",
+            "application/toml": "total",
+            "application/x-www-form-urlencoded": "total",
+            "application/x-yaml": "total",
+            "application/xml": "total",
+            "form": "total",
+            "html": "total",
+            "json": "total",
+            "multipart": "total",
+            "multipart/form-data": "total",
+            "text": "total",
+            "text/html": "total",
+            "text/plain": "total",
+            "toml": "total",
+            "xml": "total",
+            "yaml": "total"
+          },
           "isUnion": false
         }
       ]
@@ -3290,6 +5296,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "items",
+            "application/toml": "items",
+            "application/x-www-form-urlencoded": "items",
+            "application/x-yaml": "items",
+            "application/xml": "items",
+            "form": "items",
+            "html": "items",
+            "json": "items",
+            "multipart": "items",
+            "multipart/form-data": "items",
+            "text": "items",
+            "text/html": "items",
+            "text/plain": "items",
+            "toml": "items",
+            "xml": "items",
+            "yaml": "items"
+          },
           "isUnion": false
         },
         {
@@ -3302,6 +5326,24 @@
               "name": "Required"
             }
           ],
+          "tags": {
+            "application/json": "total",
+            "application/toml": "total",
+            "application/x-www-form-urlencoded": "total",
+            "application/x-yaml": "total",
+            "application/xml": "total",
+            "form": "total",
+            "html": "total",
+            "json": "total",
+            "multipart": "total",
+            "multipart/form-data": "total",
+            "text": "total",
+            "text/html": "total",
+            "text/plain": "total",
+            "toml": "total",
+            "xml": "total",
+            "yaml": "total"
+          },
           "isUnion": false
         }
       ]
@@ -3317,6 +5359,24 @@
           "type": "Int",
           "jsonName": "page",
           "originalType": "Int",
+          "tags": {
+            "application/json": "page",
+            "application/toml": "page",
+            "application/x-www-form-urlencoded": "page",
+            "application/x-yaml": "page",
+            "application/xml": "page",
+            "form": "page",
+            "html": "page",
+            "json": "page",
+            "multipart": "page",
+            "multipart/form-data": "page",
+            "text": "page",
+            "text/html": "page",
+            "text/plain": "page",
+            "toml": "page",
+            "xml": "page",
+            "yaml": "page"
+          },
           "isUnion": false
         },
         {
@@ -3324,6 +5384,24 @@
           "type": "Int",
           "jsonName": "size",
           "originalType": "Int",
+          "tags": {
+            "application/json": "size",
+            "application/toml": "size",
+            "application/x-www-form-urlencoded": "size",
+            "application/x-yaml": "size",
+            "application/xml": "size",
+            "form": "size",
+            "html": "size",
+            "json": "size",
+            "multipart": "size",
+            "multipart/form-data": "size",
+            "text": "size",
+            "text/html": "size",
+            "text/plain": "size",
+            "toml": "size",
+            "xml": "size",
+            "yaml": "size"
+          },
           "isUnion": false
         }
       ]
@@ -3339,6 +5417,24 @@
           "type": "Int",
           "jsonName": "page",
           "originalType": "Int",
+          "tags": {
+            "application/json": "page",
+            "application/toml": "page",
+            "application/x-www-form-urlencoded": "page",
+            "application/x-yaml": "page",
+            "application/xml": "page",
+            "form": "page",
+            "html": "page",
+            "json": "page",
+            "multipart": "page",
+            "multipart/form-data": "page",
+            "text": "page",
+            "text/html": "page",
+            "text/plain": "page",
+            "toml": "page",
+            "xml": "page",
+            "yaml": "page"
+          },
           "isUnion": false
         },
         {
@@ -3346,6 +5442,24 @@
           "type": "Int",
           "jsonName": "size",
           "originalType": "Int",
+          "tags": {
+            "application/json": "size",
+            "application/toml": "size",
+            "application/x-www-form-urlencoded": "size",
+            "application/x-yaml": "size",
+            "application/xml": "size",
+            "form": "size",
+            "html": "size",
+            "json": "size",
+            "multipart": "size",
+            "multipart/form-data": "size",
+            "text": "size",
+            "text/html": "size",
+            "text/plain": "size",
+            "toml": "size",
+            "xml": "size",
+            "yaml": "size"
+          },
           "isUnion": false
         }
       ]
@@ -3361,6 +5475,24 @@
           "type": "String",
           "jsonName": "title",
           "originalType": "String",
+          "tags": {
+            "application/json": "title",
+            "application/toml": "title",
+            "application/x-www-form-urlencoded": "title",
+            "application/x-yaml": "title",
+            "application/xml": "title",
+            "form": "title",
+            "html": "title",
+            "json": "title",
+            "multipart": "title",
+            "multipart/form-data": "title",
+            "text": "title",
+            "text/html": "title",
+            "text/plain": "title",
+            "toml": "title",
+            "xml": "title",
+            "yaml": "title"
+          },
           "isUnion": false
         },
         {
@@ -3368,6 +5500,24 @@
           "type": "String",
           "jsonName": "content",
           "originalType": "String",
+          "tags": {
+            "application/json": "content",
+            "application/toml": "content",
+            "application/x-www-form-urlencoded": "content",
+            "application/x-yaml": "content",
+            "application/xml": "content",
+            "form": "content",
+            "html": "content",
+            "json": "content",
+            "multipart": "content",
+            "multipart/form-data": "content",
+            "text": "content",
+            "text/html": "content",
+            "text/plain": "content",
+            "toml": "content",
+            "xml": "content",
+            "yaml": "content"
+          },
           "isUnion": false
         }
       ]
@@ -3383,6 +5533,24 @@
           "type": "String",
           "jsonName": "username",
           "originalType": "String",
+          "tags": {
+            "application/json": "username",
+            "application/toml": "username",
+            "application/x-www-form-urlencoded": "username",
+            "application/x-yaml": "username",
+            "application/xml": "username",
+            "form": "username",
+            "html": "username",
+            "json": "username",
+            "multipart": "username",
+            "multipart/form-data": "username",
+            "text": "username",
+            "text/html": "username",
+            "text/plain": "username",
+            "toml": "username",
+            "xml": "username",
+            "yaml": "username"
+          },
           "isUnion": false
         },
         {
@@ -3390,6 +5558,24 @@
           "type": "String",
           "jsonName": "password",
           "originalType": "String",
+          "tags": {
+            "application/json": "password",
+            "application/toml": "password",
+            "application/x-www-form-urlencoded": "password",
+            "application/x-yaml": "password",
+            "application/xml": "password",
+            "form": "password",
+            "html": "password",
+            "json": "password",
+            "multipart": "password",
+            "multipart/form-data": "password",
+            "text": "password",
+            "text/html": "password",
+            "text/plain": "password",
+            "toml": "password",
+            "xml": "password",
+            "yaml": "password"
+          },
           "isUnion": false
         }
       ]
@@ -3405,6 +5591,24 @@
           "type": "Int",
           "jsonName": "page",
           "originalType": "Int",
+          "tags": {
+            "application/json": "page",
+            "application/toml": "page",
+            "application/x-www-form-urlencoded": "page",
+            "application/x-yaml": "page",
+            "application/xml": "page",
+            "form": "page",
+            "html": "page",
+            "json": "page",
+            "multipart": "page",
+            "multipart/form-data": "page",
+            "text": "page",
+            "text/html": "page",
+            "text/plain": "page",
+            "toml": "page",
+            "xml": "page",
+            "yaml": "page"
+          },
           "isUnion": false
         },
         {
@@ -3412,6 +5616,24 @@
           "type": "Int",
           "jsonName": "size",
           "originalType": "Int",
+          "tags": {
+            "application/json": "size",
+            "application/toml": "size",
+            "application/x-www-form-urlencoded": "size",
+            "application/x-yaml": "size",
+            "application/xml": "size",
+            "form": "size",
+            "html": "size",
+            "json": "size",
+            "multipart": "size",
+            "multipart/form-data": "size",
+            "text": "size",
+            "text/html": "size",
+            "text/plain": "size",
+            "toml": "size",
+            "xml": "size",
+            "yaml": "size"
+          },
           "isUnion": false
         }
       ]
@@ -3427,6 +5649,24 @@
           "type": "UserRole",
           "jsonName": "role",
           "originalType": "UserRole",
+          "tags": {
+            "application/json": "role",
+            "application/toml": "role",
+            "application/x-www-form-urlencoded": "role",
+            "application/x-yaml": "role",
+            "application/xml": "role",
+            "form": "role",
+            "html": "role",
+            "json": "role",
+            "multipart": "role",
+            "multipart/form-data": "role",
+            "text": "role",
+            "text/html": "role",
+            "text/plain": "role",
+            "toml": "role",
+            "xml": "role",
+            "yaml": "role"
+          },
           "isUnion": false
         },
         {
@@ -3434,6 +5674,24 @@
           "type": "RecordStatus",
           "jsonName": "status",
           "originalType": "RecordStatus",
+          "tags": {
+            "application/json": "status",
+            "application/toml": "status",
+            "application/x-www-form-urlencoded": "status",
+            "application/x-yaml": "status",
+            "application/xml": "status",
+            "form": "status",
+            "html": "status",
+            "json": "status",
+            "multipart": "status",
+            "multipart/form-data": "status",
+            "text": "status",
+            "text/html": "status",
+            "text/plain": "status",
+            "toml": "status",
+            "xml": "status",
+            "yaml": "status"
+          },
           "isUnion": false
         }
       ]
@@ -3957,11 +6215,27 @@
             renderResponse(ep);
         }
 
+        function getFieldName(field, ctype) {
+            if (!field) return '';
+            if (field.tags && ctype) {
+                if (field.tags[ctype]) return field.tags[ctype];
+                const cleanCT = ctype.toLowerCase();
+                if (field.tags[cleanCT]) return field.tags[cleanCT];
+                if (cleanCT.includes('json') && field.tags['json']) return field.tags['json'];
+                if (cleanCT.includes('xml') && field.tags['xml']) return field.tags['xml'];
+                if ((cleanCT.includes('form') || cleanCT.includes('multipart')) && field.tags['form']) return field.tags['form'];
+                if (cleanCT.includes('yaml') && field.tags['yaml']) return field.tags['yaml'];
+                if (cleanCT.includes('toml') && field.tags['toml']) return field.tags['toml'];
+            }
+            return field.name || field.jsonName;
+        }
+
         function renderParams(ep) {
             const tbody = document.getElementById('params-body');
             if (!tbody) return;
             let rows = '';
 
+            const reqCT = ep.contentType || 'json';
             if (!ep.isArgsWrapped && ep.inputName) {
                 const model = apiData.models && apiData.models.find(m => m.name === ep.inputName);
                 if (model) {
@@ -3970,19 +6244,19 @@
                     try { discMap = getDiscriminatorMap(model); } catch(e) {}
                     model.fields.forEach(f => {
                         rows += renderRow({
-                            name: f.jsonName || f.name,
+                            name: getFieldName(f, reqCT),
                             type: f.type,
                             source: defaultSource,
                             validators: f.validators,
                             doc: f.doc,
                             isUnion: f.isUnion,
                             unionParamExp: f.unionParamExp
-                        }, 0, false, '', discMap ? discMap[f.name] : null, discMap ? discMap['__field_' + f.name] : null);
+                        }, 0, false, '', discMap ? discMap[f.name] : null, discMap ? discMap['__field_' + f.name] : null, new Set(), reqCT);
                     });
                 }
             } else if (ep.args) {
                 ep.args.forEach(arg => {
-                    rows += renderRow(arg, 0);
+                    rows += renderRow(arg, 0, false, '', null, null, new Set(), reqCT);
                 });
             }
 
@@ -4059,7 +6333,7 @@
                         <div id="resp-success-content">
                             <table class="w-full text-left text-xs">
                                 <tbody class="divide-y divide-white/5">
-                                    ${renderTypeStructure(typeInfo.base, typeInfo)}
+                                    ${renderTypeStructure(typeInfo.base, typeInfo, ep.responseContentType || 'application/json')}
                                 </tbody>
                             </table>
                         </div>
@@ -4067,7 +6341,7 @@
                         <div id="resp-error-content" class="hidden">
                             <table class="w-full text-left text-xs">
                                 <tbody class="divide-y divide-white/5">
-                                    ${ep.isErrorWrapped ? renderTypeStructure(ep.errorTypeBase, null) : 
+                                    ${ep.isErrorWrapped ? renderTypeStructure(ep.errorTypeBase, null, ep.errorContentType || ep.responseContentType || 'application/json') : 
                                         `<tr><td class="p-4 text-slate-500 italic">No specific structure, status code indicates error</td></tr>`
                                     }
                                 </tbody>
@@ -4084,7 +6358,7 @@
             return rawType.replace(/^\*/, '').replace(/\*\[\]/g, '[]').replace(/\[\*([a-zA-Z0-9_]+)\]/g, '[$1]');
         }
 
-        function renderTypeStructure(baseType, typeInfo) {
+        function renderTypeStructure(baseType, typeInfo, ctype = '') {
             const cleanBase = baseType ? baseType.replace(/[*[\]!]/g, '') : '';
             const model = apiData.models && apiData.models.find(m => m.name === cleanBase);
             const union = apiData.unions && apiData.unions.find(u => u.name === cleanBase);
@@ -4106,9 +6380,9 @@
 
                     rows += renderRow({
                         ...f,
-                        name: f.jsonName || f.name,
+                        name: getFieldName(f, ctype),
                         type: displayType,
-                    }, 0, true, '', discMap ? discMap[f.name] : null, discMap ? discMap['__field_' + f.name] : null, visited);
+                    }, 0, true, '', discMap ? discMap[f.name] : null, discMap ? discMap['__field_' + f.name] : null, visited, ctype);
                 });
                 return rows;
             } else if (union) {
@@ -4116,13 +6390,13 @@
                     name: '-',
                     type: baseType,
                     doc: 'Union type'
-                }, 0, true);
+                }, 0, true, '', null, null, new Set(), ctype);
             } else {
                 return renderRow({
                     name: '-',
                     type: baseType || 'Any',
                     doc: 'Direct return'
-                }, 0, true);
+                }, 0, true, '', null, null, new Set(), ctype);
             }
         }
 
@@ -4166,12 +6440,13 @@
 
         function getQueryParams(ep) {
             const params = [];
+            const reqCT = ep.contentType || 'json';
             if (!ep.isArgsWrapped && ep.inputName) {
                 const model = apiData.models && apiData.models.find(m => m.name === ep.inputName);
                 if (model) {
                     const source = (ep.args && ep.args[0]) ? ep.args[0].source : 'Body';
                     if (source === 'Query') {
-                        model.fields.forEach(f => params.push(`${f.jsonName || f.name}=...`));
+                        model.fields.forEach(f => params.push(`${getFieldName(f, reqCT)}=...`));
                     }
                 }
             } else if (ep.args) {
@@ -4209,7 +6484,7 @@
             return js;
         }
 
-        function renderRow(arg, depth = 0, hideSource = false, extraClass = '', discInfo = null, unionFieldInfo = null, visitedModels = new Set()) {
+        function renderRow(arg, depth = 0, hideSource = false, extraClass = '', discInfo = null, unionFieldInfo = null, visitedModels = new Set(), ctype = '') {
             const padding = depth * 16;
             const isRequired = arg.validators && arg.validators.some(v => v.name === 'Required');
             const displayValidators = arg.validators ? arg.validators.filter(v => v.name !== 'Required') : [];
@@ -4308,14 +6583,14 @@
                             const cDiscInfo = caseDiscMap[f.name];
                             const cUnionFieldInfo = caseDiscMap['__field_' + f.name];
                             row += renderRow({
-                                name: f.jsonName || f.name,
+                                name: getFieldName(f, ctype),
                                 type: f.type,
                                 source: arg.source || 'Body',
                                 validators: f.validators,
                                 doc: f.doc,
                                 isUnion: f.isUnion,
                                 unionParamExp: f.unionParamExp
-                            }, depth + 1, hideSource, cls, cDiscInfo, cUnionFieldInfo, nextVisited);
+                            }, depth + 1, hideSource, cls, cDiscInfo, cUnionFieldInfo, nextVisited, ctype);
                         });
                     }
                 });
@@ -4325,14 +6600,14 @@
                     const subDiscInfo = subDiscMap[f.name];
                     const subUnionFieldInfo = subDiscMap['__field_' + f.name];
                     row += renderRow({
-                        name: f.jsonName || f.name,
+                        name: getFieldName(f, ctype),
                         type: f.type,
                         source: arg.source || 'Body',
                         validators: f.validators,
                         doc: f.doc,
                         isUnion: f.isUnion,
                         unionParamExp: f.unionParamExp
-                    }, depth + 1, hideSource, extraClass, subDiscInfo, subUnionFieldInfo, nextVisited);
+                    }, depth + 1, hideSource, extraClass, subDiscInfo, subUnionFieldInfo, nextVisited, ctype);
                 });
             }
             return row;

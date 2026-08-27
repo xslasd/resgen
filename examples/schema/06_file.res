@@ -33,11 +33,11 @@ type UploadResult {
     mimeType: String!
 }
 
-group /files [wrap=ResData] {
+group /files {
     # 单文件上传：头像
-    POST /avatar[ctype=multipart] => UploadAvatar(input: UploadAvatarInput): ResData<UploadResult> [state=201]
+    POST /avatar[ctype=multipart] => UploadAvatar(input: UploadAvatarInput): UploadResult [state=201]
     # 混合表单上传：文档 + 封面
-    POST /document[ctype=multipart] => UploadDocument(input: UploadDocumentInput): ResData<UploadResult> [state=201]
+    POST /document[ctype=multipart] => UploadDocument(input: UploadDocumentInput): UploadResult [state=201]
     # 文件下载：成功响应为 PDF 裸流 (wrap=none)，文档精准显示 application/pdf，失败退化为 JSON (etype=json)
     GET /download/:id => DownloadFile(id: Int @path): File [ctype=pdf, etype=json]
     # 导出 CSV：成功响应为 CSV 裸流 (wrap=none)，文档精准显示 text/csv，失败退化为 JSON (etype=json)

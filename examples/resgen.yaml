@@ -22,8 +22,6 @@ generator:
   #   - keep:  保持 DSL 原样大小写 (UserName -> UserName)
   default_case: "snake"
 
-  # 交互式契约文档 (api.json) 中参数的命名风格，若不填写则默认继承 default_case
-  doc_case: "snake"
 
   # ==============================================================================
   # 2. 🌟 统一协议与 Content-Type 全规格配置 (Content Types & Codecs)

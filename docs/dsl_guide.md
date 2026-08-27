@@ -314,6 +314,19 @@ wrap TreeRes<T> {
 }
 ```
 
+> [!NOTE]
+> **全局 `default_wrap` 与显式泛型包装器的等价性**：
+> 当在 `resgen.yaml` 中配置了 `default_wrap: "ResData"`（或在组上配置了 `wrap=ResData`）时，以下两种声明方式在 Go 业务代码生成与运行时响应上 **100% 完全等价**：
+> 1. **隐式自动包装（推荐，极致精简）**：直接声明领域模型类型（如 `: Article` 或 `: [Article]`），生成器会自动解构出业务模型由业务 Resolver 实现，并在外层自动套用 `ResData` 输出。
+> 2. **显式声明包装外壳（自文档化）**：显式写出 `: ResData<Article>` 或 `: ResData<[Article]>`，让接口最外层的报文结构一目了然。
+> ```graphql
+> # 方式 1：隐式自动包装（Resolver 返回 *Article，网络输出 ResData<Article>）
+> GET /articles/:id => GetArticle(id: Int @path): Article
+> 
+> # 方式 2：显式声明包装（Resolver 同样返回 *Article，网络输出 ResData<Article>）
+> GET /articles/:id => GetArticle(id: Int @path): ResData<Article>
+> ```
+
 > [!TIP]
 > **自引用树形结构与 API 文档保护**：
 > Resgen 原生支持自引用（Self-referential）树形模型，例如分类树节点 `CategoryTreeNode` 内部嵌套子节点切片 `children: [CategoryTreeNode!]`。
@@ -324,12 +337,12 @@ wrap TreeRes<T> {
 
 ```go
 @auth("admin")  # 组级装饰器，会自动应用到组内所有接口
-group /users [wrap=ResData] {
+group /users {
 
     @loginRequired  # 接口级装饰器，会追加到组级装饰器之后
-    GET /profile => GetProfile(): ResData<User>
+    GET /profile => GetProfile(): User
 
-    POST /login => Login(username: String, password: String): ResData<Token>
+    POST /login => Login(username: String, password: String): Token
 }
 ```
 
@@ -391,17 +404,41 @@ GET /download/:id => DownloadFile(id: Int @path): File [ctype=stream, etype=json
 > ```
 > 底层引擎通过 `RenderStream(code int, localFileDownload LocalFileDownload)` 统一安全流式输出。
 
-### 参数绑定
+### 参数绑定与别名
 - `@path`: 路径参数
 - `@query`: 查询参数
 - `@header`: 请求头
+- `@alias("别名")`: **字段/参数传输别名（内置系统指令）**。指定该字段在网络传输层（JSON/Form/Query/Path/Header）使用的自定义字段名称，用于兼容老系统或迎合遗留的不规范命名习惯。
+  - **Go 结构体**：字段名依然保持规范驼峰命名，Tag 自动覆盖为别名（如 `json:"st_time" form:"st_time"`）。
+  - **参数提取**：Query / Path / Header 自动提取别名（如 `request.GetQuery("st_time")`）。
+  - **API 文档**：文档中请求参数与结构体字段直接展示为别名，方便前端对接。
 - `@customBind`: **逻辑接管绑定**。跳过自动生成代码的绑定逻辑，在 Resolver 中生成 `BindXXX` 方法供手动实现（适用于 Multipart 复杂处理或自定义解析）。
 - 默认逻辑：
   - `GET` 方法：参数默认绑定到 `Query`。
   - `POST/PUT/PATCH` 方法：Body 字段的序列化格式由接口的 `ctype` 统一决定（`json`/`form`/`multipart`），**无需在字段上逐个标注**。
 
 > [!NOTE]
-> `@path`/`@query`/`@header` 字段可以出现在 `input` 结构体字段中，也可以直接作为顶层参数。
+> `@alias` 既支持 **`input` 输入模型**、**`type` 输出响应模型**，也支持接口的**顶层平铺参数**：
+> ```graphql
+> # 1. 输出模型（返回给前端的字段使用别名）
+> type UserProfile {
+>     id: Int!
+>     name: String!       @alias("user_name_legacy") # 响应 JSON 键为 user_name_legacy
+>     createdAt: IntTime! @alias("reg_tm")           # 响应 JSON 键为 reg_tm
+> }
+> 
+> # 2. 输入模型（接收前端请求的字段使用别名）
+> input QueryEventsInput {
+>     startTime: IntTime @alias("st_time")           # 请求 JSON/Query 键为 st_time
+>     endTime: IntTime   @alias("end_tm")
+> }
+> 
+> # 3. 顶层平铺参数（直接映射 Query/Path/Header 参数）
+> group /events {
+>     GET /list => ListEvents(startTime: IntTime @query @alias("st")): ResData<[Event]>
+> }
+> ```
+> 
 > `File` 类型字段在入参时代表上传文件（Go 类型 `*multipart.FileHeader`），会自动推断为 multipart 传输；若未指定 `ctype`，生成器会自动将接口的 `ctype` 升级为 `multipart`；
 > 若明确指定了 `ctype=json` 或 `ctype=form` 但 input 中含有 `File` 字段，生成器会在编译阶段智能报错拦截。
 
@@ -567,7 +604,7 @@ DSL 的生成行为可以通过项目根目录下的 `resgen.yaml` 进行深度�
 
 ### API 文档配置
 - **`base_url`**: 文档中显示的 API 基准请求地址。
-- **`doc_case`**: 统一 API 文档中呈现的字段命名风格。
+- *(自动适配)*: API 文档中的字段与参数展示风格全面自动适配每个接口对应的 `content_types` 协议中配置的 `case`（例如 JSON 遵循 `json.case`，XML 遵循 `xml.case`）。
 
 ### 默认响应行为
 - **`default_ok_status`**: 接口未定义 `state` 时默认的成功状态码。

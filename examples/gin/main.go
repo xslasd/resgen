@@ -165,6 +165,11 @@ func (h *AuthDemoHandler) Register(ctx context.Context, input *resolver.Register
 	return &resolver.User{Id: 1, Username: input.Username, Email: input.Email}, nil
 }
 
+func (h *AuthDemoHandler) SetPeriod(ctx context.Context, input *resolver.TaskPeriodInput) (*string, error) {
+	s := "period set successfully"
+	return &s, nil
+}
+
 func (h *AuthDemoHandler) BindLogin(request resolver.ServerContextBase, input *resolver.LoginArgs) error {
 	fmt.Printf(">>> [Custom Bind] Login\n")
 	if val := request.GetQuery("username"); val != "" {
@@ -543,6 +548,10 @@ func (v *MyValidator) Min(ctx *gin.Context, fieldName string, value any, Len int
 }
 
 func (v *MyValidator) Max(ctx *gin.Context, fieldName string, value any, Len int) error {
+	return nil
+}
+
+func (v *MyValidator) TimeBefore(ctx *gin.Context, fieldName string, value any, targetField any) error {
 	return nil
 }
 

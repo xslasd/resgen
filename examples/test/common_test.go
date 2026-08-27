@@ -8,8 +8,10 @@ import (
 	"net/http"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/xslasd/resgen/examples/resolver"
+	"github.com/xslasd/resgen/examples/scalars"
 )
 
 // ==========================================
@@ -269,6 +271,17 @@ func (v *TestValidator) Min(ctx any, fieldName string, value any, Len int) error
 func (v *TestValidator) Max(ctx any, fieldName string, value any, Len int) error {
 	if s, ok := value.(string); ok && len(s) > Len {
 		return fmt.Errorf("字段 [%s] 长度不能大于 %d", fieldName, Len)
+	}
+	return nil
+}
+
+func (v *TestValidator) TimeBefore(ctx any, fieldName string, value any, targetField any) error {
+	t1, ok1 := value.(scalars.IntTime)
+	t2, ok2 := targetField.(scalars.IntTime)
+	if ok1 && ok2 {
+		if time.Time(t1).After(time.Time(t2)) {
+			return fmt.Errorf("字段 [%s] 时间必须早于目标时间", fieldName)
+		}
 	}
 	return nil
 }

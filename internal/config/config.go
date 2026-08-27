@@ -46,22 +46,13 @@ type GeneratorConfig struct {
 	DefaultContentType string                     `yaml:"default_content_type"`
 	DefaultCase        string                     `yaml:"default_case"` // snake (默认), camel, lower, keep
 	ContentTypes       map[string]ContentTypeSpec `yaml:"content_types"`
-	// 保留向后兼容字段（如有旧配置传入）
-	ContentTypeAliases map[string]string          `yaml:"content_type_aliases"`
-	StructTags         []TagConfig                `yaml:"struct_tags"`
 	EnableApiDocs      bool                       `yaml:"enable_api_docs"`
-	DocCase            string                     `yaml:"doc_case"` // snake, camel, lower, keep
 	BaseURL            string                     `yaml:"base_url"`
 	DefaultWrap        string                     `yaml:"default_wrap"`
 	DefaultOkStatus    int                        `yaml:"default_ok_status"`
 	ScalarStyle        string                     `yaml:"scalar_style"` // isolation (默认) | direct
 	AuthDecorator      string                     `yaml:"auth_decorator"`
 	AuthParamName      string                     `yaml:"auth_param_name"`
-}
-
-type TagConfig struct {
-	Name string `yaml:"name"`
-	Case string `yaml:"case"` // snake, camel, lower, keep
 }
 
 func LoadConfig(path string) (*Config, error) {
@@ -145,21 +136,6 @@ func LoadConfig(path string) (*Config, error) {
 	}
 	if conf.Generator.ContentTypes == nil {
 		conf.Generator.ContentTypes = make(map[string]ContentTypeSpec)
-	}
-	// 将旧版 ContentTypeAliases 自动合并进 ContentTypes
-	for alias, mime := range conf.Generator.ContentTypeAliases {
-		if spec, exists := conf.Generator.ContentTypes[alias]; exists {
-			if spec.MIME == "" {
-				spec.MIME = mime
-				conf.Generator.ContentTypes[alias] = spec
-			}
-		} else {
-			conf.Generator.ContentTypes[alias] = ContentTypeSpec{
-				MIME: mime,
-				Tag:  alias,
-				Case: conf.Generator.DefaultCase,
-			}
-		}
 	}
 	// 补全各个 ContentTypeSpec 的默认 case
 	for key, spec := range conf.Generator.ContentTypes {

@@ -160,6 +160,13 @@
         ],
         "description": "接管参数校验逻辑，由业务层在 Resolver 中手动实现 Validate 方法"
     },
+    "Field Alias Directive": {
+        "prefix": "@alias",
+        "body": [
+            "@alias(\"${1:alias_name}\")"
+        ],
+        "description": "为字段或入参设置传输层别名（兼容老旧或不规范的接口参数命名）"
+    },
     "Wrap None Meta": {
         "prefix": "wrap-none",
         "body": [

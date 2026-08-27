@@ -47,6 +47,7 @@ func RunServer(version string) {
 		capabilities := handler.CreateServerCapabilities()
 		capabilities.DocumentFormattingProvider = true
 		capabilities.DefinitionProvider = true
+		capabilities.HoverProvider = true
 		capabilities.TextDocumentSync = protocol.TextDocumentSyncKindFull
 
 		return protocol.InitializeResult{
@@ -56,6 +57,58 @@ func RunServer(version string) {
 				Version: &version,
 			},
 		}, nil
+	}
+
+	handler.TextDocumentHover = func(context *glsp.Context, params *protocol.HoverParams) (*protocol.Hover, error) {
+		filesMu.RLock()
+		content, ok := files[params.TextDocument.URI]
+		filesMu.RUnlock()
+		if !ok {
+			return nil, nil
+		}
+
+		filename := uriToPath(params.TextDocument.URI)
+		schema, err := parser.ParseFileContent(filename, content)
+		if err != nil {
+			return nil, nil
+		}
+
+		targetLine := int(params.Position.Line) + 1
+		targetCol := int(params.Position.Character) + 1
+
+		ident := findIdentifierAt(schema, targetLine, targetCol)
+		if ident == "" {
+			return nil, nil
+		}
+
+		var hoverText string
+		switch strings.ToLower(ident) {
+		case "alias":
+			hoverText = "### Built-in Directive: `@alias`\n\n用于指定模型字段或接口入参在传输层（JSON/Form/Query/Path/Header）使用的自定义别名，方便兼容老系统或不规范的接口命名规范。\n\n**示例**:\n```res\ninput QueryInput {\n    startTime: IntTime @alias(\"st_time\")\n}\n```"
+		case "path":
+			hoverText = "### Built-in Directive: `@path`\n\n标记参数来源于 URL 路径变量 (Path Variable)。"
+		case "query":
+			hoverText = "### Built-in Directive: `@query`\n\n标记参数来源于 URL 查询字符串 (Query String)。"
+		case "header":
+			hoverText = "### Built-in Directive: `@header`\n\n标记参数来源于 HTTP 请求头 (Header)。"
+		case "required":
+			hoverText = "### Built-in Directive: `@required`\n\n标记字段或形参必填且非空。"
+		case "custombind":
+			hoverText = "### Built-in Directive: `@customBind`\n\n接管参数绑定逻辑，由业务层在 Resolver 中手动实现 Bind 方法。"
+		case "customvalidate":
+			hoverText = "### Built-in Directive: `@customValidate`\n\n接管参数校验逻辑，由业务层在 Resolver 中手动实现 Validate 方法。"
+		}
+
+		if hoverText != "" {
+			return &protocol.Hover{
+				Contents: protocol.MarkupContent{
+					Kind:  protocol.MarkupKindMarkdown,
+					Value: hoverText,
+				},
+			}, nil
+		}
+
+		return nil, nil
 	}
 
 	handler.TextDocumentDidOpen = func(context *glsp.Context, params *protocol.DidOpenTextDocumentParams) error {
@@ -491,7 +544,63 @@ func publishDiagnostics(context *glsp.Context, uri, content string) {
 			return false
 		}
 
+		// 校验指令使用（如 @alias 参数必须有效）
+		checkDirectives := func(dirs []parser.DirectiveUsage) {
+			for _, d := range dirs {
+				if strings.EqualFold(d.Name, "alias") {
+					aliasVal := ""
+					if len(d.Args) > 0 {
+						arg := d.Args[0]
+						if arg.Value.String != nil {
+							aliasVal = *arg.Value.String
+						} else if arg.Value.Ident != nil {
+							aliasVal = *arg.Value.Ident
+						} else {
+							diagnostics = append(diagnostics, protocol.Diagnostic{
+								Range: protocol.Range{
+									Start: protocol.Position{Line: uint32(d.Pos.Line - 1), Character: uint32(d.Pos.Column - 1)},
+									End:   protocol.Position{Line: uint32(d.Pos.Line - 1), Character: uint32(d.Pos.Column + len(d.Name) + 1)},
+								},
+								Severity: &severity,
+								Source:   &source,
+								Message:  "语义错误：@alias 指令的参数必须是字符串或标识符，例如 @alias(\"st_time\")",
+							})
+							continue
+						}
+					}
+					for _, m := range d.Meta {
+						if strings.EqualFold(m.Key, "name") || strings.EqualFold(m.Key, "alias") {
+							aliasVal = m.Value.MetaStr()
+						}
+					}
+					if strings.TrimSpace(aliasVal) == "" {
+						diagnostics = append(diagnostics, protocol.Diagnostic{
+							Range: protocol.Range{
+								Start: protocol.Position{Line: uint32(d.Pos.Line - 1), Character: uint32(d.Pos.Column - 1)},
+								End:   protocol.Position{Line: uint32(d.Pos.Line - 1), Character: uint32(d.Pos.Column + len(d.Name) + 1)},
+							},
+							Severity: &severity,
+							Source:   &source,
+							Message:  "语义错误：@alias 指令必须包含一个非空的别名参数，例如 @alias(\"st_time\")",
+						})
+					}
+				}
+			}
+		}
+
 		for _, decl := range schema.Declarations {
+			if decl.Model != nil {
+				for _, prop := range decl.Model.Properties {
+					checkDirectives(prop.Directives)
+				}
+			}
+			if decl.Group != nil {
+				for _, ep := range decl.Group.Endpoints {
+					for _, arg := range ep.Args {
+						checkDirectives(arg.Directives)
+					}
+				}
+			}
 			if decl.Scalar != nil {
 				if decl.Scalar.Base == "File" {
 					diagnostics = append(diagnostics, protocol.Diagnostic{

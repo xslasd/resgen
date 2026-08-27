@@ -47,3 +47,18 @@ group /users {
 		t.Errorf("Expected User at line 2, got %d", sym.Line)
 	}
 }
+
+func TestAliasDirectiveDiagnostic(t *testing.T) {
+	validContent := `
+input FilterInput {
+    startTime: String @alias("st_time")
+}
+`
+	schema, err := parser.ParseFileContent("test.res", validContent)
+	if err != nil {
+		t.Fatalf("Parse validContent failed: %v", err)
+	}
+	if schema == nil {
+		t.Fatalf("Expected non-nil schema")
+	}
+}

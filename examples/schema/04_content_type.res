@@ -36,24 +36,24 @@ input NestedFormInput {
 }
 
 # ── POST 接口的三种请求 Content-Type ─────────────────────
-group /content [wrap=ResData] {
+group /content {
     # 默认：请求体为 JSON（可省略 ctype=json）
-    POST /json => SubmitJson(input: JsonInput): ResData<String>
+    POST /json => SubmitJson(input: JsonInput): String
     # 请求体为 URL 编码表单（application/x-www-form-urlencoded）
-    POST /form[ctype=form] => SubmitForm(input: FormInput): ResData<String>
+    POST /form[ctype=form] => SubmitForm(input: FormInput): String
     # 🌟 请求体为 URL 编码表单，支持多层嵌套结构
-    POST /form/nested[ctype=form] => SubmitNestedForm(input: NestedFormInput): ResData<String>
+    POST /form/nested[ctype=form] => SubmitNestedForm(input: NestedFormInput): String
     # 请求体为 multipart/form-data（文件上传场景在示例 6 详细展示）
-    POST /multipart[ctype=multipart] => SubmitMultipart(title: String!): ResData<String>
+    POST /multipart[ctype=multipart] => SubmitMultipart(title: String!): String
 }
 
 # ── GET 接口的响应 Content-Type ──────────────────────────
 @auth("export:*")
 group /export {
-    # 响应为纯文本，错误时退化为 JSON（错误使用 ResData 包装）
-    GET /text => ExportText(): String [ctype=text, etype=json, wrap=ResData]
+    # 响应为纯文本，错误时退化为 JSON（默认由 default_wrap 包装）
+    GET /text => ExportText(): String [ctype=text, etype=json]
     # 响应为 JSON（默认，可省略）
     GET /json => ExportJson(): Report [ctype=json]
-    # 响应为 XML（需在 resgen.yaml content_type_aliases 中定义 xml 别名）
-    GET /xml => ExportXml(): Report [ctype=xml, etype=json, wrap=ResData]
+    # 响应为 XML（需在 resgen.yaml content_types 中定义 xml 规格）
+    GET /xml => ExportXml(): Report [ctype=xml, etype=json]
 }

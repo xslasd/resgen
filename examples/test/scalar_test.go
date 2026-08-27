@@ -83,9 +83,9 @@ func TestScalarDemo_Endpoints(t *testing.T) {
 		}
 	})
 
-	t.Run("2. GET /events/list Query 参数中的标量解析", func(t *testing.T) {
+	t.Run("2. GET /events/list Query 参数中的标量解析 (@alias 测试)", func(t *testing.T) {
 		h := handlers["GET /events/list"]
-		req := httptest.NewRequest("GET", "/events/list?after=1700000000&before=1700050000", nil)
+		req := httptest.NewRequest("GET", "/events/list?from_tm=1700000000&to_tm=1700050000", nil)
 		ctx := NewTestContext(req)
 
 		h(ctx, resolver.MethodInfo{Name: "ListEvents"})
@@ -95,9 +95,9 @@ func TestScalarDemo_Endpoints(t *testing.T) {
 		}
 	})
 
-	t.Run("3. POST /events/create Body 中的标量自动双向转换 (FromValue/ToDTO)", func(t *testing.T) {
+	t.Run("3. POST /events/create Body 中的标量自动双向转换与 @alias 字段绑定", func(t *testing.T) {
 		h := handlers["POST /events/create"]
-		reqBody := `{"name":"技术大会","start_time":1700000000,"end_time":1700036000}`
+		reqBody := `{"name":"技术大会","st_time":1700000000,"end_time":1700036000}`
 		ctx := NewTestContext(httptest.NewRequest("POST", "/events/create", bytes.NewBufferString(reqBody)))
 
 		h(ctx, resolver.MethodInfo{Name: "CreateEvent"})

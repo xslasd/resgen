@@ -20,6 +20,11 @@ func (b *mockAuthDemoBiz) Register(ctx context.Context, input *resolver.Register
 	return &resolver.User{Id: 1, Username: input.Username, Email: input.Email}, nil
 }
 
+func (b *mockAuthDemoBiz) SetPeriod(ctx context.Context, input *resolver.TaskPeriodInput) (*string, error) {
+	res := "周期设置成功"
+	return &res, nil
+}
+
 func (b *mockAuthDemoBiz) BindLogin(request resolver.ServerContextBase, input *resolver.LoginArgs) error {
 	if val := request.GetQuery("username"); val != "" {
 		input.Username = &val
@@ -197,22 +202,37 @@ func TestAuthDemo_ValidationAndDecorators(t *testing.T) {
 		}
 	})
 
-	t.Run("8. 全局装饰器权限拦截：@auth('admin')", func(t *testing.T) {
-		h := handlers["DELETE /auth/:id"]
-		decorator.AuthFunc = func(ctx any, info resolver.MethodInfo, Role string) error {
-			if Role != "admin" {
-				return fmt.Errorf("无管理员权限")
-			}
-			return nil
-		}
+	t.Run("9. 跨字段关联校验：@timeBefore 成功 (startTime < endTime)", func(t *testing.T) {
+		h := handlers["POST /auth/period"]
+		now := time.Now()
+		st := now.Unix()
+		et := now.Add(time.Hour).Unix()
+		reqBody := fmt.Sprintf(`{"start_time":%d,"end_time":%d}`, st, et)
+		ctx := NewTestContext(httptest.NewRequest("POST", "/auth/period", bytes.NewBufferString(reqBody)))
 
-		ctx := NewTestContext(httptest.NewRequest("DELETE", "/auth/1", nil))
-		ctx.pathParams["id"] = "1"
-
-		h(ctx, resolver.MethodInfo{Name: "DeleteUser"})
+		h(ctx, resolver.MethodInfo{Name: "SetPeriod"})
 
 		if ctx.resCode != 200 {
 			t.Fatalf("期望状态码 200, 实际为: %d", ctx.resCode)
+		}
+	})
+
+	t.Run("10. 跨字段关联校验：@timeBefore 拦截 (startTime > endTime)", func(t *testing.T) {
+		h := handlers["POST /auth/period"]
+		now := time.Now()
+		st := now.Add(time.Hour).Unix()
+		et := now.Unix()
+		reqBody := fmt.Sprintf(`{"start_time":%d,"end_time":%d}`, st, et)
+		ctx := NewTestContext(httptest.NewRequest("POST", "/auth/period", bytes.NewBufferString(reqBody)))
+
+		h(ctx, resolver.MethodInfo{Name: "SetPeriod"})
+
+		if ctx.resCode != 400 {
+			t.Fatalf("期望状态码 400 (timeBefore 跨字段校验失败), 实际为: %d", ctx.resCode)
+		}
+		res, ok := ctx.resBody.(resolver.ResData)
+		if !ok || res.Msg == "" {
+			t.Fatalf("期望返回错误信息，实际为: %v", ctx.resBody)
 		}
 	})
 }

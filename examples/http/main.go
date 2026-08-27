@@ -161,6 +161,11 @@ func (h *AuthDemoHandler) Register(ctx context.Context, input *resolver.Register
 	return &resolver.User{Id: 1, Username: input.Username, Email: input.Email}, nil
 }
 
+func (h *AuthDemoHandler) SetPeriod(ctx context.Context, input *resolver.TaskPeriodInput) (*string, error) {
+	s := "period set successfully"
+	return &s, nil
+}
+
 func (h *AuthDemoHandler) BindLogin(request resolver.ServerContextBase, input *resolver.LoginArgs) error {
 	return nil
 }
@@ -381,6 +386,7 @@ func (v *MyValidator) Email(ctx *NativeCtx, fieldName string, value any) error {
 func (v *MyValidator) Mobile(ctx *NativeCtx, fieldName string, value any) error { return nil }
 func (v *MyValidator) Min(ctx *NativeCtx, fieldName string, value any, Len int) error { return nil }
 func (v *MyValidator) Max(ctx *NativeCtx, fieldName string, value any, Len int) error { return nil }
+func (v *MyValidator) TimeBefore(ctx *NativeCtx, fieldName string, value any, targetField any) error { return nil }
 func (v *MyValidator) FileRule(ctx *NativeCtx, fieldName string, value any, maxSize int, types []string, msg string) error { return nil }
 func (v *MyValidator) EnumError(ctx *NativeCtx, fieldName string, enumType string, value any) error {
 	return &resolver.InvalidEnumError{

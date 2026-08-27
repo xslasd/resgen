@@ -91,11 +91,11 @@ type User {
 }
 
 # 【亮点】编排 API 网络，灵活控制状态码与前后端交互格式 (Content-Type)
-group /api/v1 [wrap=ResData] {  # 组级应用默认响应包装器
+group /api/v1 {
     
-    # 基础路由与组件装饰，成功时返回 200 与 JSON
+    # 基础路由与权限装饰：自动享受 default_wrap 包装，默认成功 200 + JSON
     @auth("admin")
-    GET /users => GetUsers(page: Int, size: Int): ResData<[User!]!> [state=200, ctype=json]
+    GET /users => GetUsers(page: Int, size: Int): ResData<[User!]!>
     
     # 精细控制：已知格式下载 PDF (ctype=pdf, 编译器自动注入 application/pdf)，失败时安全退化为 JSON 错误响应(etype=json)
     GET /users/export/pdf => ExportUsersPdf(date: String!): File [ctype=pdf, etype=json]

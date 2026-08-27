@@ -13,6 +13,8 @@ validator email
 validator mobile
 validator min(len: Int!)
 validator max(len: Int!)
+# 🌟 声明高级跨字段关联校验器：Field! 自动捕获同级或子级目标字段并在编译期转为强类型路径
+validator timeBefore(targetField: Field!)
 
 
 
@@ -53,18 +55,27 @@ input UpdateInput {
     email: String @email
 }
 
-group /auth [wrap=ResData] {
+# 跨字段校验输入模型：startTime 关联校验 endTime
+input TaskPeriodInput {
+    startTime: IntTime! @timeBefore("endTime")
+    endTime:   IntTime!
+}
+
+group /auth {
     # 注册：使用字段级校验器，请求 form 表单
-    POST /register [ctype=form] => Register(input: RegisterInput): ResData<User> [state=201]
+    POST /register [ctype=form] => Register(input: RegisterInput): User [state=201]
+
+    # 跨字段关联校验：校验 startTime 是否早于 endTime
+    POST /period => SetPeriod(input: TaskPeriodInput): String
 
     # 登录：完全接管绑定与校验逻辑（业务层手动处理）
     @customBind
     @customValidate
-    POST /login => Login(username: String, password: String): ResData<Token>
+    POST /login => Login(username: String, password: String): Token
 
     # 获取当前用户：全局 loginRequired 装饰器在请求阶段拦截
     @loginRequired
-    GET /me => GetMe(): ResData<User>
+    GET /me => GetMe(): User
 
     # 更新用户：
     #   - loginRequired（request 阶段，全局）：验证登录态
@@ -73,10 +84,10 @@ group /auth [wrap=ResData] {
     @loginRequired
     @checkOwner
     @maskEmail
-    POST /update => UpdateUser(input: UpdateInput): ResData<User>
+    POST /update => UpdateUser(input: UpdateInput): User
 
     # 管理员接口：需要特定角色，组合多个全局装饰器
     @auth("admin")
     @loginRequired
-    DELETE /:id => DeleteUser(id: Int @path): ResData<String>
+    DELETE /:id => DeleteUser(id: Int @path): String
 }

@@ -18,7 +18,7 @@ import (
 	"golang.org/x/tools/imports"
 )
 
-const Version = "v0.6.2"
+const Version = "v0.7.0"
 
 //go:embed templates/engine.tmpl
 var engineTmpl string
@@ -62,6 +62,77 @@ func toCamelCase(s string) string {
 	return string(r)
 }
 
+// resolveTagAlias 将 MIME 或协议别名解析为对应的 Tag 别名 (例如 multipart -> form)
+func resolveTagAlias(raw string, conf *config.Config) string {
+	defaultCType := "json"
+	if conf != nil && conf.Generator.DefaultContentType != "" {
+		defaultCType = conf.Generator.DefaultContentType
+	}
+	if raw == "" {
+		raw = defaultCType
+	}
+	rawLower := strings.ToLower(raw)
+	if rawLower == "multipart" || rawLower == "multipart/form-data" {
+		return "form"
+	}
+	if rawLower == "form" || rawLower == "application/x-www-form-urlencoded" {
+		return "form"
+	}
+	if rawLower == "json" || rawLower == "application/json" {
+		return "json"
+	}
+	if rawLower == "xml" || rawLower == "application/xml" {
+		return "xml"
+	}
+	if rawLower == "yaml" || rawLower == "application/x-yaml" {
+		return "yaml"
+	}
+	if rawLower == "toml" || rawLower == "application/toml" {
+		return "toml"
+	}
+	if conf != nil {
+		for alias, spec := range conf.Generator.ContentTypes {
+			if strings.EqualFold(alias, raw) || strings.EqualFold(spec.MIME, raw) {
+				if spec.Tag != "" {
+					return spec.Tag
+				}
+				return alias
+			}
+		}
+	}
+	return rawLower
+}
+
+// getContentTypeCase 根据 ContentType/MIME 获取其专属的 Case 风格 (未指定则回退到 default_case，再未指定回退到 snake)
+func getContentTypeCase(conf *config.Config, ctypes ...string) string {
+	defaultCase := "snake"
+	if conf != nil && conf.Generator.DefaultCase != "" {
+		defaultCase = conf.Generator.DefaultCase
+	}
+	if conf == nil {
+		return defaultCase
+	}
+	for _, raw := range ctypes {
+		if raw == "" {
+			continue
+		}
+		alias := resolveTagAlias(raw, conf)
+		if spec, ok := conf.Generator.ContentTypes[alias]; ok && spec.Case != "" {
+			return spec.Case
+		}
+		if spec, ok := conf.Generator.ContentTypes[raw]; ok && spec.Case != "" {
+			return spec.Case
+		}
+	}
+	// 查找全局默认 ContentType 对应的 Case
+	if defAlias := resolveTagAlias(conf.Generator.DefaultContentType, conf); defAlias != "" {
+		if spec, ok := conf.Generator.ContentTypes[defAlias]; ok && spec.Case != "" {
+			return spec.Case
+		}
+	}
+	return defaultCase
+}
+
 // capitalize 将字符串首字母大写，同时剥离可能的 @ 前缀
 func capitalize(s string) string {
 	s = strings.TrimPrefix(s, "@")
@@ -86,6 +157,29 @@ func metaGet(entries []parser.MetaEntry, key string) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+// extractAliasDirective 从指令列表中提取 @alias("别名") 的自定义字段/参数别名
+func extractAliasDirective(directives []parser.DirectiveUsage) string {
+	for _, d := range directives {
+		if strings.EqualFold(d.Name, "alias") {
+			if len(d.Args) > 0 {
+				arg := d.Args[0]
+				if arg.Value.String != nil {
+					return *arg.Value.String
+				}
+				if arg.Value.Ident != nil {
+					return *arg.Value.Ident
+				}
+			}
+			for _, m := range d.Meta {
+				if strings.EqualFold(m.Key, "name") || strings.EqualFold(m.Key, "alias") {
+					return m.Value.MetaStr()
+				}
+			}
+		}
+	}
+	return ""
 }
 
 // metaGetInt 从 MetaEntry 列表中按 key 查找整数值（不区分大小写）
@@ -230,12 +324,14 @@ type ModelField struct {
 	BaseGoType            string     `json:"-"`
 	IsScalar              bool       `json:"-"`
 	IsEnum                bool       `json:"-"`
-	JSONName              string     `json:"jsonName"`
-	OriginalType          string     `json:"originalType"`
+	JSONName              string            `json:"jsonName"`
+	Alias                 string            `json:"alias,omitempty"`
+	OriginalType          string            `json:"originalType"`
 	GoValue               string     `json:"value,omitempty"`
 	Validators            []MetaInfo `json:"validators,omitempty"`
-	Tag                   string     `json:"-"`
-	XMLName               string     `json:"-"`
+	Tag                   string            `json:"-"`
+	Tags                  map[string]string `json:"tags,omitempty"`
+	XMLName               string            `json:"-"`
 	Source                string     `json:"-"` // Added: Path, Query, Header, Body
 	RefModel              *ModelInfo `json:"-"`
 	GoTypeDTO             string     `json:"-"`
@@ -366,6 +462,7 @@ type MethodInfo struct {
 
 type ArgumentInfo struct {
 	Name        string     `json:"name"`
+	Alias       string     `json:"alias,omitempty"`
 	Doc         string     `json:"doc,omitempty"`
 	Type        string     `json:"type"`
 	GoType      string     `json:"-"`
@@ -438,11 +535,11 @@ type ModuleRenderContext struct {
 	ExtraImports []string
 }
 
-func generateTags(fieldName string, conf *config.Config) string {
-	return generateModelFieldTags(fieldName, conf, nil)
+func generateTags(fieldName string, conf *config.Config, customAlias string) string {
+	return generateModelFieldTags(fieldName, conf, nil, customAlias)
 }
 
-func generateModelFieldTags(fieldName string, conf *config.Config, allowedTags map[string]bool) string {
+func generateModelFieldTags(fieldName string, conf *config.Config, allowedTags map[string]bool, customAlias string) string {
 	var tags []string
 	seenTags := make(map[string]bool)
 
@@ -489,18 +586,15 @@ func generateModelFieldTags(fieldName string, conf *config.Config, allowedTags m
 			}
 			seenTags[tagName] = true
 
-			caseStyle := spec.Case
-			if caseStyle == "" {
-				caseStyle = conf.Generator.DefaultCase
+			val := customAlias
+			if val == "" {
+				caseStyle := spec.Case
+				if caseStyle == "" {
+					caseStyle = conf.Generator.DefaultCase
+				}
+				val = formatTagName(fieldName, caseStyle)
 			}
-			val := formatTagName(fieldName, caseStyle)
 			tags = append(tags, fmt.Sprintf("%s:%q", tagName, val))
-		}
-	} else {
-		// 2. 兼容旧版 StructTags
-		for _, t := range conf.Generator.StructTags {
-			val := formatTagName(fieldName, t.Case)
-			tags = append(tags, fmt.Sprintf("%s:%q", t.Name, val))
 		}
 	}
 
@@ -929,9 +1023,15 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 						goType = "[]any"
 					}
 				}
+				alias := extractAliasDirective(field.Directives)
+				jsonName := field.Name
+				if alias != "" {
+					jsonName = alias
+				}
 				m.Fields = append(m.Fields, ModelField{
 					Name:     capitalize(field.Name),
-					JSONName: field.Name,
+					JSONName: jsonName,
+					Alias:    alias,
 					Doc:      field.Doc,
 					Type:     fieldType,
 					GoType:   goType,
@@ -952,8 +1052,11 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 						}
 					}(),
 					OriginalType: field.Type.Name,
-					Tag:          generateTags(field.Name, ctx.Config),
+					Tag:          generateTags(field.Name, ctx.Config, alias),
 					XMLName: func() string {
+						if alias != "" {
+							return alias
+						}
 						caseStyle := ""
 						if spec, ok := ctx.Config.Generator.ContentTypes["xml"]; ok && spec.Case != "" {
 							caseStyle = spec.Case
@@ -1078,7 +1181,7 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 					case "path", "query", "header":
 						m.Fields[i].Source = capitalize(d.Name)
 						continue
-					case "required":
+					case "required", "alias":
 						continue
 					}
 					vInfo, _ := validatorMap[strings.ToLower(d.Name)]
@@ -1343,8 +1446,13 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 				var args []ArgumentInfo
 				for _, arg := range ep.Args {
 					goType := ToGoType(arg.Type, ctx.Config, &ctx.ExtraImports, ep.Name+"."+arg.Name, ctx.ModelMap)
+					alias := extractAliasDirective(arg.Directives)
+					argName := arg.Name
+					if alias != "" {
+						argName = alias
+					}
 					argInfo := ArgumentInfo{
-						Name: arg.Name, GoName: capitalize(arg.Name), Type: formatTypeRef(arg.Type), GoType: goType, Source: "Body", Doc: arg.Doc,
+						Name: argName, Alias: alias, GoName: capitalize(arg.Name), Type: formatTypeRef(arg.Type), GoType: goType, Source: "Body", Doc: arg.Doc,
 						IsScalar: ctx.Scalars[arg.Type.Name] != nil || ctx.Enums[arg.Type.Name] != nil,
 						IsEnum:   ctx.Enums[arg.Type.Name] != nil,
 						ScalarModel: func() string {
@@ -1393,7 +1501,7 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 						switch strings.ToLower(d.Name) {
 						case "path", "query", "header":
 							argInfo.Source = capitalize(d.Name)
-						case "required":
+						case "required", "alias":
 							continue
 						default:
 							vInfo, _ := validatorMap[strings.ToLower(d.Name)]
@@ -1435,6 +1543,7 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 						inputModel.Fields = append(inputModel.Fields, ModelField{
 							Name:         arg.GoName,
 							JSONName:     arg.Name,
+							Alias:        arg.Alias,
 							Doc:          arg.Doc,
 							Type:         arg.Type,
 							GoType:       arg.GoType,
@@ -1443,7 +1552,7 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 							ScalarModel:  arg.ScalarModel,
 							BaseGoType:   arg.BaseGoType,
 							OriginalType: arg.Type,
-							Tag:          generateTags(arg.Name, ctx.Config),
+							Tag:          generateTags(arg.Name, ctx.Config, arg.Alias),
 						})
 						if arg.IsScalar || ctx.Enums[arg.Type] != nil {
 							inputModel.HasScalar = true
@@ -1654,16 +1763,6 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 						}
 					}
 					if !found {
-						for alias, mime := range conf.Generator.ContentTypeAliases {
-							if alias == sourceSymbol {
-								method.ContentType = "Source" + capitalize(alias)
-								method.MimeType = mime
-								found = true
-								break
-							}
-						}
-					}
-					if !found {
 						method.ContentType = fmt.Sprintf("engine.BodySource(%q)", sourceSymbol)
 						method.MimeType = sourceSymbol
 					}
@@ -1755,42 +1854,6 @@ func inferAndApplyModelTags(ctx *DataContext) {
 		defaultCType = "json"
 	}
 
-	// 辅助映射：将 MIME 或别名解析为对应的 Tag 别名 (例如 multipart -> form)
-	resolveTagAlias := func(raw string) string {
-		if raw == "" {
-			raw = defaultCType
-		}
-		rawLower := strings.ToLower(raw)
-		if rawLower == "multipart" || rawLower == "multipart/form-data" {
-			return "form"
-		}
-		if rawLower == "form" || rawLower == "application/x-www-form-urlencoded" {
-			return "form"
-		}
-		if rawLower == "json" || rawLower == "application/json" {
-			return "json"
-		}
-		if rawLower == "xml" || rawLower == "application/xml" {
-			return "xml"
-		}
-		if rawLower == "yaml" || rawLower == "application/x-yaml" {
-			return "yaml"
-		}
-		if rawLower == "toml" || rawLower == "application/toml" {
-			return "toml"
-		}
-		// 查找 ContentTypes 中的配置
-		for alias, spec := range ctx.Config.Generator.ContentTypes {
-			if strings.EqualFold(alias, raw) || strings.EqualFold(spec.MIME, raw) {
-				if spec.Tag != "" {
-					return spec.Tag
-				}
-				return alias
-			}
-		}
-		return rawLower
-	}
-
 	// 递归标记模型及其所有子模型和多态 Case 模型
 	var markModelTags func(m *ModelInfo, tag string, visited map[string]bool)
 	markModelTags = func(m *ModelInfo, tag string, visited map[string]bool) {
@@ -1822,7 +1885,7 @@ func inferAndApplyModelTags(ctx *DataContext) {
 		if modelRequiredTags[m.Name] == nil {
 			modelRequiredTags[m.Name] = make(map[string]bool)
 		}
-		modelRequiredTags[m.Name][resolveTagAlias(defaultCType)] = true
+		modelRequiredTags[m.Name][resolveTagAlias(defaultCType, ctx.Config)] = true
 	}
 
 	// 2. 遍历所有端点，收集每个模型在各端点中的实际请求与响应 Content-Type
@@ -1830,7 +1893,7 @@ func inferAndApplyModelTags(ctx *DataContext) {
 		for _, grp := range mod.Groups {
 			for _, ep := range grp.Endpoints {
 				// 请求入参所使用的 Tag
-				reqTag := resolveTagAlias(ep.RequestContentType)
+				reqTag := resolveTagAlias(ep.RequestContentType, ctx.Config)
 				if ep.InputModel != nil {
 					markModelTags(ep.InputModel, reqTag, make(map[string]bool))
 				}
@@ -1841,7 +1904,7 @@ func inferAndApplyModelTags(ctx *DataContext) {
 				}
 
 				// 成功响应出参所使用的 Tag
-				respTag := resolveTagAlias(ep.ResponseContentType)
+				respTag := resolveTagAlias(ep.ResponseContentType, ctx.Config)
 				if ep.ReturnModel != nil {
 					markModelTags(ep.ReturnModel, respTag, make(map[string]bool))
 				}
@@ -1860,7 +1923,7 @@ func inferAndApplyModelTags(ctx *DataContext) {
 				}
 
 				// 错误响应出参所使用的 Tag
-				errTag := resolveTagAlias(ep.ErrorContentType)
+				errTag := resolveTagAlias(ep.ErrorContentType, ctx.Config)
 				if ep.ErrorType != "" {
 					if errModel := ctx.ModelMap[ep.ErrorType]; errModel != nil {
 						markModelTags(errModel, errTag, make(map[string]bool))
@@ -1879,7 +1942,7 @@ func inferAndApplyModelTags(ctx *DataContext) {
 	for _, m := range ctx.Models {
 		reqTags := modelRequiredTags[m.Name]
 		for i := range m.Fields {
-			m.Fields[i].Tag = generateModelFieldTags(m.Fields[i].JSONName, ctx.Config, reqTags)
+			m.Fields[i].Tag = generateModelFieldTags(m.Fields[i].JSONName, ctx.Config, reqTags, m.Fields[i].Alias)
 		}
 	}
 }
@@ -2189,11 +2252,6 @@ func resolveMimeType(symbol string, conf *config.Config) string {
 	if spec, ok := conf.Generator.ContentTypes[symbol]; ok && spec.MIME != "" {
 		return spec.MIME
 	}
-	for alias, mime := range conf.Generator.ContentTypeAliases {
-		if strings.ToLower(alias) == symbol {
-			return mime
-		}
-	}
 	return symbol
 }
 
@@ -2295,6 +2353,11 @@ func generateApiDocs(ctx *DataContext, targetDir string) error {
 		return fmt.Errorf("创建文档输出目录失败: %v", err)
 	}
 
+	defaultCase := ctx.Config.Generator.DefaultCase
+	if defaultCase == "" {
+		defaultCase = "snake"
+	}
+
 	// 1. 收集所有的 Wrapper 名称
 	wrappers := make(map[string]bool)
 	for _, m := range ctx.Models {
@@ -2311,7 +2374,33 @@ func generateApiDocs(ctx *DataContext, targetDir string) error {
 		mCopy.Fields = make([]ModelField, len(m.Fields))
 		for j, f := range m.Fields {
 			fCopy := f
-			fCopy.Name = formatTagName(f.Name, ctx.Config.Generator.DocCase)
+
+			// 为每个字段计算所有已知 ContentType 下的专属 Tag 名称映射
+			tagMap := make(map[string]string)
+			for alias, spec := range ctx.Config.Generator.ContentTypes {
+				cCase := spec.Case
+				if cCase == "" {
+					cCase = defaultCase
+				}
+				val := f.Alias
+				if val == "" {
+					val = formatTagName(f.JSONName, cCase)
+				}
+				tagMap[alias] = val
+				if spec.Tag != "" {
+					tagMap[spec.Tag] = val
+				}
+				if spec.MIME != "" {
+					tagMap[spec.MIME] = val
+				}
+			}
+			fCopy.Tags = tagMap
+
+			if f.Alias != "" {
+				fCopy.Name = f.Alias
+			} else {
+				fCopy.Name = formatTagName(f.JSONName, defaultCase)
+			}
 			fCopy.Type = cleanDocType(f.Type, f.OriginalType, ctx.Scalars)
 			fCopy.OriginalType = replaceScalarType(f.OriginalType, ctx.Scalars)
 			mCopy.Fields[j] = fCopy
@@ -2366,10 +2455,16 @@ func generateApiDocs(ctx *DataContext, targetDir string) error {
 					methodCopy.ErrorType = strings.ReplaceAll(methodCopy.ErrorType, oldBase, oldBase+"Error")
 				}
 
+				// 根据接口入参协议精准自动适配参数字段命名风格
+				reqCase := getContentTypeCase(ctx.Config, method.RequestContentType, method.ContentType)
 				methodCopy.Args = make([]ArgumentInfo, len(method.Args))
 				for l, arg := range method.Args {
 					argCopy := arg
-					argCopy.Name = formatTagName(arg.Name, ctx.Config.Generator.DocCase)
+					if arg.Alias != "" {
+						argCopy.Name = arg.Alias
+					} else {
+						argCopy.Name = formatTagName(arg.Name, reqCase)
+					}
 					argCopy.Type = cleanDocType(arg.Type, arg.Type, ctx.Scalars)
 					methodCopy.Args[l] = argCopy
 				}

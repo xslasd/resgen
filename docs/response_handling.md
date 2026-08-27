@@ -56,20 +56,23 @@ group /users {
 
 为了在简化接口定义的同时保持绝对的排版灵活性，Resgen 提供了一套**组级默认 + 接口级按需覆盖**的响应包装器机制。
 
-### A. 组级默认包装器
-在一个路由组（`group`）上，你可以定义一个通用的成功/错误外壳，使全组内的接口默认自动享受统一包装逻辑：
+### A. 全局与组级默认包装器
+在配置文件中设置 `default_wrap: "ResData"`（或在路由组 `group` 上声明），全组内的接口默认自动享受统一包装逻辑：
 ```graphql
-group /products [wrap=ResData] {
-    # 默认套壳：成功返回 200 + ResData<Product>
+group /products {
+    # 方式 1（隐式）：声明业务类型 Product，自动由 default_wrap 包装为 ResData<Product>
     GET /:id => GetProduct(id: Int @path): Product
+
+    # 方式 2（显式）：显式写出 ResData<Product>，与方式 1 在代码生成和运行时 100% 等价
+    GET /detail/:id => GetProductDetail(id: Int @path): ResData<Product>
 }
 ```
 
 ### B. 接口级局部覆盖
-如果你在组级配置了统一包装，但在该组中的某个接口需要使用特殊的包装器，可以在接口元数据中直接覆盖它：
+如果你在组级或全局配置了统一包装，但在该组中的某个接口需要使用特殊的包装器，可以在接口元数据中直接覆盖它：
 ```graphql
-group /products [wrap=ResData] {
-    # 覆盖组级默认：此接口将使用 PageResult 包装，生成 PageResult<[Product]>
+group /products {
+    # 覆盖默认包装器：此接口将使用 PageResult 包装，生成 PageResult<[Product]>
     GET /list => ListProducts(): [Product] [wrap=PageResult]
 }
 ```

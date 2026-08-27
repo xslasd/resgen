@@ -30,20 +30,20 @@ type PageResult<T> {
     size: Int!
 }
 
-group /articles [wrap=ResData] {
-    # 返回单个对象：ResData<Article>
+group /articles {
+    # 显式声明泛型包装器：ResData<Article>（与省略外壳直接声明 Article 效果等价，支持显式写法）
     GET /:id => GetArticle(id: Int @path): ResData<Article>
-    # 返回扁平列表：ResData<[Article]>
-    GET /list => ListArticles(page: Int, size: Int): ResData<[Article]>
-    # 返回通用列表/分页响应：ResData<ListRes<Article>>
+    # 隐式自动包装：直接声明业务类型 [Article]，由配置文件的 default_wrap 自动包装为 ResData<[Article]>
+    GET /list => ListArticles(page: Int, size: Int): [Article]
+    # 返回通用列表/分页响应（嵌套包装器）：ResData<ListRes<Article>>
     GET /list/v2 => ListArticlesV2(page: Int, size: Int): ResData<ListRes<Article>>
-    # 🌟 返回树形结构数据：ResData<TreeRes<CategoryTreeNode>>
+    # 🌟 返回树形结构数据（嵌套包装器）：ResData<TreeRes<CategoryTreeNode>>
     GET /categories/tree => GetCategoryTree(): ResData<TreeRes<CategoryTreeNode>>
-    # 🌟 裸返回树形结构数据（接口级 wrap=none 覆盖组级 wrap）
+    # 🌟 裸返回树形结构数据（显式声明 wrap=none 禁用外壳包装）
     GET /categories/tree/raw => GetCategoryTreeRaw(): TreeRes<CategoryTreeNode> [wrap=none]
-    # 创建成功返回 201，数据包裹在 ResData 中
-    POST /create => CreateArticle(title: String!, content: String!): ResData<Article> [state=201]
-    # 不使用 ResData 包装，直接返回原始对象（接口级覆盖组级 wrap）
+    # 创建成功返回 201，自动包裹在 default_wrap 中
+    POST /create => CreateArticle(title: String!, content: String!): Article [state=201]
+    # 不使用 ResData 包装，直接返回原始裸对象
     GET /raw/:id => GetArticleRaw(id: Int @path): Article [wrap=none]
     # 无返回值接口
     POST /logout => Logout()
