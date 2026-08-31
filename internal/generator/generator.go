@@ -18,7 +18,7 @@ import (
 	"golang.org/x/tools/imports"
 )
 
-const Version = "v0.7.0"
+const Version = "v0.7.1"
 
 //go:embed templates/engine.tmpl
 var engineTmpl string
@@ -133,15 +133,67 @@ func getContentTypeCase(conf *config.Config, ctypes ...string) string {
 	return defaultCase
 }
 
-// capitalize 将字符串首字母大写，同时剥离可能的 @ 前缀
+var commonInitialisms = map[string]bool{
+	"API":   true,
+	"ASCII": true,
+	"CPU":   true,
+	"CSS":   true,
+	"DNS":   true,
+	"EOF":   true,
+	"GUID":  true,
+	"HTML":  true,
+	"HTTP":  true,
+	"HTTPS": true,
+	"ID":    true,
+	"IP":    true,
+	"JSON":  true,
+	"QPS":   true,
+	"RAM":   true,
+	"RPC":   true,
+	"SLA":   true,
+	"SMTP":  true,
+	"SQL":   true,
+	"SSH":   true,
+	"TCP":   true,
+	"TLS":   true,
+	"TTL":   true,
+	"UDP":   true,
+	"UI":    true,
+	"UID":   true,
+	"UUID":  true,
+	"URI":   true,
+	"URL":   true,
+	"UTF8":  true,
+	"VM":    true,
+	"XML":   true,
+	"XMPP":  true,
+	"XSRF":  true,
+	"XSS":   true,
+	"GID":   true,
+}
+
+// capitalize 将字符串转换为遵循 Go 命名规范的 PascalCase，同时剥离可能的 @ 前缀
 func capitalize(s string) string {
 	s = strings.TrimPrefix(s, "@")
 	if s == "" {
 		return ""
 	}
-	r := []rune(s)
-	r[0] = unicode.ToUpper(r[0])
-	return string(r)
+	parts := strings.Split(s, "_")
+	var res string
+	for _, p := range parts {
+		if p == "" {
+			continue
+		}
+		upper := strings.ToUpper(p)
+		if commonInitialisms[upper] {
+			res += upper
+		} else {
+			r := []rune(p)
+			r[0] = unicode.ToUpper(r[0])
+			res += string(r)
+		}
+	}
+	return res
 }
 
 // metaGet 从 MetaEntry 列表中按 key 查找字符串值（不区分大小写）
@@ -741,6 +793,13 @@ func monomorphizeAST(schema *parser.Schema, defaultWrap string) {
 }
 
 func Generate(schema *parser.Schema, targetDir string, conf *config.Config) error {
+	// 动态合并配置中的自定义缩略词白名单
+	if conf != nil && conf.Generator.GoInitialisms != nil {
+		for _, init := range conf.Generator.GoInitialisms {
+			commonInitialisms[strings.ToUpper(init)] = true
+		}
+	}
+
 	defaultWrap := "ResData"
 	if conf.Generator.DefaultWrap != "" {
 		defaultWrap = conf.Generator.DefaultWrap

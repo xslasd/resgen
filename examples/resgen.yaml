@@ -22,6 +22,12 @@ generator:
   #   - keep:  保持 DSL 原样大小写 (UserName -> UserName)
   default_case: "snake"
 
+  # 自定义首字母缩略词白名单 (追加到内置的常见 Go 缩写字典中，如 ID, API)
+  # 匹配到这些单词的下划线片段在转大驼峰时将被全部大写 (如 out_trd_no -> OutTRDNo)
+  go_initialisms:
+    - "TRD"
+    - "SKU"
+    - "VIP"
 
   # ==============================================================================
   # 2. 🌟 统一协议与 Content-Type 全规格配置 (Content Types & Codecs)

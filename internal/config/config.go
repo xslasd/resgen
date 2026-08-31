@@ -53,6 +53,7 @@ type GeneratorConfig struct {
 	ScalarStyle        string                     `yaml:"scalar_style"` // isolation (默认) | direct
 	AuthDecorator      string                     `yaml:"auth_decorator"`
 	AuthParamName      string                     `yaml:"auth_param_name"`
+	GoInitialisms      []string                   `yaml:"go_initialisms"`
 }
 
 func LoadConfig(path string) (*Config, error) {

@@ -598,6 +598,7 @@ DSL 的生成行为可以通过项目根目录下的 `resgen.yaml` 进行深度�
 ### 代码生成配置
 - **`package`**: 指定生成代码的 Go 包名。
 - **`default_case`**: 全局默认的结构体字段命名风格（`snake`, `camel`, `lower`, `keep`）。
+- **`go_initialisms`**: 自定义首字母缩略词白名单数组（例如 `["TRD", "SKU"]`），用于在转大驼峰时将这些单词片段全部大写（例如将 `out_trd_no` 转换为 `OutTRDNo`）。
 - **`default_content_type`**: 接口未定义时的默认请求/响应类型别名（如 `json`）。
 - **`content_types`**: 统一协议规格表，合并定义 MIME 类型、结构体 Tag 名称、专属命名风格（`case`）以及多态延迟编解码类型（`raw_type`, `import_pkg`, `unmarshal_fn`）。
 - **`scalar_style`**: 自定义标量的代码生成风格，可选 `isolation`（默认）或 `direct`，详见下方 [自定义标量](#7-自定义标量-scalar) 章节。
