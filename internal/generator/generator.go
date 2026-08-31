@@ -18,7 +18,7 @@ import (
 	"golang.org/x/tools/imports"
 )
 
-const Version = "v0.7.1"
+const Version = "v0.7.2"
 
 //go:embed templates/engine.tmpl
 var engineTmpl string
@@ -1803,13 +1803,13 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 
 				switch strings.ToLower(sourceSymbol) {
 				case "json", "application/json":
-					method.ContentType = "SourceJson"
+					method.ContentType = "Source" + capitalize("json")
 					method.MimeType = "application/json"
 				case "form", "application/x-www-form-urlencoded":
-					method.ContentType = "SourceForm"
+					method.ContentType = "Source" + capitalize("form")
 					method.MimeType = "application/x-www-form-urlencoded"
 				case "multipart", "multipart/form-data":
-					method.ContentType = "SourceMultipart"
+					method.ContentType = "Source" + capitalize("multipart")
 					method.MimeType = "multipart/form-data"
 				default:
 					found := false
