@@ -62,3 +62,43 @@ input FilterInput {
 		t.Fatalf("Expected non-nil schema")
 	}
 }
+
+func TestCompletion(t *testing.T) {
+	uri := "file:///d:/test_workspace/demo.res"
+	content := "type User {\n    id: Int\n}\n\ninput QueryInput {\n    startTime: \n    name: String @"
+	filesMu.Lock()
+	files[uri] = content
+	filesMu.Unlock()
+
+	filename := uriToPath(uri)
+
+	// 1. 测试在 ":" 后面的类型补全（第 5 行，startTime: 后面）
+	items := buildCompletions(filename, content, 5, 15)
+	var foundString, foundUser bool
+	for _, item := range items {
+		if item.Label == "String" {
+			foundString = true
+		}
+		if item.Label == "User" {
+			foundUser = true
+		}
+	}
+	if !foundString || !foundUser {
+		t.Errorf("Expected 'String' and 'User' in type completions, got foundString=%v, foundUser=%v", foundString, foundUser)
+	}
+
+	// 2. 测试在 "@" 后面的指令补全（第 6 行，@ 后面）
+	itemsAt := buildCompletions(filename, content, 6, 18)
+	var foundAlias, foundPath bool
+	for _, item := range itemsAt {
+		if item.Label == "@alias" {
+			foundAlias = true
+		}
+		if item.Label == "@path" {
+			foundPath = true
+		}
+	}
+	if !foundAlias || !foundPath {
+		t.Errorf("Expected '@alias' and '@path' in directive completions, got foundAlias=%v, foundPath=%v", foundAlias, foundPath)
+	}
+}

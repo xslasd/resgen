@@ -48,6 +48,9 @@ func RunServer(version string) {
 		capabilities.DocumentFormattingProvider = true
 		capabilities.DefinitionProvider = true
 		capabilities.HoverProvider = true
+		capabilities.CompletionProvider = &protocol.CompletionOptions{
+			TriggerCharacters: []string{"@", ":"},
+		}
 		capabilities.TextDocumentSync = protocol.TextDocumentSyncKindFull
 
 		return protocol.InitializeResult{
@@ -178,6 +181,15 @@ func RunServer(version string) {
 			}
 		}
 
+		for i := range schema.Declarations {
+			decl := &schema.Declarations[i]
+			if decl.Model != nil && (decl.Model.Keyword == "type" || decl.Model.Keyword == "input" || decl.Model.Keyword == "wrap") {
+				for j := range decl.Model.Properties {
+					decl.Model.Properties[j].Name = camelToSnake(decl.Model.Properties[j].Name)
+				}
+			}
+		}
+
 		var sb strings.Builder
 		f := formatter.NewFormatter(tabSize)
 		if err := f.Format(schema, &sb); err != nil {
@@ -241,8 +253,51 @@ func RunServer(version string) {
 		}, nil
 	}
 
+	handler.TextDocumentCompletion = func(context *glsp.Context, params *protocol.CompletionParams) (any, error) {
+		filesMu.RLock()
+		content, ok := files[params.TextDocument.URI]
+		filesMu.RUnlock()
+		if !ok {
+			filename := uriToPath(params.TextDocument.URI)
+			data, err := os.ReadFile(filename)
+			if err == nil {
+				content = string(data)
+			}
+		}
+
+		filename := uriToPath(params.TextDocument.URI)
+		line := int(params.Position.Line)
+		col := int(params.Position.Character)
+
+		items := buildCompletions(filename, content, line, col)
+		return items, nil
+	}
+
 	s := server.NewServer(&handler, "resgen-lsp", false)
 	s.RunStdio()
+}
+
+func camelToSnake(s string) string {
+	var result []rune
+	for i, r := range s {
+		if r >= 'A' && r <= 'Z' {
+			if i > 0 {
+				prev := rune(s[i-1])
+				if prev >= 'a' && prev <= 'z' {
+					result = append(result, '_')
+				} else if i+1 < len(s) {
+					next := rune(s[i+1])
+					if next >= 'a' && next <= 'z' {
+						result = append(result, '_')
+					}
+				}
+			}
+			result = append(result, r+32)
+		} else {
+			result = append(result, r)
+		}
+	}
+	return string(result)
 }
 
 func uriToPath(uri string) string {
@@ -295,7 +350,8 @@ func buildSymbolTable(currentFile string) map[string]SymbolInfo {
 	entries, err := os.ReadDir(dir)
 	if err == nil {
 		for _, entry := range entries {
-			if entry.IsDir() || filepath.Ext(entry.Name()) != ".res" {
+			ext := filepath.Ext(entry.Name())
+			if entry.IsDir() || (ext != ".res" && ext != ".resgen") {
 				continue
 			}
 			filePath := filepath.Join(dir, entry.Name())
@@ -769,4 +825,234 @@ func publishDiagnostics(context *glsp.Context, uri, content string) {
 		URI:         uri,
 		Diagnostics: diagnostics,
 	})
+}
+
+type directiveDef struct {
+	name       string
+	insertText string
+	isSnippet  bool
+	detail     string
+	doc        string
+}
+
+var builtinDirectives = []directiveDef{
+	{name: "path", insertText: "path", detail: "@path - URL 路径变量", doc: "标记参数来源于 URL 路径变量 (Path Variable)"},
+	{name: "query", insertText: "query", detail: "@query - URL 查询参数", doc: "标记参数来源于 URL 查询字符串 (Query String)"},
+	{name: "header", insertText: "header", detail: "@header - HTTP 请求头", doc: "标记参数来源于 HTTP 请求头 (Header)"},
+	{name: "alias", insertText: "alias(\"${1:field_name}\")", isSnippet: true, detail: "@alias(\"...\") - 传输层字段别名", doc: "用于指定模型字段或接口入参在传输层使用的自定义别名"},
+	{name: "required", insertText: "required", detail: "@required - 必填校验", doc: "标记字段或形参必填且非空"},
+	{name: "customBind", insertText: "customBind", detail: "@customBind - 自定义绑定", doc: "接管参数绑定逻辑，由业务层在 Resolver 中手动实现 Bind 方法"},
+	{name: "customValidate", insertText: "customValidate", detail: "@customValidate - 自定义校验", doc: "接管参数校验逻辑，由业务层在 Resolver 中手动实现 Validate 方法"},
+}
+
+var builtinTypes = []struct {
+	name   string
+	detail string
+	doc    string
+}{
+	{"String", "内置标量类型 (string)", "字符串类型"},
+	{"Int", "内置标量类型 (int64)", "64 位整数类型"},
+	{"Float", "内置标量类型 (float64)", "64 位浮点数类型"},
+	{"Boolean", "内置标量类型 (bool)", "布尔类型 (true/false)"},
+	{"Time", "内置标量类型 (time.Time)", "时间日期类型"},
+	{"File", "内置标量类型 (*multipart.FileHeader)", "文件上传类型"},
+	{"Any", "内置标量类型 (interface{})", "任意对象类型"},
+	{"Field", "内置标量类型", "动态字段修饰器"},
+}
+
+var builtinKeywords = []struct {
+	label      string
+	insertText string
+	isSnippet  bool
+	detail     string
+	doc        string
+}{
+	{"module", "module ${1:ModuleName} {\n\t$0\n}", true, "声明一个功能模块", "module 用于组织相关的 HTTP 路由和模型"},
+	{"type", "type ${1:Name} {\n\t${2:id}: ${3:Int} @alias(\"id\")\n\t$0\n}", true, "声明业务数据模型", "type 定义普通数据传输对象或实体"},
+	{"input", "input ${1:Name} {\n\t${2:id}: ${3:Int} @query\n\t$0\n}", true, "声明请求入参模型", "input 定义接口的输入参数"},
+	{"wrap", "wrap ${1:Name} {\n\tcode: Int\n\tmessage: String\n\tdata: Field\n}", true, "声明统一响应包装器", "wrap 定义全局或分组的响应包装层"},
+	{"group", "group ${1:GroupName} {\n\t$0\n}", true, "声明接口路由分组", "group 包含一组具有相同前缀或中间件的 HTTP 接口"},
+	{"scalar", "scalar ${1:Name}", false, "声明自定义标量", "scalar 扩展自定义基本类型"},
+	{"union", "union ${1:Name} = ${2:TypeA} | ${3:TypeB}", true, "声明联合类型", "union 用于定义多态返回值"},
+	{"enum", "enum ${1:Name} {\n\t$0\n}", true, "声明枚举类型", "enum 定义枚举常量"},
+	{"GET", "GET /${1:path} (${2:input}) -> ${3:Output}", true, "HTTP GET 接口", "声明一个 GET 请求路由"},
+	{"POST", "POST /${1:path} (${2:input}) -> ${3:Output}", true, "HTTP POST 接口", "声明一个 POST 请求路由"},
+	{"PUT", "PUT /${1:path} (${2:input}) -> ${3:Output}", true, "HTTP PUT 接口", "声明一个 PUT 请求路由"},
+	{"DELETE", "DELETE /${1:path} (${2:input}) -> ${3:Output}", true, "HTTP DELETE 接口", "声明一个 DELETE 请求路由"},
+	{"PATCH", "PATCH /${1:path} (${2:input}) -> ${3:Output}", true, "HTTP PATCH 接口", "声明一个 PATCH 请求路由"},
+}
+
+func buildCompletions(filename, content string, line, col int) []protocol.CompletionItem {
+	var items []protocol.CompletionItem
+
+	lines := strings.Split(content, "\n")
+	prefix := ""
+	if line < len(lines) {
+		lineStr := strings.TrimRight(lines[line], "\r")
+		if col <= len(lineStr) {
+			prefix = lineStr[:col]
+		} else {
+			prefix = lineStr
+		}
+	}
+
+	// 1. 判断是否正在输入指令/装饰器（光标紧随 @ 或正在输入 @xxx）
+	isDirective := false
+	atIdx := strings.LastIndex(prefix, "@")
+	if atIdx != -1 {
+		afterAt := prefix[atIdx+1:]
+		if !strings.ContainsAny(afterAt, " \t(){}[],:\"") {
+			isDirective = true
+		}
+	}
+
+	if isDirective {
+		directiveSnippetFormat := protocol.InsertTextFormatSnippet
+		directivePlainFormat := protocol.InsertTextFormatPlainText
+		directiveKind := protocol.CompletionItemKindProperty
+
+		for _, d := range builtinDirectives {
+			insertText := d.insertText
+			format := directivePlainFormat
+			if d.isSnippet {
+				format = directiveSnippetFormat
+			}
+
+			detail := d.detail
+			items = append(items, protocol.CompletionItem{
+				Label:            "@" + d.name,
+				Kind:             &directiveKind,
+				Detail:           &detail,
+				Documentation:    protocol.MarkupContent{Kind: protocol.MarkupKindMarkdown, Value: d.doc},
+				InsertText:       &insertText,
+				InsertTextFormat: &format,
+			})
+		}
+
+		// 自定义 decorator
+		symbols := buildSymbolTable(filename)
+		customKind := protocol.CompletionItemKindFunction
+		for _, sym := range symbols {
+			if sym.Kind == "Decorator" {
+				name := sym.Name
+				detail := fmt.Sprintf("@%s - 自定义装饰器", name)
+				doc := fmt.Sprintf("定义于: %s:%d", filepath.Base(sym.Filename), sym.Line)
+				items = append(items, protocol.CompletionItem{
+					Label:         "@" + name,
+					Kind:          &customKind,
+					Detail:        &detail,
+					Documentation: protocol.MarkupContent{Kind: protocol.MarkupKindMarkdown, Value: doc},
+					InsertText:    &name,
+				})
+			}
+		}
+		return items
+	}
+
+	// 2. 判断是否在类型声明位置（在 ":" 后面）
+	colonIdx := strings.LastIndex(prefix, ":")
+	isTypePosition := false
+	if colonIdx != -1 {
+		afterColon := prefix[colonIdx+1:]
+		if !strings.ContainsAny(afterColon, "{}(),;\"") {
+			isTypePosition = true
+		}
+	}
+
+	typeKind := protocol.CompletionItemKindClass
+	// 内置标量类型
+	for _, bt := range builtinTypes {
+		name := bt.name
+		detail := bt.detail
+		doc := bt.doc
+		items = append(items, protocol.CompletionItem{
+			Label:         name,
+			Kind:          &typeKind,
+			Detail:        &detail,
+			Documentation: protocol.MarkupContent{Kind: protocol.MarkupKindMarkdown, Value: doc},
+			InsertText:    &name,
+		})
+	}
+
+	// 自定义模型/类型符号
+	symbols := buildSymbolTable(filename)
+	for _, sym := range symbols {
+		var k protocol.CompletionItemKind
+		switch sym.Kind {
+		case "Model":
+			k = protocol.CompletionItemKindClass
+		case "Enum":
+			k = protocol.CompletionItemKindEnum
+		case "Scalar":
+			k = protocol.CompletionItemKindTypeParameter
+		case "Union":
+			k = protocol.CompletionItemKindInterface
+		default:
+			continue
+		}
+		name := sym.Name
+		detail := fmt.Sprintf("%s (%s)", sym.Name, sym.Kind)
+		doc := fmt.Sprintf("定义于: %s:%d", filepath.Base(sym.Filename), sym.Line)
+		items = append(items, protocol.CompletionItem{
+			Label:         name,
+			Kind:          &k,
+			Detail:        &detail,
+			Documentation: protocol.MarkupContent{Kind: protocol.MarkupKindMarkdown, Value: doc},
+			InsertText:    &name,
+		})
+	}
+
+	// 若明确在类型赋值位置，则无需混入顶层结构关键字
+	if isTypePosition {
+		return items
+	}
+
+	// 3. 关键字与语句片段 (Snippets)
+	snippetFormat := protocol.InsertTextFormatSnippet
+	plainFormat := protocol.InsertTextFormatPlainText
+	kwKind := protocol.CompletionItemKindKeyword
+	snipKind := protocol.CompletionItemKindSnippet
+
+	for _, kw := range builtinKeywords {
+		label := kw.label
+		insertText := kw.insertText
+		detail := kw.detail
+		doc := kw.doc
+		kind := kwKind
+		format := plainFormat
+		if kw.isSnippet {
+			kind = snipKind
+			format = snippetFormat
+		}
+		items = append(items, protocol.CompletionItem{
+			Label:            label,
+			Kind:             &kind,
+			Detail:           &detail,
+			Documentation:    protocol.MarkupContent{Kind: protocol.MarkupKindMarkdown, Value: doc},
+			InsertText:       &insertText,
+			InsertTextFormat: &format,
+		})
+	}
+
+	// 4. 指令（通用候选）
+	dirKind := protocol.CompletionItemKindProperty
+	for _, d := range builtinDirectives {
+		label := "@" + d.name
+		insertText := "@" + d.insertText
+		format := plainFormat
+		if d.isSnippet {
+			format = snippetFormat
+		}
+		detail := d.detail
+		items = append(items, protocol.CompletionItem{
+			Label:            label,
+			Kind:             &dirKind,
+			Detail:           &detail,
+			Documentation:    protocol.MarkupContent{Kind: protocol.MarkupKindMarkdown, Value: d.doc},
+			InsertText:       &insertText,
+			InsertTextFormat: &format,
+		})
+	}
+
+	return items
 }

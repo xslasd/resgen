@@ -317,11 +317,15 @@ type Any any
 {{range .Models}}
 {{- if .IsWrapper}}
 {{- if .Doc}}
-// {{.Doc}}
-{{- end}}
+{{FormatComment .Doc ""}}
+{{- else}}
 // {{.Name}} 输出模型
+{{- end}}
 type {{.Name}} struct {
 	{{- range .Fields}}
+	{{- if .Doc}}
+{{FormatComment .Doc "\t"}}
+	{{- end}}
 	{{.Name}} {{.GoType}} {{.Tag}}
 	{{- end}}
 }
@@ -364,7 +368,7 @@ func decodeUnionPayload(rawData any, dst any) error {
 
 {{range .Unions}}
 {{- if .Doc}}
-// {{.Doc}}
+{{FormatComment .Doc ""}}
 {{- end}}
 func Resolve{{.Name}}(disc any, rawData any) (any, error) {
     discStr := StringifyUnionDiscriminator(disc)
@@ -424,4 +428,50 @@ func Resolve{{.Name}}(disc any, rawData any) (any, error) {
     }
 }
 {{end}}
+{{end}}
+
+// ==========================================
+// Global Enums
+// ==========================================
+{{range .GlobalEnums}}
+{{- $enumName := .Name}}
+{{- if .Doc}}
+{{FormatComment .Doc ""}}
+{{- else}}
+// {{.Name}} 枚举类型
+{{- end}}
+type {{.Name}} {{.BaseGoType}}
+
+const (
+{{- range .Cases}}
+	{{- if .Doc}}
+{{FormatComment .Doc "\t"}}
+	{{- end}}
+	{{$enumName}}_{{.Name}} {{$enumName}} = {{if .IsString}}"{{.Value}}"{{else}}{{.Value}}{{end}}
+{{- end}}
+)
+
+// IsValid 检查枚举值是否合法
+func (e {{.Name}}) IsValid() bool {
+	switch e {
+	case {{range $i, $c := .Cases}}{{if $i}}, {{end}}{{$enumName}}_{{$c.Name}}{{end}}:
+		return true
+	}
+	return false
+}
+
+// FromParam 从字符串解析枚举 (用于 Query/Path/Header 参数)
+func (e *{{.Name}}) FromParam(ctx any, s string) error {
+	switch s {
+	{{- range .Cases}}
+	case "{{.Value}}":
+		*e = {{$enumName}}_{{.Name}}
+		return nil
+	{{- end}}
+	}
+	return &InvalidEnumError{
+		EnumType: "{{.Name}}",
+		Value:    s,
+	}
+}
 {{end}}

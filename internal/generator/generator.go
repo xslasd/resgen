@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"text/template"
 	"unicode"
 
@@ -18,7 +19,7 @@ import (
 	"golang.org/x/tools/imports"
 )
 
-const Version = "v0.7.2"
+const Version = "v0.7.3"
 
 //go:embed templates/engine.tmpl
 var engineTmpl string
@@ -133,44 +134,48 @@ func getContentTypeCase(conf *config.Config, ctypes ...string) string {
 	return defaultCase
 }
 
-var commonInitialisms = map[string]bool{
-	"API":   true,
-	"ASCII": true,
-	"CPU":   true,
-	"CSS":   true,
-	"DNS":   true,
-	"EOF":   true,
-	"GUID":  true,
-	"HTML":  true,
-	"HTTP":  true,
-	"HTTPS": true,
-	"ID":    true,
-	"IP":    true,
-	"JSON":  true,
-	"QPS":   true,
-	"RAM":   true,
-	"RPC":   true,
-	"SLA":   true,
-	"SMTP":  true,
-	"SQL":   true,
-	"SSH":   true,
-	"TCP":   true,
-	"TLS":   true,
-	"TTL":   true,
-	"UDP":   true,
-	"UI":    true,
-	"UID":   true,
-	"UUID":  true,
-	"URI":   true,
-	"URL":   true,
-	"UTF8":  true,
-	"VM":    true,
-	"XML":   true,
-	"XMPP":  true,
-	"XSRF":  true,
-	"XSS":   true,
-	"GID":   true,
-}
+var (
+	initialismsMu     sync.RWMutex
+	customInitialisms = make(map[string]string)
+	commonInitialisms = map[string]bool{
+		"API":   true,
+		"ASCII": true,
+		"CPU":   true,
+		"CSS":   true,
+		"DNS":   true,
+		"EOF":   true,
+		"GUID":  true,
+		"HTML":  true,
+		"HTTP":  true,
+		"HTTPS": true,
+		"ID":    true,
+		"IP":    true,
+		"JSON":  true,
+		"QPS":   true,
+		"RAM":   true,
+		"RPC":   true,
+		"SLA":   true,
+		"SMTP":  true,
+		"SQL":   true,
+		"SSH":   true,
+		"TCP":   true,
+		"TLS":   true,
+		"TTL":   true,
+		"UDP":   true,
+		"UI":    true,
+		"UID":   true,
+		"UUID":  true,
+		"URI":   true,
+		"URL":   true,
+		"UTF8":  true,
+		"VM":    true,
+		"XML":   true,
+		"XMPP":  true,
+		"XSRF":  true,
+		"XSS":   true,
+		"GID":   true,
+	}
+)
 
 // capitalize 将字符串转换为遵循 Go 命名规范的 PascalCase，同时剥离可能的 @ 前缀
 func capitalize(s string) string {
@@ -180,12 +185,16 @@ func capitalize(s string) string {
 	}
 	parts := strings.Split(s, "_")
 	var res string
+	initialismsMu.RLock()
+	defer initialismsMu.RUnlock()
 	for _, p := range parts {
 		if p == "" {
 			continue
 		}
 		upper := strings.ToUpper(p)
-		if commonInitialisms[upper] {
+		if exact, ok := customInitialisms[upper]; ok {
+			res += exact
+		} else if commonInitialisms[upper] {
 			res += upper
 		} else {
 			r := []rune(p)
@@ -194,6 +203,17 @@ func capitalize(s string) string {
 		}
 	}
 	return res
+}
+
+// resolveComment 合并上方文档注释与行尾尾随注释
+func resolveComment(doc, trailingDoc string) string {
+	if doc != "" && trailingDoc != "" {
+		return doc + "\n" + trailingDoc
+	}
+	if doc != "" {
+		return doc
+	}
+	return trailingDoc
 }
 
 // metaGet 从 MetaEntry 列表中按 key 查找字符串值（不区分大小写）
@@ -369,32 +389,32 @@ func applyTypeModifiers(base string, t parser.TypeRef) string {
 }
 
 type ModelField struct {
-	Name                  string     `json:"name"`
-	Doc                   string     `json:"doc,omitempty"`
-	Type                  string     `json:"type"`
-	GoType                string     `json:"-"`
-	BaseGoType            string     `json:"-"`
-	IsScalar              bool       `json:"-"`
-	IsEnum                bool       `json:"-"`
+	Name                  string            `json:"name"`
+	Doc                   string            `json:"doc,omitempty"`
+	Type                  string            `json:"type"`
+	GoType                string            `json:"-"`
+	BaseGoType            string            `json:"-"`
+	IsScalar              bool              `json:"-"`
+	IsEnum                bool              `json:"-"`
 	JSONName              string            `json:"jsonName"`
 	Alias                 string            `json:"alias,omitempty"`
 	OriginalType          string            `json:"originalType"`
-	GoValue               string     `json:"value,omitempty"`
-	Validators            []MetaInfo `json:"validators,omitempty"`
+	GoValue               string            `json:"value,omitempty"`
+	Validators            []MetaInfo        `json:"validators,omitempty"`
 	Tag                   string            `json:"-"`
 	Tags                  map[string]string `json:"tags,omitempty"`
 	XMLName               string            `json:"-"`
-	Source                string     `json:"-"` // Added: Path, Query, Header, Body
-	RefModel              *ModelInfo `json:"-"`
-	GoTypeDTO             string     `json:"-"`
-	IsArray               bool       `json:"-"`
-	IsPointer             bool       `json:"-"`
-	IsArrayElementPointer bool       `json:"-"`
-	ScalarModel           string     `json:"-"`
-	IsUnion               bool       `json:"isUnion"`
-	UnionModel            *UnionInfo `json:"-"`
-	UnionParamExp         string     `json:"unionParamExp,omitempty"`
-	UnionParamGoName      string     `json:"-"`
+	Source                string            `json:"-"` // Added: Path, Query, Header, Body
+	RefModel              *ModelInfo        `json:"-"`
+	GoTypeDTO             string            `json:"-"`
+	IsArray               bool              `json:"-"`
+	IsPointer             bool              `json:"-"`
+	IsArrayElementPointer bool              `json:"-"`
+	ScalarModel           string            `json:"-"`
+	IsUnion               bool              `json:"isUnion"`
+	UnionModel            *UnionInfo        `json:"-"`
+	UnionParamExp         string            `json:"unionParamExp,omitempty"`
+	UnionParamGoName      string            `json:"-"`
 }
 
 type ScalarInfo struct {
@@ -558,6 +578,7 @@ type DataContext struct {
 	Scalars                     map[string]*ScalarInfo `json:"scalars,omitempty"`
 	Enums                       map[string]*EnumInfo   `json:"-"`
 	OrderedEnums                []*EnumInfo            `json:"enums"`
+	GlobalEnums                 []*EnumInfo            `json:"-"`
 	Unions                      []*UnionInfo           `json:"unions,omitempty"`
 	UnionMap                    map[string]*UnionInfo  `json:"-"`
 	Config                      *config.Config         `json:"-"`
@@ -793,11 +814,19 @@ func monomorphizeAST(schema *parser.Schema, defaultWrap string) {
 }
 
 func Generate(schema *parser.Schema, targetDir string, conf *config.Config) error {
-	// 动态合并配置中的自定义缩略词白名单
+	// 动态合并配置中的自定义缩略词白名单（保留用户传入的原样大小写，如 GIDs）
 	if conf != nil && conf.Generator.GoInitialisms != nil {
+		initialismsMu.Lock()
 		for _, init := range conf.Generator.GoInitialisms {
-			commonInitialisms[strings.ToUpper(init)] = true
+			trimmed := strings.TrimSpace(init)
+			if trimmed == "" {
+				continue
+			}
+			upper := strings.ToUpper(trimmed)
+			commonInitialisms[upper] = true
+			customInitialisms[upper] = trimmed
 		}
+		initialismsMu.Unlock()
 	}
 
 	defaultWrap := "ResData"
@@ -852,7 +881,12 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 	ctx.Validators = append(ctx.Validators, requiredInfo)
 
 	var currentModule string
+	var currentFile string
 	for _, decl := range schema.Declarations {
+		if decl.Pos.Filename != "" && decl.Pos.Filename != currentFile {
+			currentFile = decl.Pos.Filename
+			currentModule = "" // 切换新文件时重置模块，未显式声明 module 的文件一律视为无模块公共声明
+		}
 		if decl.Module != nil {
 			currentModule = decl.Module.Name
 			if decl.Module.Doc != "" {
@@ -1015,7 +1049,7 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 
 				e.Cases = append(e.Cases, EnumCaseInfo{
 					Name:     c.Name,
-					Doc:      c.Doc,
+					Doc:      resolveComment(c.Doc, c.TrailingDoc),
 					Value:    val,
 					IsString: isString,
 				})
@@ -1091,7 +1125,7 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 					Name:     capitalize(field.Name),
 					JSONName: jsonName,
 					Alias:    alias,
-					Doc:      field.Doc,
+					Doc:      resolveComment(field.Doc, field.TrailingDoc),
 					Type:     fieldType,
 					GoType:   goType,
 					IsScalar: ctx.Scalars[field.Type.Name] != nil || ctx.Enums[field.Type.Name] != nil,
@@ -1327,7 +1361,92 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 						return fmt.Errorf("语义错误：接口 [%s %s] 的出参不能声明为文件数组 '[File]'。单个 HTTP 响应无法承载多个独立文件流。推荐方案：1) 打包为 ZIP 压缩流返回 (返回类型设为 File [ctype=zip])；2) 或返回包含下载地址的文件列表结构 (例如 ResData<[FileItem]>)。", ep.Method, ep.Path)
 					}
 
-				// 响应 MIME 类型：优先接口 ResponseMeta[ctype]，无则 fallback 到 default_content_type
+					// 响应 MIME 类型：优先接口 ResponseMeta[ctype]，无则 fallback 到 default_content_type
+					var responseContentType string
+					if v, ok := metaGet(ep.ResponseMeta, "ctype"); ok {
+						responseContentType = v
+					} else {
+						responseContentType = ctx.Config.Generator.DefaultContentType
+					}
+					responseMimeType := resolveMimeType(responseContentType, ctx.Config)
+
+					isStreamResp := false
+					if ep.ReturnType != nil && ep.ReturnType.Name == "File" {
+						isStreamResp = true
+					}
+					if isStreamMime(responseMimeType) {
+						isStreamResp = true
+					}
+
+					isDynamicStream := false
+					if isStreamResp {
+						rawCType := strings.ToLower(responseContentType)
+						if rawCType == "stream" || rawCType == "bin" || rawCType == "octet-stream" || responseMimeType == "application/octet-stream" {
+							isDynamicStream = true
+						}
+					}
+
+					contextStr := ep.Name + ".Return"
+					if isDynamicStream {
+						contextStr = ep.Name + ".DynamicReturn"
+					}
+
+					fullReturnType = ToGoType(*ep.ReturnType, ctx.Config, &ctx.ExtraImports, contextStr, ctx.ModelMap)
+					innerReturnType = fullReturnType
+					if baseModel, ok := ctx.ModelMap[ep.ReturnType.Name]; ok && baseModel.IsWrapper {
+						isReturnWrapped = true
+						returnTypeBase = baseModel.Name
+						if len(ep.ReturnType.TypeArgs) > 0 {
+							innerReturnType = ToGoType(ep.ReturnType.TypeArgs[0], ctx.Config, &ctx.ExtraImports, ep.Name+".InnerReturn", ctx.ModelMap)
+							isReturnArray = ep.ReturnType.TypeArgs[0].IsArray
+						}
+					} else {
+						isReturnArray = ep.ReturnType.IsArray
+					}
+				}
+
+				// 从接口级 ResponseMeta 读取 wrap/state；接口优先于组级
+				errorType := groupErrorType
+				successStatus := groupSuccessStatus
+				if v, ok := metaGet(ep.ResponseMeta, "wrap"); ok {
+					errorType = v
+				}
+				if v, ok := metaGetInt(ep.ResponseMeta, "state"); ok {
+					successStatus = v
+				}
+
+				// 接口级装饰器（组级已统一继承）
+				var filteredDirectives []parser.DirectiveUsage
+				for _, d := range decl.Group.Directives {
+					filteredDirectives = append(filteredDirectives, d)
+				}
+				for _, d := range ep.Directives {
+					filteredDirectives = append(filteredDirectives, d)
+				}
+
+				isErrorWrapped := false
+				errorTypeBase := ""
+				if baseModel, ok := ctx.ModelMap[errorType]; ok && baseModel.IsWrapper {
+					isErrorWrapped = true
+					errorTypeBase = baseModel.Name
+				}
+
+				isNoWrap := false
+				if strings.ToLower(errorType) == "none" {
+					isNoWrap = true
+				}
+
+				isSuccessNoWrap := false
+				if ep.ReturnType != nil && ep.ReturnType.Name == "File" {
+					isSuccessNoWrap = true
+				}
+				if v, ok := metaGet(ep.ResponseMeta, "ctype"); ok {
+					ctypeLower := strings.ToLower(v)
+					if ctypeLower == "stream" || ctypeLower == "multipart" || isStreamMime(resolveMimeType(v, ctx.Config)) {
+						isSuccessNoWrap = true
+					}
+				}
+
 				var responseContentType string
 				if v, ok := metaGet(ep.ResponseMeta, "ctype"); ok {
 					responseContentType = v
@@ -1352,155 +1471,70 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 					}
 				}
 
-				contextStr := ep.Name + ".Return"
-				if isDynamicStream {
-					contextStr = ep.Name + ".DynamicReturn"
+				method := MethodInfo{
+					Name:       ep.Name,
+					Doc:        resolveComment(ep.Doc, ep.TrailingDoc),
+					Method:     strings.ToUpper(ep.Method),
+					Path:       ep.Path,
+					FullPath:   decl.Group.Path + ep.Path,
+					ReturnType: fullReturnType,
+					ReturnTypeDSL: func() string {
+						if ep.ReturnType != nil {
+							dsl := formatTypeRef(*ep.ReturnType)
+							if !isReturnWrapped && !isSuccessNoWrap && !isNoWrap && errorType != "" && strings.ToLower(errorType) != "none" {
+								return errorType + "<" + dsl + ">"
+							}
+							return dsl
+						}
+						return ""
+					}(),
+					InnerReturnType: innerReturnType,
+					IsReturnWrapped: isReturnWrapped,
+					ReturnTypeBase:  returnTypeBase,
+					InnerReturnModel: func() *ModelInfo {
+						if ep.ReturnType != nil && isReturnWrapped && len(ep.ReturnType.TypeArgs) > 0 {
+							return ctx.ModelMap[ep.ReturnType.TypeArgs[0].Name]
+						}
+						return nil
+					}(),
+					ErrorType:           errorType,
+					IsErrorWrapped:      isErrorWrapped,
+					ErrorTypeBase:       errorTypeBase,
+					IsNoWrap:            isNoWrap,
+					IsSuccessNoWrap:     isSuccessNoWrap,
+					IsDynamicStream:     isDynamicStream,
+					IsReturnArray:       isReturnArray,
+					SuccessStatus:       successStatus,
+					IsArgsWrapped:       true,
+					ResponseContentType: responseContentType,
+					ResponseMimeType:    responseMimeType,
 				}
 
-				fullReturnType = ToGoType(*ep.ReturnType, ctx.Config, &ctx.ExtraImports, contextStr, ctx.ModelMap)
-				innerReturnType = fullReturnType
-				if baseModel, ok := ctx.ModelMap[ep.ReturnType.Name]; ok && baseModel.IsWrapper {
-					isReturnWrapped = true
-					returnTypeBase = baseModel.Name
-					if len(ep.ReturnType.TypeArgs) > 0 {
-						innerReturnType = ToGoType(ep.ReturnType.TypeArgs[0], ctx.Config, &ctx.ExtraImports, ep.Name+".InnerReturn", ctx.ModelMap)
-						isReturnArray = ep.ReturnType.TypeArgs[0].IsArray
+				if isStreamResp {
+					method.ResponseRenderFunc = "Stream"
+					hasStreamRF := false
+					for _, rf := range ctx.RenderFuncs {
+						if rf.Name == "Stream" {
+							hasStreamRF = true
+							break
+						}
+					}
+					if !hasStreamRF {
+						ctx.RenderFuncs = append(ctx.RenderFuncs, RenderFuncInfo{Name: "Stream", MimeType: "application/octet-stream"})
 					}
 				} else {
-					isReturnArray = ep.ReturnType.IsArray
+					method.ResponseRenderFunc = addRenderFunc(ctx, method.ResponseMimeType)
 				}
-			}
 
-			// 从接口级 ResponseMeta 读取 wrap/state；接口优先于组级
-			errorType := groupErrorType
-			successStatus := groupSuccessStatus
-			if v, ok := metaGet(ep.ResponseMeta, "wrap"); ok {
-				errorType = v
-			}
-			if v, ok := metaGetInt(ep.ResponseMeta, "state"); ok {
-				successStatus = v
-			}
-
-			// 接口级装饰器（组级已统一继承）
-			var filteredDirectives []parser.DirectiveUsage
-			for _, d := range decl.Group.Directives {
-				filteredDirectives = append(filteredDirectives, d)
-			}
-			for _, d := range ep.Directives {
-				filteredDirectives = append(filteredDirectives, d)
-			}
-
-			isErrorWrapped := false
-			errorTypeBase := ""
-			if baseModel, ok := ctx.ModelMap[errorType]; ok && baseModel.IsWrapper {
-				isErrorWrapped = true
-				errorTypeBase = baseModel.Name
-			}
-
-			isNoWrap := false
-			if strings.ToLower(errorType) == "none" {
-				isNoWrap = true
-			}
-
-			isSuccessNoWrap := false
-			if ep.ReturnType != nil && ep.ReturnType.Name == "File" {
-				isSuccessNoWrap = true
-			}
-			if v, ok := metaGet(ep.ResponseMeta, "ctype"); ok {
-				ctypeLower := strings.ToLower(v)
-				if ctypeLower == "stream" || ctypeLower == "multipart" || isStreamMime(resolveMimeType(v, ctx.Config)) {
-					isSuccessNoWrap = true
+				// 错误响应 MIME 类型：ResponseMeta[etype]，无则 fallback 到 default_content_type
+				if v, ok := metaGet(ep.ResponseMeta, "etype"); ok {
+					method.ErrorContentType = v
+					method.ErrorMimeType = resolveMimeType(v, ctx.Config)
+				} else {
+					method.ErrorContentType = ctx.Config.Generator.DefaultContentType
+					method.ErrorMimeType = resolveMimeType(ctx.Config.Generator.DefaultContentType, ctx.Config)
 				}
-			}
-
-			var responseContentType string
-			if v, ok := metaGet(ep.ResponseMeta, "ctype"); ok {
-				responseContentType = v
-			} else {
-				responseContentType = ctx.Config.Generator.DefaultContentType
-			}
-			responseMimeType := resolveMimeType(responseContentType, ctx.Config)
-
-			isStreamResp := false
-			if ep.ReturnType != nil && ep.ReturnType.Name == "File" {
-				isStreamResp = true
-			}
-			if isStreamMime(responseMimeType) {
-				isStreamResp = true
-			}
-
-			isDynamicStream := false
-			if isStreamResp {
-				rawCType := strings.ToLower(responseContentType)
-				if rawCType == "stream" || rawCType == "bin" || rawCType == "octet-stream" || responseMimeType == "application/octet-stream" {
-					isDynamicStream = true
-				}
-			}
-
-			method := MethodInfo{
-				Name:       ep.Name,
-				Doc:        ep.Doc,
-				Method:     strings.ToUpper(ep.Method),
-				Path:       ep.Path,
-				FullPath:   decl.Group.Path + ep.Path,
-				ReturnType: fullReturnType,
-				ReturnTypeDSL: func() string {
-					if ep.ReturnType != nil {
-						dsl := formatTypeRef(*ep.ReturnType)
-						if !isReturnWrapped && !isSuccessNoWrap && !isNoWrap && errorType != "" && strings.ToLower(errorType) != "none" {
-							return errorType + "<" + dsl + ">"
-						}
-						return dsl
-					}
-					return ""
-				}(),
-				InnerReturnType: innerReturnType,
-				IsReturnWrapped: isReturnWrapped,
-				ReturnTypeBase:  returnTypeBase,
-				InnerReturnModel: func() *ModelInfo {
-					if ep.ReturnType != nil && isReturnWrapped && len(ep.ReturnType.TypeArgs) > 0 {
-						return ctx.ModelMap[ep.ReturnType.TypeArgs[0].Name]
-					}
-					return nil
-				}(),
-				ErrorType:           errorType,
-				IsErrorWrapped:      isErrorWrapped,
-				ErrorTypeBase:       errorTypeBase,
-				IsNoWrap:            isNoWrap,
-				IsSuccessNoWrap:     isSuccessNoWrap,
-				IsDynamicStream:     isDynamicStream,
-				IsReturnArray:       isReturnArray,
-				SuccessStatus:       successStatus,
-				IsArgsWrapped:       true,
-				ResponseContentType: responseContentType,
-				ResponseMimeType:    responseMimeType,
-			}
-
-			if isStreamResp {
-				method.ResponseRenderFunc = "Stream"
-				hasStreamRF := false
-				for _, rf := range ctx.RenderFuncs {
-					if rf.Name == "Stream" {
-						hasStreamRF = true
-						break
-					}
-				}
-				if !hasStreamRF {
-					ctx.RenderFuncs = append(ctx.RenderFuncs, RenderFuncInfo{Name: "Stream", MimeType: "application/octet-stream"})
-				}
-			} else {
-				method.ResponseRenderFunc = addRenderFunc(ctx, method.ResponseMimeType)
-			}
-
-			// 错误响应 MIME 类型：ResponseMeta[etype]，无则 fallback 到 default_content_type
-			if v, ok := metaGet(ep.ResponseMeta, "etype"); ok {
-				method.ErrorContentType = v
-				method.ErrorMimeType = resolveMimeType(v, ctx.Config)
-			} else {
-				method.ErrorContentType = ctx.Config.Generator.DefaultContentType
-				method.ErrorMimeType = resolveMimeType(ctx.Config.Generator.DefaultContentType, ctx.Config)
-			}
-			method.ErrorRenderFunc = addRenderFunc(ctx, method.ErrorMimeType)
+				method.ErrorRenderFunc = addRenderFunc(ctx, method.ErrorMimeType)
 
 				var args []ArgumentInfo
 				for _, arg := range ep.Args {
@@ -2143,11 +2177,16 @@ func renderAll(ctx *DataContext, targetDir string) error {
 	}
 
 	for _, e := range ctx.OrderedEnums {
+		matched := false
 		for i := range ctx.Modules {
 			if ctx.Modules[i].Name == e.Module {
 				ctx.Modules[i].Enums = append(ctx.Modules[i].Enums, e)
+				matched = true
 				break
 			}
+		}
+		if !matched {
+			ctx.GlobalEnums = append(ctx.GlobalEnums, e)
 		}
 	}
 
@@ -2157,6 +2196,23 @@ func renderAll(ctx *DataContext, targetDir string) error {
 		"capitalize": capitalize,
 		"HasPrefix":  strings.HasPrefix,
 		"Replace":    strings.ReplaceAll,
+		"FormatComment": func(doc, indent string) string {
+			doc = strings.TrimSpace(doc)
+			if doc == "" {
+				return ""
+			}
+			lines := strings.Split(doc, "\n")
+			var res []string
+			for _, line := range lines {
+				trimmed := strings.TrimRight(line, " \t\r")
+				if trimmed == "" {
+					res = append(res, indent+"//")
+				} else {
+					res = append(res, indent+"// "+trimmed)
+				}
+			}
+			return strings.Join(res, "\n")
+		},
 		"ParseParam": func(target, val, goType string, errHandler ...string) string {
 			isPointer := strings.HasPrefix(goType, "*")
 			baseType := goType

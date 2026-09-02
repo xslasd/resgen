@@ -7,6 +7,9 @@
             "include": "#comments"
         },
         {
+            "include": "#routes"
+        },
+        {
             "include": "#keywords"
         },
         {
@@ -46,6 +49,21 @@
                 {
                     "name": "comment.line.number-sign.resgen",
                     "match": "#.*$"
+                }
+            ]
+        },
+        "routes": {
+            "patterns": [
+                {
+                    "match": "\\b(GET|POST|PUT|DELETE|PATCH|get|post|put|delete|patch)\\b\\s+([a-zA-Z0-9_\\-/\\:.]+)",
+                    "captures": {
+                        "1": {
+                            "name": "keyword.control.resgen"
+                        },
+                        "2": {
+                            "name": "string.unquoted.path.resgen"
+                        }
+                    }
                 }
             ]
         },

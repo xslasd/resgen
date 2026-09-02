@@ -1,0 +1,34 @@
+<idea-plugin>
+    <id>com.resgen.jetbrains.support</id>
+    <name>Resgen DSL Support</name>
+    <vendor email="support@resgen.org" url="https://resgen.org">Resgen</vendor>
+    <version>1.0.0</version>
+    
+    <!-- 指定兼容的 IDEA 构建版本（LSP API 需要 232 以上版本） -->
+    <idea-version since-build="232"/>
+
+    <description><![CDATA[
+      Official Resgen DSL support for JetBrains IDEs.<br>
+      Features:<br>
+      <ul>
+        <li>Syntax highlighting for .res and .resgen files</li>
+        <li>Optimized color scheme (Orange keywords, Magenta keys)</li>
+        <li>Native LSP Support (Formatting, Diagnostics, Go-to-Definition, Hover)</li>
+      </ul>
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <fileType name="Resgen"
+                  implementationClass="org.resgen.jetbrains.ResgenFileType"
+                  fieldName="INSTANCE"
+                  language="Resgen"
+                  extensions="resgen;res"/>
+
+        <lang.syntaxHighlighterFactory language="Resgen"
+                                       implementationClass="org.resgen.jetbrains.ResgenSyntaxHighlighterFactory"/>
+        
+        <platform.lsp.serverSupportProvider implementation="org.resgen.jetbrains.ResgenLspServerSupportProvider"/>
+    </extensions>
+</idea-plugin>

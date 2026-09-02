@@ -1,4 +1,4 @@
-﻿.idea/
+.idea/
 *.exe
 /editors/vscode/dist/
 /editors/vscode/node_modules/
@@ -10,3 +10,5 @@
 .idea/modules.xml
 .idea/resgen.iml
 .idea/vcs.xml
+/editors/jetbrains/.gradle/
+/editors/jetbrains/build/

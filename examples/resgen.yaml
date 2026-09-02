@@ -22,12 +22,32 @@ generator:
   #   - keep:  保持 DSL 原样大小写 (UserName -> UserName)
   default_case: "snake"
 
-  # 自定义首字母缩略词白名单 (追加到内置的常见 Go 缩写字典中，如 ID, API)
-  # 匹配到这些单词的下划线片段在转大驼峰时将被全部大写 (如 out_trd_no -> OutTRDNo)
+  # ==============================================================================
+  # 自定义首字母缩略词白名单 (Go Initialisms)
+  # ==============================================================================
+  # 用于在将 DSL 中的蛇形命名 (snake_case) 转换为 Go 导出标识符 (PascalCase / 大驼峰) 时，
+  # 保持专有名词全大写（符合 Go 官方 Effective Go 与 golint 命名规范）。
+  #
+  # Resgen 已内置官方通用缩略词：
+  #   API, ASCII, CPU, CSS, DNS, EOF, GUID, HTML, HTTP, HTTPS, ID, IP, JSON,
+  #   QPS, RAM, RPC, SLA, SMTP, SQL, SSH, TCP, TLS, TTL, UDP, UI, UID, UUID,
+  #   URI, URL, UTF8, VM, XML, XMPP, XSRF, XSS, GID 等。
+  #
+  # 在此处追加业务领域的专有名词缩写后，生成器会将对应的下划线片段全大写：
+  # 对比示例：
+  #   - 未配置: sku_id     -> SkuID
+  #     已配置: sku_id     -> SKUID (因配置了 "SKU"，且 "ID" 为内置)
+  #   - 未配置: out_trd_no -> OutTrdNo
+  #     已配置: out_trd_no -> OutTRDNo (因配置了 "TRD")
+  #   - 未配置: vip_level  -> VipLevel
+  #     已配置: vip_level  -> VIPLevel (因配置了 "VIP")
+  #   - 未配置: pay_sp_id  -> PaySpID
+  #     已配置: pay_sp_id  -> PaySPID (因配置了 "SP")
   go_initialisms:
-    - "TRD"
-    - "SKU"
-    - "VIP"
+    - "TRD" # 业务交易标识 (如 out_trd_no -> OutTRDNo)
+    - "SKU" # 商品规格单位 (如 sku_id -> SKUID)
+    - "VIP" # 会员等级标识 (如 vip_level -> VIPLevel)
+    - "SP"  # 服务提供商 (如 pay_sp_id -> PaySPID)
 
   # ==============================================================================
   # 2. 🌟 统一协议与 Content-Type 全规格配置 (Content Types & Codecs)

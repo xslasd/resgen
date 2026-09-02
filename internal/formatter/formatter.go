@@ -193,11 +193,44 @@ func (f *Formatter) formatDecl(decl parser.Declaration, w io.Writer, depth int) 
 				reqMetaStr = "[" + strings.Join(metas, ", ") + "]"
 			}
 
-			var args []string
-			for _, arg := range ep.Args {
-				args = append(args, f.formatArgDecl(arg))
+			multiline := false
+			if len(ep.Args) > 0 {
+				if ep.Args[len(ep.Args)-1].Pos.Line > ep.Pos.Line {
+					multiline = true
+				}
+				for _, arg := range ep.Args {
+					if arg.Doc != "" {
+						multiline = true
+						break
+					}
+				}
 			}
-			argsStr := strings.Join(args, ", ")
+
+			argsStr := ""
+			if multiline {
+				var sb strings.Builder
+				sb.WriteString("\n")
+				argIndent := indent + strings.Repeat(" ", f.IndentWidth*2)
+				for i, arg := range ep.Args {
+					if arg.Doc != "" {
+						sb.WriteString(f.formatDoc(arg.Doc, argIndent))
+					}
+					sb.WriteString(argIndent)
+					sb.WriteString(f.formatArgDecl(arg))
+					if i < len(ep.Args)-1 {
+						sb.WriteString(",")
+					}
+					sb.WriteString("\n")
+				}
+				sb.WriteString(indent + strings.Repeat(" ", f.IndentWidth))
+				argsStr = sb.String()
+			} else {
+				var args []string
+				for _, arg := range ep.Args {
+					args = append(args, f.formatArgDecl(arg))
+				}
+				argsStr = strings.Join(args, ", ")
+			}
 
 			respMetaStr := ""
 			if len(ep.ResponseMeta) > 0 {
@@ -227,6 +260,58 @@ func (f *Formatter) formatDecl(decl parser.Declaration, w io.Writer, depth int) 
 				respMetaStr,
 				trailingStr,
 			)
+		}
+		fmt.Fprintf(w, "%s}\n", indent)
+	}
+
+	if decl.Union != nil {
+		u := decl.Union
+		if u.Doc != "" {
+			_, _ = io.WriteString(w, f.formatDoc(u.Doc, indent))
+		}
+		fmt.Fprintf(w, "%sunion %s(%s) {\n", indent, u.Name, u.ParamName)
+		for _, c := range u.Cases {
+			if c.IsDefault {
+				fmt.Fprintf(w, "%sdefault: %s\n", indent+strings.Repeat(" ", f.IndentWidth), c.Type)
+			} else {
+				fmt.Fprintf(w, "%s%s: %s\n", indent+strings.Repeat(" ", f.IndentWidth), c.Key, c.Type)
+			}
+		}
+		fmt.Fprintf(w, "%s}\n", indent)
+	}
+
+	if decl.Enum != nil {
+		e := decl.Enum
+		if e.Doc != "" {
+			_, _ = io.WriteString(w, f.formatDoc(e.Doc, indent))
+		}
+		
+		baseStr := ""
+		if e.BaseType != "" {
+			baseStr = ": " + e.BaseType
+		}
+		
+		fmt.Fprintf(w, "%senum %s%s {\n", indent, e.Name, baseStr)
+		
+		maxContentLen := 0
+		for _, c := range e.Cases {
+			contentLen := len(c.Name) + 2 + len(f.formatValue(&c.Value))
+			if contentLen > maxContentLen {
+				maxContentLen = contentLen
+			}
+		}
+
+		for _, c := range e.Cases {
+			if c.Doc != "" {
+				_, _ = io.WriteString(w, f.formatDoc(c.Doc, indent+strings.Repeat(" ", f.IndentWidth)))
+			}
+			content := c.Name + ": " + f.formatValue(&c.Value)
+			trailingStr := ""
+			if c.TrailingDoc != "" {
+				padding := strings.Repeat(" ", maxContentLen-len(content))
+				trailingStr = padding + " # " + c.TrailingDoc
+			}
+			fmt.Fprintf(w, "%s%s%s\n", indent+strings.Repeat(" ", f.IndentWidth), content, trailingStr)
 		}
 		fmt.Fprintf(w, "%s}\n", indent)
 	}

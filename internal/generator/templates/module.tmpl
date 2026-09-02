@@ -18,12 +18,18 @@ import (
 // ==========================================
 {{range .Module.Enums}}
 {{- $enumName := .Name}}
-{{if .Doc}}// {{.Name}} {{.Doc}}{{else}}// {{.Name}} 枚举类型{{end}}
+{{- if .Doc}}
+{{FormatComment .Doc ""}}
+{{- else}}
+// {{.Name}} 枚举类型
+{{- end}}
 type {{.Name}} {{.BaseGoType}}
 
 const (
 {{- range .Cases}}
-	{{if .Doc}}// {{.Name}} {{.Doc}}{{end}}
+	{{- if .Doc}}
+{{FormatComment .Doc "\t"}}
+	{{- end}}
 	{{$enumName}}_{{.Name}} {{$enumName}} = {{if .IsString}}"{{.Value}}"{{else}}{{.Value}}{{end}}
 {{- end}}
 )
@@ -57,13 +63,20 @@ func (e *{{.Name}}) FromParam(ctx any, s string) error {
 // 2. Models
 // ==========================================
 {{range .Module.Models}}
+{{- if .Doc}}
+{{FormatComment .Doc ""}}
+{{- else}}
 {{- if .IsInput}}
 // {{.Name}} 输入模型
 {{- else}}
 // {{.Name}} 输出模型
 {{- end}}
+{{- end}}
 type {{.Name}}{{if .TypeParams}}[{{range $i, $p := .TypeParams}}{{if $i}}, {{end}}{{$p}} any{{end}}]{{end}} struct {
 	{{- range .Fields}}
+	{{- if .Doc}}
+{{FormatComment .Doc "\t"}}
+	{{- end}}
 	{{.Name}} {{.GoType}} {{.Tag}}
 	{{- end}}
 }
@@ -73,6 +86,9 @@ type {{.Name}}{{if .TypeParams}}[{{range $i, $p := .TypeParams}}{{if $i}}, {{end
 type {{.Name}}DTO{{if .TypeParams}}[{{range $i, $p := .TypeParams}}{{if $i}}, {{end}}{{$p}} any{{end}}]{{end}} struct {
 	{{- range .Fields}}
 	{{- if eq .Source "Body"}}
+	{{- if .Doc}}
+{{FormatComment .Doc "\t"}}
+	{{- end}}
 	{{.Name}} {{.GoTypeDTO}} {{.Tag}}
 	{{- end}}
 	{{- end}}
@@ -324,9 +340,15 @@ type {{.Module.Name}}Resolver[T any] interface {
 	{{- range .Endpoints}}
 	{{$ep := .}}
 	{{- range .RequestDecorators}}{{if .IsSpecialized}}
+	{{- if .Doc}}
+{{FormatComment .Doc "\t"}}
+	{{- end}}
 	OnRequest_{{.Name}}_{{$ep.Name}}(ctx T, info MethodInfo {{- range .Args}}, {{.Name}} {{.GoType}} {{- end}}) error
 	{{- end}}{{end}}
 	{{- range .InvokeDecorators}}{{if .IsSpecialized}}
+	{{- if .Doc}}
+{{FormatComment .Doc "\t"}}
+	{{- end}}
 	OnInvoke_{{.Name}}_{{$ep.Name}}(ctx T, info MethodInfo {{- if $ep.HasInput}}, input *{{.InputType}}{{end}} {{- range .Args}}, {{.Name}} {{.GoType}} {{- end}}) error
 	{{- end}}{{end}}
 	{{- if .CustomBind}}
@@ -335,13 +357,23 @@ type {{.Module.Name}}Resolver[T any] interface {
 	{{- if .CustomValidate}}
 	Validate{{.Name}}(ctx T, input *{{.InputName}}) error
 	{{- end}}
-	// {{.Name}} {{.Method}} {{.FullPath}}
+	{{- if .Doc}}
+{{FormatComment .Doc "\t"}}
+	//
+	{{- end}}
+	// {{.Method}} {{.FullPath}}
+	{{- range .Args}}{{if .Doc}}
+	//   @param {{.Name}} {{.Doc}}
+	{{- end}}{{end}}
 	{{- if .ReturnType}}
 	{{.Name}}(ctx context.Context{{if .HasInput}}, input *{{.InputName}}{{else if and .Args (not .IsArgsWrapped)}}{{range .Args}}, {{.Name}} {{.GoType}}{{end}}{{end}}) ({{.InnerReturnType}}, error)
 	{{- else}}
 	{{.Name}}(ctx context.Context{{if .HasInput}}, input *{{.InputName}}{{else if and .Args (not .IsArgsWrapped)}}{{range .Args}}, {{.Name}} {{.GoType}}{{end}}{{end}}) error
 	{{- end}}
 	{{- range .ResponseDecorators}}{{if .IsSpecialized}}
+	{{- if .Doc}}
+{{FormatComment .Doc "\t"}}
+	{{- end}}
 	OnResponse_{{.Name}}_{{$ep.Name}}(ctx T, info MethodInfo {{- if $ep.HasInput}}, input *{{.InputType}}{{end}} {{- if .ReturnType}}, result {{.ReturnType}} {{- end}}, err error {{- range .Args}}, {{.Name}} {{.GoType}} {{- end}}) ({{if .ReturnType}}{{.ReturnType}}, {{end}}error)
 	{{- end}}{{end}}
 	{{- end}}

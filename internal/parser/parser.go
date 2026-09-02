@@ -95,38 +95,33 @@ func attachCommentsToSchema(s *Schema, comments map[int]string, codeLines map[in
 	for i := range s.Declarations {
 		decl := &s.Declarations[i]
 		line := decl.Pos.Line
-		// 寻找节点上方的注释块
-		var sb strings.Builder
-		for l := line - 1; l > 0; l-- {
-			if codeLines[l] {
-				// 如果某一行是代码行，停止向上搜寻
-				break
-			}
-			if txt, ok := comments[l]; ok {
-				if sb.Len() > 0 {
-					sb.WriteString("\n")
-				}
-				sb.WriteString(txt)
-			}
-		}
-		// 翻转顺序（因为是向上搜寻的）
-		parts := strings.Split(sb.String(), "\n")
-		var finalDoc []string
-		for i := len(parts) - 1; i >= 0; i-- {
-			if parts[i] != "" {
-				finalDoc = append(finalDoc, parts[i])
-			}
-		}
-		doc := strings.Join(finalDoc, "\n")
 
-		if decl.Module != nil { decl.Module.Doc = doc }
-		if decl.Scalar != nil { decl.Scalar.Doc = doc }
-		if decl.Union != nil { decl.Union.Doc = doc }
-		if decl.Enum != nil { 
+		// 寻找节点上方的连续单行注释
+		docLines := collectMultilineCommentsAbove(line, comments, codeLines)
+		doc := strings.Join(docLines, "\n")
+		if doc == "" {
+			if txt, ok := comments[line]; ok {
+				doc = txt
+			}
+		}
+
+		if decl.Module != nil {
+			decl.Module.Doc = doc
+		}
+		if decl.Scalar != nil {
+			decl.Scalar.Doc = doc
+		}
+		if decl.Union != nil {
+			decl.Union.Doc = doc
+		}
+		if decl.Enum != nil {
 			decl.Enum.Doc = doc
 			for j := range decl.Enum.Cases {
 				c := &decl.Enum.Cases[j]
-				c.Doc = findImmediateComment(c.Pos.Line, comments, codeLines)
+				cLines := collectMultilineCommentsAbove(c.Pos.Line, comments, codeLines)
+				if len(cLines) > 0 {
+					c.Doc = strings.Join(cLines, "\n")
+				}
 				if txt, ok := comments[c.Pos.Line]; ok {
 					c.TrailingDoc = txt
 				}
@@ -138,40 +133,53 @@ func attachCommentsToSchema(s *Schema, comments map[int]string, codeLines map[in
 				decl.Decorator.TrailingDoc = txt
 			}
 		}
-		if decl.Model != nil { 
-			decl.Model.Doc = doc 
+		if decl.Model != nil {
+			decl.Model.Doc = doc
 			// 递归处理子字段
 			for j := range decl.Model.Properties {
 				p := &decl.Model.Properties[j]
-				p.Doc = findImmediateComment(p.Pos.Line, comments, codeLines)
+				pLines := collectMultilineCommentsAbove(p.Pos.Line, comments, codeLines)
+				if len(pLines) > 0 {
+					p.Doc = strings.Join(pLines, "\n")
+				}
 				if txt, ok := comments[p.Pos.Line]; ok {
 					p.TrailingDoc = txt
 				}
 			}
 		}
-		if decl.Group != nil { 
-			decl.Group.Doc = doc 
+		if decl.Group != nil {
+			decl.Group.Doc = doc
 			for j := range decl.Group.Endpoints {
 				ep := &decl.Group.Endpoints[j]
-				
+
+				// 考虑修饰器可能在 endpoint 关键字上方的情况
+				startLine := ep.Pos.Line
+				if len(ep.Directives) > 0 && ep.Directives[0].Pos.Line < startLine {
+					startLine = ep.Directives[0].Pos.Line
+				}
+
 				// 收集 Endpoint 上方的所有连续单行注释
-				epLines := collectMultilineCommentsAbove(ep.Pos.Line, comments, codeLines)
+				epLines := collectMultilineCommentsAbove(startLine, comments, codeLines)
 				epDoc, paramDocs := parseComments(epLines)
-				
+
 				ep.Doc = epDoc
 				if txt, ok := comments[ep.Pos.Line]; ok {
 					ep.TrailingDoc = txt
 				}
-				
+
 				for k := range ep.Args {
 					a := &ep.Args[k]
-					// 优先使用智能注释提取的专属描述。如果同处一行，且没有专属匹配，则不降级以防主文档泄漏；仅在多行展开（a.Pos.Line > ep.Pos.Line）时才降级为原本的紧贴上一行机制
+					// 优先使用智能注释提取的专属描述
 					if pd, ok := paramDocs[a.Name]; ok {
 						a.Doc = pd
 					} else if a.Pos.Line > ep.Pos.Line {
-						a.Doc = findImmediateComment(a.Pos.Line, comments, codeLines)
-					} else {
-						a.Doc = ""
+						aLines := collectMultilineCommentsAbove(a.Pos.Line, comments, codeLines)
+						if len(aLines) > 0 {
+							a.Doc = strings.Join(aLines, "\n")
+						}
+						if txt, ok := comments[a.Pos.Line]; ok {
+							a.Doc = txt
+						}
 					}
 				}
 			}
@@ -379,6 +387,13 @@ func (s *Schema) String() string {
 }
 
 func validateTypeRef(t TypeRef, models, baseTypes, localTypes map[string]bool) error {
+	if t.IsArray != t.ArrEnd {
+		return fmt.Errorf("语法错误: 数组类型的 '[' 和 ']' 必须成对出现")
+	}
+	if !t.IsArray && t.ArrNotNull {
+		return fmt.Errorf("语法错误: 非数组类型 '%s' 不允许使用双叹号(如 %s!!)", t.Name, t.Name)
+	}
+
 	name := t.Name
 	if !baseTypes[name] && !models[name] && (localTypes == nil || !localTypes[name]) {
 		return fmt.Errorf("undefined type: %s", name)
@@ -402,6 +417,7 @@ var (
 		{Name: "Int", Pattern: `[-+]?\d+`},
 		{Name: "Arrow", Pattern: `=>`},
 		{Name: "Punct", Pattern: `[-[!@#$%^&*()+_={}\|:;"'<,>.?/]|]`},
+		{Name: "Invalid", Pattern: `.`},
 	})
 
 	Parser = participle.MustBuild[Schema](
