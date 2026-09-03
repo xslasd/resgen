@@ -1,12 +1,2807 @@
 {
-  "version": "v0.7.2",
-  "package": "resolver",
+  "openapi": "3.0.3",
   "info": {
     "title": "Resgen Generated API",
     "version": "1.0.0",
     "description": "示例：枚举特性演示",
     "baseUrl": "http://localhost:8080"
   },
+  "servers": [
+    {
+      "url": "http://localhost:8080",
+      "description": "API Server"
+    }
+  ],
+  "tags": [
+    {
+      "name": "WrapperDemo"
+    },
+    {
+      "name": "AuthDemo"
+    },
+    {
+      "name": "ScalarDemo"
+    },
+    {
+      "name": "ContentTypeDemo"
+    },
+    {
+      "name": "StatusDemo"
+    },
+    {
+      "name": "FileDemo"
+    },
+    {
+      "name": "UnionDemo"
+    },
+    {
+      "name": "EnumDemo"
+    }
+  ],
+  "paths": {
+    "/articles/categories/tree": {
+      "get": {
+        "tags": [
+          "WrapperDemo"
+        ],
+        "summary": "GetCategoryTree",
+        "description": "🌟 返回树形结构数据（嵌套包装器）：ResData\u003cTreeRes\u003cCategoryTreeNode\u003e\u003e",
+        "operationId": "GetCategoryTree",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResData"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResDataError"
+                }
+              }
+            }
+          }
+        },
+        "x-res-file": "01_wrapper.res",
+        "x-res-group": "/articles",
+        "x-res-module": "WrapperDemo",
+        "x-res-return-type": "ResData\u003cTreeResCategoryTreeNode\u003e",
+        "x-res-return-type-dsl": "ResData\u003cTreeResCategoryTreeNode\u003e"
+      }
+    },
+    "/articles/categories/tree/raw": {
+      "get": {
+        "tags": [
+          "WrapperDemo"
+        ],
+        "summary": "GetCategoryTreeRaw",
+        "description": "🌟 裸返回树形结构数据（显式声明 wrap=none 禁用外壳包装）",
+        "operationId": "GetCategoryTreeRaw",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TreeRes"
+                }
+              }
+            }
+          }
+        },
+        "x-res-file": "01_wrapper.res",
+        "x-res-group": "/articles",
+        "x-res-module": "WrapperDemo",
+        "x-res-return-type": "TreeRes\u003cCategoryTreeNode\u003e",
+        "x-res-return-type-dsl": "TreeRes\u003cCategoryTreeNode\u003e"
+      }
+    },
+    "/articles/create": {
+      "post": {
+        "tags": [
+          "WrapperDemo"
+        ],
+        "summary": "CreateArticle",
+        "description": "创建成功返回 201，自动包裹在 default_wrap 中",
+        "operationId": "CreateArticle",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateArticleArgs"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Article"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResDataError"
+                }
+              }
+            }
+          }
+        },
+        "x-res-file": "01_wrapper.res",
+        "x-res-group": "/articles",
+        "x-res-module": "WrapperDemo",
+        "x-res-return-type": "ResData\u003cArticle\u003e",
+        "x-res-return-type-dsl": "ResData\u003cArticle\u003e"
+      }
+    },
+    "/articles/list": {
+      "get": {
+        "tags": [
+          "WrapperDemo"
+        ],
+        "summary": "ListArticles",
+        "description": "隐式自动包装：直接声明业务类型 [Article]，由配置文件的 default_wrap 自动包装为 ResData\u003c[Article]\u003e",
+        "operationId": "ListArticles",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Article"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResDataError"
+                }
+              }
+            }
+          }
+        },
+        "x-res-file": "01_wrapper.res",
+        "x-res-group": "/articles",
+        "x-res-module": "WrapperDemo",
+        "x-res-return-type": "ResData\u003c[Article]\u003e",
+        "x-res-return-type-dsl": "ResData\u003c[Article]\u003e"
+      }
+    },
+    "/articles/list/v2": {
+      "get": {
+        "tags": [
+          "WrapperDemo"
+        ],
+        "summary": "ListArticlesV2",
+        "description": "返回通用列表/分页响应（嵌套包装器）：ResData\u003cListRes\u003cArticle\u003e\u003e",
+        "operationId": "ListArticlesV2",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResData"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResDataError"
+                }
+              }
+            }
+          }
+        },
+        "x-res-file": "01_wrapper.res",
+        "x-res-group": "/articles",
+        "x-res-module": "WrapperDemo",
+        "x-res-return-type": "ResData\u003cListResArticle\u003e",
+        "x-res-return-type-dsl": "ResData\u003cListResArticle\u003e"
+      }
+    },
+    "/articles/logout": {
+      "post": {
+        "tags": [
+          "WrapperDemo"
+        ],
+        "summary": "Logout",
+        "description": "无返回值接口",
+        "operationId": "Logout",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResDataError"
+                }
+              }
+            }
+          }
+        },
+        "x-res-file": "01_wrapper.res",
+        "x-res-group": "/articles",
+        "x-res-module": "WrapperDemo"
+      }
+    },
+    "/articles/raw/{id}": {
+      "get": {
+        "tags": [
+          "WrapperDemo"
+        ],
+        "summary": "GetArticleRaw",
+        "description": "不使用 ResData 包装，直接返回原始裸对象",
+        "operationId": "GetArticleRaw",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Article"
+                }
+              }
+            }
+          }
+        },
+        "x-res-file": "01_wrapper.res",
+        "x-res-group": "/articles",
+        "x-res-module": "WrapperDemo",
+        "x-res-return-type": "Article",
+        "x-res-return-type-dsl": "Article"
+      }
+    },
+    "/articles/{id}": {
+      "get": {
+        "tags": [
+          "WrapperDemo"
+        ],
+        "summary": "GetArticle",
+        "description": "显式声明泛型包装器：ResData\u003cArticle\u003e（与省略外壳直接声明 Article 效果等价，支持显式写法）",
+        "operationId": "GetArticle",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResData"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResDataError"
+                }
+              }
+            }
+          }
+        },
+        "x-res-file": "01_wrapper.res",
+        "x-res-group": "/articles",
+        "x-res-module": "WrapperDemo",
+        "x-res-return-type": "ResData\u003cArticle\u003e",
+        "x-res-return-type-dsl": "ResData\u003cArticle\u003e"
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": [
+          "AuthDemo"
+        ],
+        "summary": "Login",
+        "description": "登录：完全接管绑定与校验逻辑（业务层手动处理）",
+        "operationId": "Login",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginArgs"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Token"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResDataError"
+                }
+              }
+            }
+          }
+        },
+        "x-res-file": "02_decorator_validator.res",
+        "x-res-group": "/auth",
+        "x-res-module": "AuthDemo",
+        "x-res-return-type": "ResData\u003cToken\u003e",
+        "x-res-return-type-dsl": "ResData\u003cToken\u003e"
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "tags": [
+          "AuthDemo"
+        ],
+        "summary": "GetMe",
+        "description": "获取当前用户：全局 loginRequired 装饰器在请求阶段拦截",
+        "operationId": "GetMe",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResDataError"
+                }
+              }
+            }
+          }
+        },
+        "x-res-file": "02_decorator_validator.res",
+        "x-res-group": "/auth",
+        "x-res-module": "AuthDemo",
+        "x-res-return-type": "ResData\u003cUser\u003e",
+        "x-res-return-type-dsl": "ResData\u003cUser\u003e"
+      }
+    },
+    "/auth/period": {
+      "post": {
+        "tags": [
+          "AuthDemo"
+        ],
+        "summary": "SetPeriod",
+        "description": "跨字段关联校验：校验 startTime 是否早于 endTime",
+        "operationId": "SetPeriod",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskPeriodInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResDataError"
+                }
+              }
+            }
+          }
+        },
+        "x-res-file": "02_decorator_validator.res",
+        "x-res-group": "/auth",
+        "x-res-module": "AuthDemo",
+        "x-res-return-type": "ResData\u003cString\u003e",
+        "x-res-return-type-dsl": "ResData\u003cString\u003e"
+      }
+    },
+    "/auth/register": {
+      "post": {
+        "tags": [
+          "AuthDemo"
+        ],
+        "summary": "Register",
+        "description": "注册：使用字段级校验器，请求 form 表单",
+        "operationId": "Register",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResDataError"
+                }
+              }
+            }
+          }
+        },
+        "x-res-file": "02_decorator_validator.res",
+        "x-res-group": "/auth",
+        "x-res-module": "AuthDemo",
+        "x-res-return-type": "ResData\u003cUser\u003e",
+        "x-res-return-type-dsl": "ResData\u003cUser\u003e"
+      }
+    },
+    "/auth/update": {
+      "post": {
+        "tags": [
+          "AuthDemo"
+        ],
+        "summary": "UpdateUser",
+        "description": "更新用户：\n- loginRequired（request 阶段，全局）：验证登录态\n- checkOwner（invoke 阶段，业务独立）：验证是否为资源拥有者\n- maskEmail（response 阶段，业务独立）：脱敏邮件地址后再返回",
+        "operationId": "UpdateUser",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResDataError"
+                }
+              }
+            }
+          }
+        },
+        "x-res-file": "02_decorator_validator.res",
+        "x-res-group": "/auth",
+        "x-res-module": "AuthDemo",
+        "x-res-return-type": "ResData\u003cUser\u003e",
+        "x-res-return-type-dsl": "ResData\u003cUser\u003e"
+      }
+    },
+    "/auth/{id}": {
+      "delete": {
+        "tags": [
+          "AuthDemo"
+        ],
+        "summary": "DeleteUser",
+        "description": "管理员接口：需要特定角色，组合多个全局装饰器",
+        "operationId": "DeleteUser",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResDataError"
+                }
+              }
+            }
+          }
+        },
+        "x-res-file": "02_decorator_validator.res",
+        "x-res-group": "/auth",
+        "x-res-module": "AuthDemo",
+        "x-res-permission": "admin",
+        "x-res-return-type": "ResData\u003cString\u003e",
+        "x-res-return-type-dsl": "ResData\u003cString\u003e"
+      }
+    },
+    "/content/form": {
+      "post": {
+        "tags": [
+          "ContentTypeDemo"
+        ],
+        "summary": "SubmitForm",
+        "description": "请求体为 URL 编码表单（application/x-www-form-urlencoded）",
+        "operationId": "SubmitForm",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/FormInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResDataError"
+                }
+              }
+            }
+          }
+        },
+        "x-res-file": "04_content_type.res",
+        "x-res-group": "/content",
+        "x-res-module": "ContentTypeDemo",
+        "x-res-return-type": "ResData\u003cString\u003e",
+        "x-res-return-type-dsl": "ResData\u003cString\u003e"
+      }
+    },
+    "/content/form/nested": {
+      "post": {
+        "tags": [
+          "ContentTypeDemo"
+        ],
+        "summary": "SubmitNestedForm",
+        "description": "🌟 请求体为 URL 编码表单，支持多层嵌套结构",
+        "operationId": "SubmitNestedForm",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/NestedFormInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResDataError"
+                }
+              }
+            }
+          }
+        },
+        "x-res-file": "04_content_type.res",
+        "x-res-group": "/content",
+        "x-res-module": "ContentTypeDemo",
+        "x-res-return-type": "ResData\u003cString\u003e",
+        "x-res-return-type-dsl": "ResData\u003cString\u003e"
+      }
+    },
+    "/content/json": {
+      "post": {
+        "tags": [
+          "ContentTypeDemo"
+        ],
+        "summary": "SubmitJson",
+        "description": "默认：请求体为 JSON（可省略 ctype=json）",
+        "operationId": "SubmitJson",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResDataError"
+                }
+              }
+            }
+          }
+        },
+        "x-res-file": "04_content_type.res",
+        "x-res-group": "/content",
+        "x-res-module": "ContentTypeDemo",
+        "x-res-return-type": "ResData\u003cString\u003e",
+        "x-res-return-type-dsl": "ResData\u003cString\u003e"
+      }
+    },
+    "/content/multipart": {
+      "post": {
+        "tags": [
+          "ContentTypeDemo"
+        ],
+        "summary": "SubmitMultipart",
+        "description": "请求体为 multipart/form-data（文件上传场景在示例 6 详细展示）",
+        "operationId": "SubmitMultipart",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResDataError"
+                }
+              }
+            }
+          }
+        },
+        "x-res-file": "04_content_type.res",
+        "x-res-group": "/content",
+        "x-res-module": "ContentTypeDemo",
+        "x-res-return-type": "ResData\u003cString\u003e",
+        "x-res-return-type-dsl": "ResData\u003cString\u003e"
+      }
+    },
+    "/enum/create": {
+      "post": {
+        "tags": [
+          "EnumDemo"
+        ],
+        "summary": "CreateUser",
+        "description": "创建带有枚举的用户",
+        "operationId": "CreateUser",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserWithRole"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResDataError"
+                }
+              }
+            }
+          }
+        },
+        "x-res-file": "08_enum.res",
+        "x-res-group": "/enum",
+        "x-res-module": "EnumDemo",
+        "x-res-return-type": "ResData\u003cUserWithRole\u003e",
+        "x-res-return-type-dsl": "ResData\u003cUserWithRole\u003e"
+      }
+    },
+    "/enum/query": {
+      "get": {
+        "tags": [
+          "EnumDemo"
+        ],
+        "summary": "QueryByRole",
+        "description": "通过参数查询",
+        "operationId": "QueryByRole",
+        "parameters": [
+          {
+            "name": "role",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserWithRole"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResDataError"
+                }
+              }
+            }
+          }
+        },
+        "x-res-file": "08_enum.res",
+        "x-res-group": "/enum",
+        "x-res-module": "EnumDemo",
+        "x-res-return-type": "ResData\u003cUserWithRole\u003e",
+        "x-res-return-type-dsl": "ResData\u003cUserWithRole\u003e"
+      }
+    },
+    "/events/create": {
+      "post": {
+        "tags": [
+          "ScalarDemo"
+        ],
+        "summary": "CreateEvent",
+        "description": "标量在请求 Body 中，由序列化层处理",
+        "operationId": "CreateEvent",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateEventInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Event"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResDataError"
+                }
+              }
+            }
+          }
+        },
+        "x-res-file": "03_scalar.res",
+        "x-res-group": "/events",
+        "x-res-module": "ScalarDemo",
+        "x-res-return-type": "ResData\u003cEvent\u003e",
+        "x-res-return-type-dsl": "ResData\u003cEvent\u003e"
+      }
+    },
+    "/events/list": {
+      "get": {
+        "tags": [
+          "ScalarDemo"
+        ],
+        "summary": "ListEvents",
+        "description": "标量作为 Query 参数，GET 请求自动展开",
+        "operationId": "ListEvents",
+        "parameters": [
+          {
+            "name": "input",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/QueryEventsInput"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Event"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResDataError"
+                }
+              }
+            }
+          }
+        },
+        "x-res-file": "03_scalar.res",
+        "x-res-group": "/events",
+        "x-res-module": "ScalarDemo",
+        "x-res-permission": "events:list",
+        "x-res-return-type": "ResData\u003c[Event]\u003e",
+        "x-res-return-type-dsl": "ResData\u003c[Event]\u003e"
+      }
+    },
+    "/events/{startTime}": {
+      "get": {
+        "tags": [
+          "ScalarDemo"
+        ],
+        "summary": "GetEventByTime",
+        "description": "标量作为路径参数（@path），由 FromParam 处理字符串解析",
+        "operationId": "GetEventByTime",
+        "parameters": [
+          {
+            "name": "start_time",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Event"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResDataError"
+                }
+              }
+            }
+          }
+        },
+        "x-res-file": "03_scalar.res",
+        "x-res-group": "/events",
+        "x-res-module": "ScalarDemo",
+        "x-res-permission": "events:get",
+        "x-res-return-type": "ResData\u003cEvent\u003e",
+        "x-res-return-type-dsl": "ResData\u003cEvent\u003e"
+      }
+    },
+    "/export/json": {
+      "get": {
+        "tags": [
+          "ContentTypeDemo"
+        ],
+        "summary": "ExportJson",
+        "description": "响应为 JSON（默认，可省略）",
+        "operationId": "ExportJson",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Report"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResDataError"
+                }
+              }
+            }
+          }
+        },
+        "x-res-file": "04_content_type.res",
+        "x-res-group": "/export",
+        "x-res-module": "ContentTypeDemo",
+        "x-res-permission": "export:*",
+        "x-res-return-type": "ResData\u003cReport\u003e",
+        "x-res-return-type-dsl": "ResData\u003cReport\u003e"
+      }
+    },
+    "/export/text": {
+      "get": {
+        "tags": [
+          "ContentTypeDemo"
+        ],
+        "summary": "ExportText",
+        "description": "响应为纯文本，错误时退化为 JSON（默认由 default_wrap 包装）",
+        "operationId": "ExportText",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResDataError"
+                }
+              }
+            }
+          }
+        },
+        "x-res-file": "04_content_type.res",
+        "x-res-group": "/export",
+        "x-res-module": "ContentTypeDemo",
+        "x-res-permission": "export:*",
+        "x-res-return-type": "ResData\u003cString\u003e",
+        "x-res-return-type-dsl": "ResData\u003cString\u003e"
+      }
+    },
+    "/export/xml": {
+      "get": {
+        "tags": [
+          "ContentTypeDemo"
+        ],
+        "summary": "ExportXml",
+        "description": "响应为 XML（需在 resgen.yaml content_types 中定义 xml 规格）",
+        "operationId": "ExportXml",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/Report"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResDataError"
+                }
+              }
+            }
+          }
+        },
+        "x-res-file": "04_content_type.res",
+        "x-res-group": "/export",
+        "x-res-module": "ContentTypeDemo",
+        "x-res-permission": "export:*",
+        "x-res-return-type": "ResData\u003cReport\u003e",
+        "x-res-return-type-dsl": "ResData\u003cReport\u003e"
+      }
+    },
+    "/files/avatar": {
+      "post": {
+        "tags": [
+          "FileDemo"
+        ],
+        "summary": "UploadAvatar",
+        "description": "单文件上传：头像",
+        "operationId": "UploadAvatar",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadAvatarInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResDataError"
+                }
+              }
+            }
+          }
+        },
+        "x-res-file": "06_file.res",
+        "x-res-group": "/files",
+        "x-res-module": "FileDemo",
+        "x-res-return-type": "ResData\u003cUploadResult\u003e",
+        "x-res-return-type-dsl": "ResData\u003cUploadResult\u003e"
+      }
+    },
+    "/files/document": {
+      "post": {
+        "tags": [
+          "FileDemo"
+        ],
+        "summary": "UploadDocument",
+        "description": "混合表单上传：文档 + 封面",
+        "operationId": "UploadDocument",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadDocumentInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResDataError"
+                }
+              }
+            }
+          }
+        },
+        "x-res-file": "06_file.res",
+        "x-res-group": "/files",
+        "x-res-module": "FileDemo",
+        "x-res-return-type": "ResData\u003cUploadResult\u003e",
+        "x-res-return-type-dsl": "ResData\u003cUploadResult\u003e"
+      }
+    },
+    "/files/download/{id}": {
+      "get": {
+        "tags": [
+          "FileDemo"
+        ],
+        "summary": "DownloadFile",
+        "description": "文件下载：成功响应为 PDF 裸流 (wrap=none)，文档精准显示 application/pdf，失败退化为 JSON (etype=json)",
+        "operationId": "DownloadFile",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResDataError"
+                }
+              }
+            }
+          }
+        },
+        "x-res-file": "06_file.res",
+        "x-res-group": "/files",
+        "x-res-module": "FileDemo",
+        "x-res-return-type": "File",
+        "x-res-return-type-dsl": "File"
+      }
+    },
+    "/files/dynamic/{id}": {
+      "get": {
+        "tags": [
+          "FileDemo"
+        ],
+        "summary": "DownloadDynamic",
+        "description": "动态流下载：通用动态流，业务动态指定 ContentType，失败退化为 JSON (etype=json)",
+        "operationId": "DownloadDynamic",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResDataError"
+                }
+              }
+            }
+          }
+        },
+        "x-res-file": "06_file.res",
+        "x-res-group": "/files",
+        "x-res-module": "FileDemo",
+        "x-res-return-type": "File",
+        "x-res-return-type-dsl": "File"
+      }
+    },
+    "/files/export/csv": {
+      "get": {
+        "tags": [
+          "FileDemo"
+        ],
+        "summary": "ExportCsv",
+        "description": "导出 CSV：成功响应为 CSV 裸流 (wrap=none)，文档精准显示 text/csv，失败退化为 JSON (etype=json)",
+        "operationId": "ExportCsv",
+        "parameters": [
+          {
+            "name": "ids",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResDataError"
+                }
+              }
+            }
+          }
+        },
+        "x-res-file": "06_file.res",
+        "x-res-group": "/files",
+        "x-res-module": "FileDemo",
+        "x-res-return-type": "File",
+        "x-res-return-type-dsl": "File"
+      }
+    },
+    "/posts/": {
+      "post": {
+        "tags": [
+          "UnionDemo"
+        ],
+        "summary": "CreatePost",
+        "description": "单帖创建接口：基础联合类型 (UnionKind)",
+        "operationId": "CreatePost",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePostInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentPostItem"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResDataError"
+                }
+              }
+            }
+          }
+        },
+        "x-res-file": "07_union.res",
+        "x-res-group": "/posts",
+        "x-res-module": "UnionDemo",
+        "x-res-return-type": "ResData\u003cContentPostItem\u003e",
+        "x-res-return-type-dsl": "ResData\u003cContentPostItem\u003e"
+      }
+    },
+    "/posts/batch": {
+      "post": {
+        "tags": [
+          "UnionDemo"
+        ],
+        "summary": "BatchCreatePost",
+        "description": "批量发布接口：多级结构 (嵌套对象 + 切片列表) 中的联合类型入参",
+        "operationId": "BatchCreatePost",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchCreatePostInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchCreatePostResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResDataError"
+                }
+              }
+            }
+          }
+        },
+        "x-res-file": "07_union.res",
+        "x-res-group": "/posts",
+        "x-res-module": "UnionDemo",
+        "x-res-return-type": "ResData\u003cBatchCreatePostResult\u003e",
+        "x-res-return-type-dsl": "ResData\u003cBatchCreatePostResult\u003e"
+      }
+    },
+    "/posts/{id}": {
+      "get": {
+        "tags": [
+          "UnionDemo"
+        ],
+        "summary": "GetPost",
+        "description": "帖子查询接口：演示联合类型作为返回值",
+        "operationId": "GetPost",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentPostItem"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResDataError"
+                }
+              }
+            }
+          }
+        },
+        "x-res-file": "07_union.res",
+        "x-res-group": "/posts",
+        "x-res-module": "UnionDemo",
+        "x-res-return-type": "ResData\u003cContentPostItem\u003e",
+        "x-res-return-type-dsl": "ResData\u003cContentPostItem\u003e"
+      }
+    },
+    "/products/batch-update": {
+      "post": {
+        "tags": [
+          "StatusDemo"
+        ],
+        "summary": "BatchUpdate",
+        "description": "批量更新：成功状态码改为 202 Accepted（异步处理）",
+        "operationId": "BatchUpdate",
+        "responses": {
+          "202": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResDataError"
+                }
+              }
+            }
+          }
+        },
+        "x-res-file": "05_status_wrap.res",
+        "x-res-group": "/products",
+        "x-res-module": "StatusDemo",
+        "x-res-return-type": "ResData\u003cString\u003e",
+        "x-res-return-type-dsl": "ResData\u003cString\u003e"
+      }
+    },
+    "/products/create": {
+      "post": {
+        "tags": [
+          "StatusDemo"
+        ],
+        "summary": "CreateProduct",
+        "description": "创建资源：成功状态码改为 201 Created",
+        "operationId": "CreateProduct",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProductInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Product"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResDataError"
+                }
+              }
+            }
+          }
+        },
+        "x-res-file": "05_status_wrap.res",
+        "x-res-group": "/products",
+        "x-res-module": "StatusDemo",
+        "x-res-return-type": "ResData\u003cProduct\u003e",
+        "x-res-return-type-dsl": "ResData\u003cProduct\u003e"
+      }
+    },
+    "/products/list": {
+      "get": {
+        "tags": [
+          "StatusDemo"
+        ],
+        "summary": "ListProducts",
+        "description": "接口级覆盖 wrap：使用分页包装器替换默认的 ResData",
+        "operationId": "ListProducts",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageData"
+                }
+              }
+            }
+          }
+        },
+        "x-res-file": "05_status_wrap.res",
+        "x-res-group": "/products",
+        "x-res-module": "StatusDemo",
+        "x-res-return-type": "PageData\u003c[Product]\u003e",
+        "x-res-return-type-dsl": "PageData\u003c[Product]\u003e"
+      }
+    },
+    "/products/{id}": {
+      "delete": {
+        "tags": [
+          "StatusDemo"
+        ],
+        "summary": "DeleteProduct",
+        "description": "无内容删除：成功状态码改为 204 No Content，直接返回空响应（wrap=none）",
+        "operationId": "DeleteProduct",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "x-res-file": "05_status_wrap.res",
+        "x-res-group": "/products",
+        "x-res-module": "StatusDemo",
+        "x-res-return-type": "String",
+        "x-res-return-type-dsl": "String"
+      },
+      "get": {
+        "tags": [
+          "StatusDemo"
+        ],
+        "summary": "GetProduct",
+        "description": "默认成功 200 + ResData 包装",
+        "operationId": "GetProduct",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Product"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResDataError"
+                }
+              }
+            }
+          }
+        },
+        "x-res-file": "05_status_wrap.res",
+        "x-res-group": "/products",
+        "x-res-module": "StatusDemo",
+        "x-res-return-type": "ResData\u003cProduct\u003e",
+        "x-res-return-type-dsl": "ResData\u003cProduct\u003e"
+      }
+    },
+    "/raw/product/{id}": {
+      "get": {
+        "tags": [
+          "StatusDemo"
+        ],
+        "summary": "GetRawProduct",
+        "description": "直接返回原始对象，不包装",
+        "operationId": "GetRawProduct",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Product"
+                }
+              }
+            }
+          }
+        },
+        "x-res-file": "05_status_wrap.res",
+        "x-res-group": "/raw",
+        "x-res-module": "StatusDemo",
+        "x-res-return-type": "Product",
+        "x-res-return-type-dsl": "Product"
+      }
+    },
+    "/raw/products": {
+      "get": {
+        "tags": [
+          "StatusDemo"
+        ],
+        "summary": "GetRawProducts",
+        "description": "需要包装时在接口级单独声明",
+        "operationId": "GetRawProducts",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResData"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResDataError"
+                }
+              }
+            }
+          }
+        },
+        "x-res-file": "05_status_wrap.res",
+        "x-res-group": "/raw",
+        "x-res-module": "StatusDemo",
+        "x-res-return-type": "ResData\u003c[Product]\u003e",
+        "x-res-return-type-dsl": "ResData\u003c[Product]\u003e"
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AddressInput": {
+        "type": "object",
+        "title": "AddressInput",
+        "description": "多层嵌套子模型：地址信息",
+        "required": [
+          "city",
+          "street"
+        ],
+        "properties": {
+          "city": {
+            "type": "string"
+          },
+          "street": {
+            "type": "string"
+          },
+          "zip_code": {
+            "type": "string"
+          }
+        },
+        "x-res-file": "04_content_type.res"
+      },
+      "Article": {
+        "type": "object",
+        "title": "Article",
+        "description": "数据模型：基础文章",
+        "required": [
+          "id",
+          "title",
+          "content"
+        ],
+        "properties": {
+          "content": {
+            "type": "string"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "x-res-file": "01_wrapper.res"
+      },
+      "BatchCreatePostInput": {
+        "type": "object",
+        "title": "BatchCreatePostInput",
+        "description": "多级复合入参模型：同时包含普通字段、嵌套单对象、嵌套数组切片中的多态",
+        "required": [
+          "batch_name",
+          "items"
+        ],
+        "properties": {
+          "batch_name": {
+            "type": "string"
+          },
+          "items": {
+            "description": "2. 嵌套数组切片中的联合类型 (列表)",
+            "$ref": "#/components/schemas/PostDetailInput"
+          },
+          "pinned_post": {
+            "description": "1. 嵌套单对象中的联合类型 (可空)",
+            "$ref": "#/components/schemas/PostDetailInput"
+          }
+        },
+        "x-res-file": "07_union.res"
+      },
+      "BatchCreatePostResult": {
+        "type": "object",
+        "title": "BatchCreatePostResult",
+        "description": "批量创建返回结果模型",
+        "required": [
+          "batch_name",
+          "total",
+          "items"
+        ],
+        "properties": {
+          "batch_name": {
+            "type": "string"
+          },
+          "items": {
+            "$ref": "#/components/schemas/ContentPostItem"
+          },
+          "total": {
+            "type": "integer"
+          }
+        },
+        "x-res-file": "07_union.res"
+      },
+      "CategoryTreeNode": {
+        "type": "object",
+        "title": "CategoryTreeNode",
+        "description": "数据模型：树形分类节点（自引用递归结构）",
+        "required": [
+          "id",
+          "parent_id",
+          "name",
+          "sort",
+          "children"
+        ],
+        "properties": {
+          "children": {
+            "$ref": "#/components/schemas/CategoryTreeNode"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "parent_id": {
+            "type": "integer"
+          },
+          "sort": {
+            "type": "integer"
+          }
+        },
+        "x-res-file": "01_wrapper.res"
+      },
+      "ContentPostItem": {
+        "type": "object",
+        "title": "ContentPostItem",
+        "required": [
+          "id",
+          "type"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "payload": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "x-res-file": "07_union.res"
+      },
+      "CreateArticleArgs": {
+        "type": "object",
+        "title": "CreateArticleArgs",
+        "properties": {
+          "content": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateEventInput": {
+        "type": "object",
+        "title": "CreateEventInput",
+        "required": [
+          "name",
+          "st_time",
+          "end_time"
+        ],
+        "properties": {
+          "end_time": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "st_time": {
+            "type": "integer",
+            "description": "使用 @alias 自定义传输别名，兼容老前端/老系统不规范命名"
+          }
+        },
+        "x-res-file": "03_scalar.res"
+      },
+      "CreatePostInput": {
+        "type": "object",
+        "title": "CreatePostInput",
+        "required": [
+          "type"
+        ],
+        "properties": {
+          "payload": {
+            "type": "string",
+            "description": "2. 联合类型字段，通过 (type) 显式关联同级的判别器字段"
+          },
+          "type": {
+            "type": "string",
+            "description": "1. 判别器字段（这里它的类型是 UnionKind，符合 ContentPayload 的要求）"
+          }
+        },
+        "x-res-file": "07_union.res"
+      },
+      "CreateProductInput": {
+        "type": "object",
+        "title": "CreateProductInput",
+        "required": [
+          "name",
+          "price"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "price": {
+            "type": "number"
+          }
+        },
+        "x-res-file": "05_status_wrap.res"
+      },
+      "CreateUserInput": {
+        "type": "object",
+        "title": "CreateUserInput",
+        "required": [
+          "role",
+          "status"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "x-res-file": "08_enum.res"
+      },
+      "Event": {
+        "type": "object",
+        "title": "Event",
+        "description": "使用标量作为模型字段",
+        "required": [
+          "id",
+          "name",
+          "start_time"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "integer"
+          },
+          "end_time": {
+            "type": "integer"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "start_time": {
+            "type": "integer"
+          }
+        },
+        "x-res-file": "03_scalar.res"
+      },
+      "FormInput": {
+        "type": "object",
+        "title": "FormInput",
+        "required": [
+          "name",
+          "email"
+        ],
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "x-res-file": "04_content_type.res"
+      },
+      "JsonInput": {
+        "type": "object",
+        "title": "JsonInput",
+        "required": [
+          "title",
+          "content"
+        ],
+        "properties": {
+          "content": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "x-res-file": "04_content_type.res"
+      },
+      "ListArticlesArgs": {
+        "type": "object",
+        "title": "ListArticlesArgs",
+        "properties": {
+          "page": {
+            "type": "integer"
+          },
+          "size": {
+            "type": "integer"
+          }
+        }
+      },
+      "ListArticlesV2Args": {
+        "type": "object",
+        "title": "ListArticlesV2Args",
+        "properties": {
+          "page": {
+            "type": "integer"
+          },
+          "size": {
+            "type": "integer"
+          }
+        }
+      },
+      "ListProductsArgs": {
+        "type": "object",
+        "title": "ListProductsArgs",
+        "properties": {
+          "page": {
+            "type": "integer"
+          },
+          "size": {
+            "type": "integer"
+          }
+        }
+      },
+      "ListRes": {
+        "type": "object",
+        "title": "ListRes",
+        "description": "3. 通用列表/分页响应包装器",
+        "required": [
+          "rows",
+          "total"
+        ],
+        "properties": {
+          "rows": {
+            "type": "string",
+            "description": "列表数据"
+          },
+          "total": {
+            "type": "integer",
+            "description": "总条数"
+          }
+        },
+        "x-res-file": "00_common.res"
+      },
+      "ListResArticle": {
+        "type": "object",
+        "title": "ListResArticle",
+        "description": "3. 通用列表/分页响应包装器 (单态化展开自 ListRes\u003cArticle\u003e)",
+        "required": [
+          "rows",
+          "total"
+        ],
+        "properties": {
+          "rows": {
+            "description": "列表数据",
+            "$ref": "#/components/schemas/Article"
+          },
+          "total": {
+            "type": "integer",
+            "description": "总条数"
+          }
+        },
+        "x-res-file": "00_common.res"
+      },
+      "ListResError": {
+        "type": "object",
+        "title": "ListResError",
+        "description": "3. 通用列表/分页响应包装器",
+        "required": [
+          "total"
+        ],
+        "properties": {
+          "total": {
+            "type": "integer",
+            "description": "总条数"
+          }
+        },
+        "x-res-file": "00_common.res"
+      },
+      "LoginArgs": {
+        "type": "object",
+        "title": "LoginArgs",
+        "properties": {
+          "password": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          }
+        }
+      },
+      "NestedFormInput": {
+        "type": "object",
+        "title": "NestedFormInput",
+        "description": "多层嵌套表单输入模型",
+        "required": [
+          "name",
+          "age",
+          "address"
+        ],
+        "properties": {
+          "address": {
+            "$ref": "#/components/schemas/AddressInput"
+          },
+          "age": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "x-res-file": "04_content_type.res"
+      },
+      "PageData": {
+        "type": "object",
+        "title": "PageData",
+        "description": "分页专用包装器",
+        "required": [
+          "list",
+          "total",
+          "page"
+        ],
+        "properties": {
+          "list": {
+            "type": "string"
+          },
+          "page": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer"
+          }
+        },
+        "x-res-file": "05_status_wrap.res"
+      },
+      "PageDataError": {
+        "type": "object",
+        "title": "PageDataError",
+        "description": "分页专用包装器",
+        "required": [
+          "total",
+          "page"
+        ],
+        "properties": {
+          "page": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer"
+          }
+        },
+        "x-res-file": "05_status_wrap.res"
+      },
+      "PageResult": {
+        "type": "object",
+        "title": "PageResult",
+        "description": "数据模型：自定义分页结果",
+        "required": [
+          "list",
+          "total",
+          "page",
+          "size"
+        ],
+        "properties": {
+          "list": {
+            "type": "string"
+          },
+          "page": {
+            "type": "integer"
+          },
+          "size": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer"
+          }
+        },
+        "x-res-file": "01_wrapper.res"
+      },
+      "PostDetailInput": {
+        "type": "object",
+        "title": "PostDetailInput",
+        "description": "----------------------------------------------------\n多级结构 + 联合类型：嵌套对象与数组切片\n----------------------------------------------------\n多级嵌套模型：单个帖子项（包含作者与联合类型 payload）",
+        "required": [
+          "author",
+          "type"
+        ],
+        "properties": {
+          "author": {
+            "type": "string"
+          },
+          "payload": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "x-res-file": "07_union.res"
+      },
+      "Product": {
+        "type": "object",
+        "title": "Product",
+        "required": [
+          "id",
+          "name",
+          "price"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "price": {
+            "type": "number"
+          }
+        },
+        "x-res-file": "05_status_wrap.res"
+      },
+      "QueryByRoleArgs": {
+        "type": "object",
+        "title": "QueryByRoleArgs",
+        "properties": {
+          "role": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "QueryEventsInput": {
+        "type": "object",
+        "title": "QueryEventsInput",
+        "properties": {
+          "from_tm": {
+            "type": "integer"
+          },
+          "page": {
+            "type": "integer"
+          },
+          "size": {
+            "type": "integer"
+          },
+          "to_tm": {
+            "type": "integer"
+          }
+        },
+        "x-res-file": "03_scalar.res"
+      },
+      "RecordStatus": {
+        "type": "integer",
+        "title": "RecordStatus",
+        "description": "2. 基础 Int 类型枚举",
+        "enum": [
+          "0",
+          "1"
+        ],
+        "x-res-file": "08_enum.res"
+      },
+      "RegisterInput": {
+        "type": "object",
+        "title": "RegisterInput",
+        "required": [
+          "username",
+          "email",
+          "mobile",
+          "password"
+        ],
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "mobile": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          }
+        },
+        "x-res-file": "02_decorator_validator.res"
+      },
+      "Report": {
+        "type": "object",
+        "title": "Report",
+        "required": [
+          "title",
+          "summary"
+        ],
+        "properties": {
+          "summary": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "x-res-file": "04_content_type.res"
+      },
+      "ResData": {
+        "type": "object",
+        "title": "ResData",
+        "description": "1. 通用 JSON 响应包装器",
+        "required": [
+          "code",
+          "msg"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer"
+          },
+          "data": {
+            "type": "string"
+          },
+          "msg": {
+            "type": "string"
+          }
+        },
+        "x-res-file": "00_common.res"
+      },
+      "ResDataError": {
+        "type": "object",
+        "title": "ResDataError",
+        "description": "1. 通用 JSON 响应包装器",
+        "required": [
+          "code",
+          "msg"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer"
+          },
+          "msg": {
+            "type": "string"
+          }
+        },
+        "x-res-file": "00_common.res"
+      },
+      "SpecialTime": {
+        "type": "string",
+        "title": "SpecialTime",
+        "description": "由于 Timestamp 退化为了 int64，系统会自动将这个枚举映射为 int64",
+        "enum": [
+          "0",
+          "946684800"
+        ],
+        "x-res-file": "08_enum.res"
+      },
+      "TaskPeriodInput": {
+        "type": "object",
+        "title": "TaskPeriodInput",
+        "description": "跨字段校验输入模型：startTime 关联校验 endTime",
+        "required": [
+          "start_time",
+          "end_time"
+        ],
+        "properties": {
+          "end_time": {
+            "type": "integer"
+          },
+          "start_time": {
+            "type": "integer"
+          }
+        },
+        "x-res-file": "02_decorator_validator.res"
+      },
+      "Token": {
+        "type": "object",
+        "title": "Token",
+        "required": [
+          "token",
+          "expires_at"
+        ],
+        "properties": {
+          "expires_at": {
+            "type": "integer"
+          },
+          "token": {
+            "type": "string"
+          }
+        },
+        "x-res-file": "02_decorator_validator.res"
+      },
+      "TreeRes": {
+        "type": "object",
+        "title": "TreeRes",
+        "description": "4. 通用树形结构响应包装器",
+        "required": [
+          "items",
+          "total"
+        ],
+        "properties": {
+          "items": {
+            "type": "string",
+            "description": "顶层树节点列表"
+          },
+          "total": {
+            "type": "integer",
+            "description": "树节点总数"
+          }
+        },
+        "x-res-file": "00_common.res"
+      },
+      "TreeResCategoryTreeNode": {
+        "type": "object",
+        "title": "TreeResCategoryTreeNode",
+        "description": "4. 通用树形结构响应包装器 (单态化展开自 TreeRes\u003cCategoryTreeNode\u003e)",
+        "required": [
+          "items",
+          "total"
+        ],
+        "properties": {
+          "items": {
+            "description": "顶层树节点列表",
+            "$ref": "#/components/schemas/CategoryTreeNode"
+          },
+          "total": {
+            "type": "integer",
+            "description": "树节点总数"
+          }
+        },
+        "x-res-file": "00_common.res"
+      },
+      "TreeResError": {
+        "type": "object",
+        "title": "TreeResError",
+        "description": "4. 通用树形结构响应包装器",
+        "required": [
+          "total"
+        ],
+        "properties": {
+          "total": {
+            "type": "integer",
+            "description": "树节点总数"
+          }
+        },
+        "x-res-file": "00_common.res"
+      },
+      "UnionArticle": {
+        "type": "object",
+        "title": "UnionArticle",
+        "required": [
+          "title",
+          "content"
+        ],
+        "properties": {
+          "content": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "x-res-file": "07_union.res"
+      },
+      "UnionKind": {
+        "type": "string",
+        "title": "UnionKind",
+        "enum": [
+          "article",
+          "video"
+        ],
+        "x-res-file": "07_union.res"
+      },
+      "UnionVideo": {
+        "type": "object",
+        "title": "UnionVideo",
+        "required": [
+          "title",
+          "url",
+          "duration"
+        ],
+        "properties": {
+          "duration": {
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "x-res-file": "07_union.res"
+      },
+      "UpdateInput": {
+        "type": "object",
+        "title": "UpdateInput",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "id": {
+            "type": "integer"
+          }
+        },
+        "x-res-file": "02_decorator_validator.res"
+      },
+      "UploadAvatarInput": {
+        "type": "object",
+        "title": "UploadAvatarInput",
+        "description": "单文件上传的输入模型",
+        "required": [
+          "user_id",
+          "avatar"
+        ],
+        "properties": {
+          "avatar": {
+            "type": "string",
+            "format": "binary",
+            "description": "仅允许 JPG/PNG，最大 2MB（2097152 字节）"
+          },
+          "user_id": {
+            "type": "integer"
+          }
+        },
+        "x-res-file": "06_file.res"
+      },
+      "UploadDocumentInput": {
+        "type": "object",
+        "title": "UploadDocumentInput",
+        "description": "混合表单：同时包含普通字段与文件",
+        "required": [
+          "title",
+          "document"
+        ],
+        "properties": {
+          "cover": {
+            "type": "string",
+            "format": "binary",
+            "description": "可选封面图片"
+          },
+          "description": {
+            "type": "string"
+          },
+          "document": {
+            "type": "string",
+            "format": "binary",
+            "description": "仅允许 PDF，最大 10MB"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "x-res-file": "06_file.res"
+      },
+      "UploadResult": {
+        "type": "object",
+        "title": "UploadResult",
+        "description": "上传结果模型",
+        "required": [
+          "file_url",
+          "file_size",
+          "mime_type"
+        ],
+        "properties": {
+          "file_size": {
+            "type": "integer"
+          },
+          "file_url": {
+            "type": "string"
+          },
+          "mime_type": {
+            "type": "string"
+          }
+        },
+        "x-res-file": "06_file.res"
+      },
+      "User": {
+        "type": "object",
+        "title": "User",
+        "description": "数据模型",
+        "required": [
+          "id",
+          "username",
+          "email"
+        ],
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "username": {
+            "type": "string"
+          }
+        },
+        "x-res-file": "02_decorator_validator.res"
+      },
+      "UserRole": {
+        "type": "string",
+        "title": "UserRole",
+        "description": "1. 基础 String 类型枚举",
+        "enum": [
+          "admin",
+          "user",
+          "guest"
+        ],
+        "x-res-file": "08_enum.res"
+      },
+      "UserWithRole": {
+        "type": "object",
+        "title": "UserWithRole",
+        "properties": {
+          "created_at": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "x-res-file": "08_enum.res"
+      }
+    }
+  },
+  "version": "v0.7.3",
+  "package": "resolver",
   "validators": [
     {
       "name": "Required"
@@ -95,6 +2890,20 @@
       ]
     }
   ],
+  "scalars": {
+    "IntTime": {
+      "name": "IntTime",
+      "doc": "2. 自定义标量：网络传输层使用 Int（int64）",
+      "baseType": "Int",
+      "goType": "scalars.IntTime"
+    },
+    "Timestamp": {
+      "name": "Timestamp",
+      "doc": "3. 继承自 Scalar 并且智能退化",
+      "baseType": "Int",
+      "goType": "Timestamp"
+    }
+  },
   "modules": [
     {
       "name": "WrapperDemo",
@@ -106,6 +2915,7 @@
             {
               "name": "GetArticle",
               "doc": "显式声明泛型包装器：ResData\u003cArticle\u003e（与省略外壳直接声明 Article 效果等价，支持显式写法）",
+              "sourceFile": "01_wrapper.res",
               "method": "GET",
               "path": "/:id",
               "fullPath": "/articles/:id",
@@ -138,6 +2948,7 @@
             {
               "name": "ListArticles",
               "doc": "隐式自动包装：直接声明业务类型 [Article]，由配置文件的 default_wrap 自动包装为 ResData\u003c[Article]\u003e",
+              "sourceFile": "01_wrapper.res",
               "method": "GET",
               "path": "/list",
               "fullPath": "/articles/list",
@@ -177,6 +2988,7 @@
             {
               "name": "ListArticlesV2",
               "doc": "返回通用列表/分页响应（嵌套包装器）：ResData\u003cListRes\u003cArticle\u003e\u003e",
+              "sourceFile": "01_wrapper.res",
               "method": "GET",
               "path": "/list/v2",
               "fullPath": "/articles/list/v2",
@@ -217,6 +3029,7 @@
             {
               "name": "GetCategoryTree",
               "doc": "🌟 返回树形结构数据（嵌套包装器）：ResData\u003cTreeRes\u003cCategoryTreeNode\u003e\u003e",
+              "sourceFile": "01_wrapper.res",
               "method": "GET",
               "path": "/categories/tree",
               "fullPath": "/articles/categories/tree",
@@ -240,6 +3053,7 @@
             {
               "name": "GetCategoryTreeRaw",
               "doc": "🌟 裸返回树形结构数据（显式声明 wrap=none 禁用外壳包装）",
+              "sourceFile": "01_wrapper.res",
               "method": "GET",
               "path": "/categories/tree/raw",
               "fullPath": "/articles/categories/tree/raw",
@@ -262,6 +3076,7 @@
             {
               "name": "CreateArticle",
               "doc": "创建成功返回 201，自动包裹在 default_wrap 中",
+              "sourceFile": "01_wrapper.res",
               "method": "POST",
               "path": "/create",
               "fullPath": "/articles/create",
@@ -311,6 +3126,7 @@
             {
               "name": "GetArticleRaw",
               "doc": "不使用 ResData 包装，直接返回原始裸对象",
+              "sourceFile": "01_wrapper.res",
               "method": "GET",
               "path": "/raw/:id",
               "fullPath": "/articles/raw/:id",
@@ -341,6 +3157,7 @@
             {
               "name": "Logout",
               "doc": "无返回值接口",
+              "sourceFile": "01_wrapper.res",
               "method": "POST",
               "path": "/logout",
               "fullPath": "/articles/logout",
@@ -374,6 +3191,7 @@
             {
               "name": "Register",
               "doc": "注册：使用字段级校验器，请求 form 表单",
+              "sourceFile": "02_decorator_validator.res",
               "method": "POST",
               "path": "/register",
               "fullPath": "/auth/register",
@@ -406,6 +3224,7 @@
             {
               "name": "SetPeriod",
               "doc": "跨字段关联校验：校验 startTime 是否早于 endTime",
+              "sourceFile": "02_decorator_validator.res",
               "method": "POST",
               "path": "/period",
               "fullPath": "/auth/period",
@@ -438,6 +3257,7 @@
             {
               "name": "Login",
               "doc": "登录：完全接管绑定与校验逻辑（业务层手动处理）",
+              "sourceFile": "02_decorator_validator.res",
               "method": "POST",
               "path": "/login",
               "fullPath": "/auth/login",
@@ -477,6 +3297,7 @@
             {
               "name": "GetMe",
               "doc": "获取当前用户：全局 loginRequired 装饰器在请求阶段拦截",
+              "sourceFile": "02_decorator_validator.res",
               "method": "GET",
               "path": "/me",
               "fullPath": "/auth/me",
@@ -499,6 +3320,7 @@
             {
               "name": "UpdateUser",
               "doc": "更新用户：\n- loginRequired（request 阶段，全局）：验证登录态\n- checkOwner（invoke 阶段，业务独立）：验证是否为资源拥有者\n- maskEmail（response 阶段，业务独立）：脱敏邮件地址后再返回",
+              "sourceFile": "02_decorator_validator.res",
               "method": "POST",
               "path": "/update",
               "fullPath": "/auth/update",
@@ -531,6 +3353,7 @@
             {
               "name": "DeleteUser",
               "doc": "管理员接口：需要特定角色，组合多个全局装饰器",
+              "sourceFile": "02_decorator_validator.res",
               "method": "DELETE",
               "path": "/:id",
               "fullPath": "/auth/:id",
@@ -596,6 +3419,7 @@
             {
               "name": "GetEventByTime",
               "doc": "标量作为路径参数（@path），由 FromParam 处理字符串解析",
+              "sourceFile": "03_scalar.res",
               "method": "GET",
               "path": "/:startTime",
               "fullPath": "/events/:startTime",
@@ -628,6 +3452,7 @@
             {
               "name": "ListEvents",
               "doc": "标量作为 Query 参数，GET 请求自动展开",
+              "sourceFile": "03_scalar.res",
               "method": "GET",
               "path": "/list",
               "fullPath": "/events/list",
@@ -661,6 +3486,7 @@
             {
               "name": "CreateEvent",
               "doc": "标量在请求 Body 中，由序列化层处理",
+              "sourceFile": "03_scalar.res",
               "method": "POST",
               "path": "/create",
               "fullPath": "/events/create",
@@ -707,6 +3533,7 @@
             {
               "name": "SubmitJson",
               "doc": "默认：请求体为 JSON（可省略 ctype=json）",
+              "sourceFile": "04_content_type.res",
               "method": "POST",
               "path": "/json",
               "fullPath": "/content/json",
@@ -739,6 +3566,7 @@
             {
               "name": "SubmitForm",
               "doc": "请求体为 URL 编码表单（application/x-www-form-urlencoded）",
+              "sourceFile": "04_content_type.res",
               "method": "POST",
               "path": "/form",
               "fullPath": "/content/form",
@@ -771,6 +3599,7 @@
             {
               "name": "SubmitNestedForm",
               "doc": "🌟 请求体为 URL 编码表单，支持多层嵌套结构",
+              "sourceFile": "04_content_type.res",
               "method": "POST",
               "path": "/form/nested",
               "fullPath": "/content/form/nested",
@@ -803,6 +3632,7 @@
             {
               "name": "SubmitMultipart",
               "doc": "请求体为 multipart/form-data（文件上传场景在示例 6 详细展示）",
+              "sourceFile": "04_content_type.res",
               "method": "POST",
               "path": "/multipart",
               "fullPath": "/content/multipart",
@@ -846,6 +3676,7 @@
             {
               "name": "ExportText",
               "doc": "响应为纯文本，错误时退化为 JSON（默认由 default_wrap 包装）",
+              "sourceFile": "04_content_type.res",
               "method": "GET",
               "path": "/text",
               "fullPath": "/export/text",
@@ -869,6 +3700,7 @@
             {
               "name": "ExportJson",
               "doc": "响应为 JSON（默认，可省略）",
+              "sourceFile": "04_content_type.res",
               "method": "GET",
               "path": "/json",
               "fullPath": "/export/json",
@@ -892,6 +3724,7 @@
             {
               "name": "ExportXml",
               "doc": "响应为 XML（需在 resgen.yaml content_types 中定义 xml 规格）",
+              "sourceFile": "04_content_type.res",
               "method": "GET",
               "path": "/xml",
               "fullPath": "/export/xml",
@@ -929,6 +3762,7 @@
             {
               "name": "GetProduct",
               "doc": "默认成功 200 + ResData 包装",
+              "sourceFile": "05_status_wrap.res",
               "method": "GET",
               "path": "/:id",
               "fullPath": "/products/:id",
@@ -960,6 +3794,7 @@
             {
               "name": "CreateProduct",
               "doc": "创建资源：成功状态码改为 201 Created",
+              "sourceFile": "05_status_wrap.res",
               "method": "POST",
               "path": "/create",
               "fullPath": "/products/create",
@@ -992,6 +3827,7 @@
             {
               "name": "BatchUpdate",
               "doc": "批量更新：成功状态码改为 202 Accepted（异步处理）",
+              "sourceFile": "05_status_wrap.res",
               "method": "POST",
               "path": "/batch-update",
               "fullPath": "/products/batch-update",
@@ -1028,6 +3864,7 @@
             {
               "name": "DeleteProduct",
               "doc": "无内容删除：成功状态码改为 204 No Content，直接返回空响应（wrap=none）",
+              "sourceFile": "05_status_wrap.res",
               "method": "DELETE",
               "path": "/:id",
               "fullPath": "/products/:id",
@@ -1058,6 +3895,7 @@
             {
               "name": "ListProducts",
               "doc": "接口级覆盖 wrap：使用分页包装器替换默认的 ResData",
+              "sourceFile": "05_status_wrap.res",
               "method": "GET",
               "path": "/list",
               "fullPath": "/products/list",
@@ -1104,6 +3942,7 @@
             {
               "name": "GetRawProduct",
               "doc": "直接返回原始对象，不包装",
+              "sourceFile": "05_status_wrap.res",
               "method": "GET",
               "path": "/product/:id",
               "fullPath": "/raw/product/:id",
@@ -1134,6 +3973,7 @@
             {
               "name": "GetRawProducts",
               "doc": "需要包装时在接口级单独声明",
+              "sourceFile": "05_status_wrap.res",
               "method": "GET",
               "path": "/products",
               "fullPath": "/raw/products",
@@ -1179,6 +4019,7 @@
             {
               "name": "UploadAvatar",
               "doc": "单文件上传：头像",
+              "sourceFile": "06_file.res",
               "method": "POST",
               "path": "/avatar",
               "fullPath": "/files/avatar",
@@ -1211,6 +4052,7 @@
             {
               "name": "UploadDocument",
               "doc": "混合表单上传：文档 + 封面",
+              "sourceFile": "06_file.res",
               "method": "POST",
               "path": "/document",
               "fullPath": "/files/document",
@@ -1243,6 +4085,7 @@
             {
               "name": "DownloadFile",
               "doc": "文件下载：成功响应为 PDF 裸流 (wrap=none)，文档精准显示 application/pdf，失败退化为 JSON (etype=json)",
+              "sourceFile": "06_file.res",
               "method": "GET",
               "path": "/download/:id",
               "fullPath": "/files/download/:id",
@@ -1274,6 +4117,7 @@
             {
               "name": "ExportCsv",
               "doc": "导出 CSV：成功响应为 CSV 裸流 (wrap=none)，文档精准显示 text/csv，失败退化为 JSON (etype=json)",
+              "sourceFile": "06_file.res",
               "method": "GET",
               "path": "/export/csv",
               "fullPath": "/files/export/csv",
@@ -1305,6 +4149,7 @@
             {
               "name": "DownloadDynamic",
               "doc": "动态流下载：通用动态流，业务动态指定 ContentType，失败退化为 JSON (etype=json)",
+              "sourceFile": "06_file.res",
               "method": "GET",
               "path": "/dynamic/:id",
               "fullPath": "/files/dynamic/:id",
@@ -1349,6 +4194,7 @@
             {
               "name": "GetPost",
               "doc": "帖子查询接口：演示联合类型作为返回值",
+              "sourceFile": "07_union.res",
               "method": "GET",
               "path": "/:id",
               "fullPath": "/posts/:id",
@@ -1380,6 +4226,7 @@
             {
               "name": "CreatePost",
               "doc": "单帖创建接口：基础联合类型 (UnionKind)",
+              "sourceFile": "07_union.res",
               "method": "POST",
               "path": "/",
               "fullPath": "/posts/",
@@ -1417,6 +4264,7 @@
             {
               "name": "BatchCreatePost",
               "doc": "批量发布接口：多级结构 (嵌套对象 + 切片列表) 中的联合类型入参",
+              "sourceFile": "07_union.res",
               "method": "POST",
               "path": "/batch",
               "fullPath": "/posts/batch",
@@ -1467,6 +4315,7 @@
             {
               "name": "CreateUser",
               "doc": "创建带有枚举的用户",
+              "sourceFile": "08_enum.res",
               "method": "POST",
               "path": "/create",
               "fullPath": "/enum/create",
@@ -1504,6 +4353,7 @@
             {
               "name": "QueryByRole",
               "doc": "通过参数查询",
+              "sourceFile": "08_enum.res",
               "method": "GET",
               "path": "/query",
               "fullPath": "/enum/query",
@@ -1552,6 +4402,7 @@
       "name": "ResData",
       "doc": "1. 通用 JSON 响应包装器",
       "module": "Default",
+      "sourceFile": "00_common.res",
       "isInput": false,
       "isWrapper": true,
       "typeParams": [
@@ -1649,6 +4500,7 @@
       "name": "ResDataError",
       "doc": "1. 通用 JSON 响应包装器",
       "module": "Default",
+      "sourceFile": "00_common.res",
       "isInput": false,
       "isWrapper": false,
       "fields": [
@@ -1718,6 +4570,7 @@
       "name": "ListRes",
       "doc": "3. 通用列表/分页响应包装器",
       "module": "Default",
+      "sourceFile": "00_common.res",
       "isInput": false,
       "isWrapper": true,
       "typeParams": [
@@ -1792,6 +4645,7 @@
       "name": "ListResError",
       "doc": "3. 通用列表/分页响应包装器",
       "module": "Default",
+      "sourceFile": "00_common.res",
       "isInput": false,
       "isWrapper": false,
       "fields": [
@@ -1832,6 +4686,7 @@
       "name": "TreeRes",
       "doc": "4. 通用树形结构响应包装器",
       "module": "Default",
+      "sourceFile": "00_common.res",
       "isInput": false,
       "isWrapper": true,
       "typeParams": [
@@ -1906,6 +4761,7 @@
       "name": "TreeResError",
       "doc": "4. 通用树形结构响应包装器",
       "module": "Default",
+      "sourceFile": "00_common.res",
       "isInput": false,
       "isWrapper": false,
       "fields": [
@@ -1946,6 +4802,7 @@
       "name": "Article",
       "doc": "数据模型：基础文章",
       "module": "WrapperDemo",
+      "sourceFile": "01_wrapper.res",
       "isInput": false,
       "isWrapper": false,
       "fields": [
@@ -2045,6 +4902,7 @@
       "name": "CategoryTreeNode",
       "doc": "数据模型：树形分类节点（自引用递归结构）",
       "module": "WrapperDemo",
+      "sourceFile": "01_wrapper.res",
       "isInput": false,
       "isWrapper": false,
       "fields": [
@@ -2204,6 +5062,7 @@
       "name": "PageResult",
       "doc": "数据模型：自定义分页结果",
       "module": "WrapperDemo",
+      "sourceFile": "01_wrapper.res",
       "isInput": false,
       "isWrapper": false,
       "typeParams": [
@@ -2336,6 +5195,7 @@
       "name": "User",
       "doc": "数据模型",
       "module": "AuthDemo",
+      "sourceFile": "02_decorator_validator.res",
       "isInput": false,
       "isWrapper": false,
       "fields": [
@@ -2434,6 +5294,7 @@
     {
       "name": "Token",
       "module": "AuthDemo",
+      "sourceFile": "02_decorator_validator.res",
       "isInput": false,
       "isWrapper": false,
       "fields": [
@@ -2502,6 +5363,7 @@
     {
       "name": "RegisterInput",
       "module": "AuthDemo",
+      "sourceFile": "02_decorator_validator.res",
       "isInput": true,
       "isWrapper": false,
       "fields": [
@@ -2676,6 +5538,7 @@
     {
       "name": "UpdateInput",
       "module": "AuthDemo",
+      "sourceFile": "02_decorator_validator.res",
       "isInput": true,
       "isWrapper": false,
       "fields": [
@@ -2746,6 +5609,7 @@
       "name": "TaskPeriodInput",
       "doc": "跨字段校验输入模型：startTime 关联校验 endTime",
       "module": "AuthDemo",
+      "sourceFile": "02_decorator_validator.res",
       "isInput": true,
       "isWrapper": false,
       "fields": [
@@ -2829,6 +5693,7 @@
       "name": "Event",
       "doc": "使用标量作为模型字段",
       "module": "ScalarDemo",
+      "sourceFile": "03_scalar.res",
       "isInput": false,
       "isWrapper": false,
       "fields": [
@@ -2977,6 +5842,7 @@
     {
       "name": "CreateEventInput",
       "module": "ScalarDemo",
+      "sourceFile": "03_scalar.res",
       "isInput": true,
       "isWrapper": false,
       "fields": [
@@ -3078,6 +5944,7 @@
     {
       "name": "QueryEventsInput",
       "module": "ScalarDemo",
+      "sourceFile": "03_scalar.res",
       "isInput": true,
       "isWrapper": false,
       "fields": [
@@ -3188,6 +6055,7 @@
     {
       "name": "Report",
       "module": "ContentTypeDemo",
+      "sourceFile": "04_content_type.res",
       "isInput": false,
       "isWrapper": false,
       "fields": [
@@ -3256,6 +6124,7 @@
     {
       "name": "JsonInput",
       "module": "ContentTypeDemo",
+      "sourceFile": "04_content_type.res",
       "isInput": true,
       "isWrapper": false,
       "fields": [
@@ -3324,6 +6193,7 @@
     {
       "name": "FormInput",
       "module": "ContentTypeDemo",
+      "sourceFile": "04_content_type.res",
       "isInput": true,
       "isWrapper": false,
       "fields": [
@@ -3393,6 +6263,7 @@
       "name": "AddressInput",
       "doc": "多层嵌套子模型：地址信息",
       "module": "ContentTypeDemo",
+      "sourceFile": "04_content_type.res",
       "isInput": true,
       "isWrapper": false,
       "fields": [
@@ -3487,6 +6358,7 @@
       "name": "NestedFormInput",
       "doc": "多层嵌套表单输入模型",
       "module": "ContentTypeDemo",
+      "sourceFile": "04_content_type.res",
       "isInput": true,
       "isWrapper": false,
       "fields": [
@@ -3586,6 +6458,7 @@
       "name": "PageData",
       "doc": "分页专用包装器",
       "module": "StatusDemo",
+      "sourceFile": "05_status_wrap.res",
       "isInput": false,
       "isWrapper": true,
       "typeParams": [
@@ -3688,6 +6561,7 @@
       "name": "PageDataError",
       "doc": "分页专用包装器",
       "module": "StatusDemo",
+      "sourceFile": "05_status_wrap.res",
       "isInput": false,
       "isWrapper": false,
       "fields": [
@@ -3756,6 +6630,7 @@
     {
       "name": "Product",
       "module": "StatusDemo",
+      "sourceFile": "05_status_wrap.res",
       "isInput": false,
       "isWrapper": false,
       "fields": [
@@ -3854,6 +6729,7 @@
     {
       "name": "CreateProductInput",
       "module": "StatusDemo",
+      "sourceFile": "05_status_wrap.res",
       "isInput": true,
       "isWrapper": false,
       "fields": [
@@ -3923,6 +6799,7 @@
       "name": "UploadAvatarInput",
       "doc": "单文件上传的输入模型",
       "module": "FileDemo",
+      "sourceFile": "06_file.res",
       "isInput": true,
       "isWrapper": false,
       "fields": [
@@ -4023,6 +6900,7 @@
       "name": "UploadDocumentInput",
       "doc": "混合表单：同时包含普通字段与文件",
       "module": "FileDemo",
+      "sourceFile": "06_file.res",
       "isInput": true,
       "isWrapper": false,
       "fields": [
@@ -4206,6 +7084,7 @@
       "name": "UploadResult",
       "doc": "上传结果模型",
       "module": "FileDemo",
+      "sourceFile": "06_file.res",
       "isInput": false,
       "isWrapper": false,
       "fields": [
@@ -4304,6 +7183,7 @@
     {
       "name": "UnionArticle",
       "module": "UnionDemo",
+      "sourceFile": "07_union.res",
       "isInput": false,
       "isWrapper": false,
       "fields": [
@@ -4372,6 +7252,7 @@
     {
       "name": "UnionVideo",
       "module": "UnionDemo",
+      "sourceFile": "07_union.res",
       "isInput": false,
       "isWrapper": false,
       "fields": [
@@ -4470,6 +7351,7 @@
     {
       "name": "CreatePostInput",
       "module": "UnionDemo",
+      "sourceFile": "07_union.res",
       "isInput": true,
       "isWrapper": false,
       "fields": [
@@ -4536,6 +7418,7 @@
     {
       "name": "ContentPostItem",
       "module": "UnionDemo",
+      "sourceFile": "07_union.res",
       "isInput": false,
       "isWrapper": false,
       "fields": [
@@ -4631,6 +7514,7 @@
       "name": "PostDetailInput",
       "doc": "----------------------------------------------------\n多级结构 + 联合类型：嵌套对象与数组切片\n----------------------------------------------------\n多级嵌套模型：单个帖子项（包含作者与联合类型 payload）",
       "module": "UnionDemo",
+      "sourceFile": "07_union.res",
       "isInput": true,
       "isWrapper": false,
       "fields": [
@@ -4726,6 +7610,7 @@
       "name": "BatchCreatePostInput",
       "doc": "多级复合入参模型：同时包含普通字段、嵌套单对象、嵌套数组切片中的多态",
       "module": "UnionDemo",
+      "sourceFile": "07_union.res",
       "isInput": true,
       "isWrapper": false,
       "fields": [
@@ -4822,6 +7707,7 @@
       "name": "BatchCreatePostResult",
       "doc": "批量创建返回结果模型",
       "module": "UnionDemo",
+      "sourceFile": "07_union.res",
       "isInput": false,
       "isWrapper": false,
       "fields": [
@@ -4920,6 +7806,7 @@
     {
       "name": "UserWithRole",
       "module": "EnumDemo",
+      "sourceFile": "08_enum.res",
       "isInput": false,
       "isWrapper": false,
       "fields": [
@@ -5028,6 +7915,7 @@
     {
       "name": "CreateUserInput",
       "module": "EnumDemo",
+      "sourceFile": "08_enum.res",
       "isInput": true,
       "isWrapper": false,
       "fields": [
@@ -5121,7 +8009,8 @@
     {
       "name": "ListResArticle",
       "doc": "3. 通用列表/分页响应包装器 (单态化展开自 ListRes\u003cArticle\u003e)",
-      "module": "EnumDemo",
+      "module": "Default",
+      "sourceFile": "00_common.res",
       "isInput": false,
       "isWrapper": false,
       "fields": [
@@ -5192,7 +8081,8 @@
     {
       "name": "TreeResCategoryTreeNode",
       "doc": "4. 通用树形结构响应包装器 (单态化展开自 TreeRes\u003cCategoryTreeNode\u003e)",
-      "module": "EnumDemo",
+      "module": "WrapperDemo",
+      "sourceFile": "00_common.res",
       "isInput": false,
       "isWrapper": false,
       "fields": [
@@ -5609,24 +8499,11 @@
       ]
     }
   ],
-  "scalars": {
-    "IntTime": {
-      "name": "IntTime",
-      "doc": "2. 自定义标量：网络传输层使用 Int（int64）",
-      "baseType": "Int",
-      "goType": "scalars.IntTime"
-    },
-    "Timestamp": {
-      "name": "Timestamp",
-      "doc": "3. 继承自 Scalar 并且智能退化",
-      "baseType": "Int",
-      "goType": "Timestamp"
-    }
-  },
   "enums": [
     {
       "name": "UnionKind",
       "module": "UnionDemo",
+      "sourceFile": "07_union.res",
       "baseType": "String",
       "cases": [
         {
@@ -5645,6 +8522,7 @@
       "name": "UserRole",
       "doc": "1. 基础 String 类型枚举",
       "module": "EnumDemo",
+      "sourceFile": "08_enum.res",
       "baseType": "String",
       "cases": [
         {
@@ -5668,6 +8546,7 @@
       "name": "RecordStatus",
       "doc": "2. 基础 Int 类型枚举",
       "module": "EnumDemo",
+      "sourceFile": "08_enum.res",
       "baseType": "Int",
       "cases": [
         {
@@ -5688,6 +8567,7 @@
       "name": "SpecialTime",
       "doc": "由于 Timestamp 退化为了 int64，系统会自动将这个枚举映射为 int64",
       "module": "EnumDemo",
+      "sourceFile": "08_enum.res",
       "baseType": "Timestamp",
       "cases": [
         {
@@ -5699,26 +8579,6 @@
           "name": "Y2K",
           "value": "946684800",
           "isString": false
-        }
-      ]
-    }
-  ],
-  "unions": [
-    {
-      "name": "ContentPayload",
-      "paramName": "UnionKind",
-      "cases": [
-        {
-          "isDefault": false,
-          "key": "article",
-          "type": "UnionArticle",
-          "goType": "*UnionArticle"
-        },
-        {
-          "isDefault": false,
-          "key": "video",
-          "type": "UnionVideo",
-          "goType": "*UnionVideo"
         }
       ]
     }

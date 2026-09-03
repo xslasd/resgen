@@ -21,7 +21,7 @@ func (b *mockScalarDemoBiz) GetEventByTime(ctx context.Context, startTime *scala
 	b.lastStartTime = *startTime
 	now := scalars.IntTime(time.Unix(1700000000, 0))
 	return &resolver.Event{
-		Id:        1,
+		ID:        1,
 		Name:      "时间标量测试事件",
 		StartTime: *startTime,
 		EndTime:   &now,
@@ -32,7 +32,7 @@ func (b *mockScalarDemoBiz) GetEventByTime(ctx context.Context, startTime *scala
 func (b *mockScalarDemoBiz) ListEvents(ctx context.Context, input *resolver.QueryEventsInput) (*[]*resolver.Event, error) {
 	now := scalars.IntTime(time.Unix(1700000000, 0))
 	list := []*resolver.Event{
-		{Id: 1, Name: "事件1", StartTime: now, EndTime: &now, CreatedAt: &now},
+		{ID: 1, Name: "事件1", StartTime: now, EndTime: &now, CreatedAt: &now},
 	}
 	return &list, nil
 }
@@ -40,7 +40,7 @@ func (b *mockScalarDemoBiz) ListEvents(ctx context.Context, input *resolver.Quer
 func (b *mockScalarDemoBiz) CreateEvent(ctx context.Context, input *resolver.CreateEventInput) (*resolver.Event, error) {
 	b.lastCreateIn = input
 	return &resolver.Event{
-		Id:        100,
+		ID:        100,
 		Name:      input.Name,
 		StartTime: input.StartTime,
 		EndTime:   &input.EndTime,

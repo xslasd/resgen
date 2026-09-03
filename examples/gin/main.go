@@ -162,7 +162,7 @@ func (r *MyResponder) BindPageData(ctx *gin.Context, data any, err error) resolv
 type AuthDemoHandler struct{}
 
 func (h *AuthDemoHandler) Register(ctx context.Context, input *resolver.RegisterInput) (*resolver.User, error) {
-	return &resolver.User{Id: 1, Username: input.Username, Email: input.Email}, nil
+	return &resolver.User{ID: 1, Username: input.Username, Email: input.Email}, nil
 }
 
 func (h *AuthDemoHandler) SetPeriod(ctx context.Context, input *resolver.TaskPeriodInput) (*string, error) {
@@ -194,7 +194,7 @@ func (h *AuthDemoHandler) Login(ctx context.Context, input *resolver.LoginArgs) 
 }
 
 func (h *AuthDemoHandler) GetMe(ctx context.Context) (*resolver.User, error) {
-	return &resolver.User{Id: 1, Username: "admin", Email: "admin@example.com"}, nil
+	return &resolver.User{ID: 1, Username: "admin", Email: "admin@example.com"}, nil
 }
 
 func (h *AuthDemoHandler) OnInvoke_CheckOwner_UpdateUser(ctx *gin.Context, info resolver.MethodInfo, input *resolver.UpdateInput) error {
@@ -208,7 +208,7 @@ func (h *AuthDemoHandler) UpdateUser(ctx context.Context, input *resolver.Update
 	if input.Email != nil {
 		email = *input.Email
 	}
-	return &resolver.User{Id: input.Id, Username: username, Email: email}, nil
+	return &resolver.User{ID: input.ID, Username: username, Email: email}, nil
 }
 
 func (h *AuthDemoHandler) OnResponse_MaskEmail_UpdateUser(ctx *gin.Context, info resolver.MethodInfo, input *resolver.UpdateInput, result *resolver.User, err error) (*resolver.User, error) {
@@ -230,21 +230,21 @@ var _ resolver.WrapperDemoResolver[any] = (*WrapperDemoHandler)(nil)
 type WrapperDemoHandler struct{}
 
 func (h *WrapperDemoHandler) GetArticle(ctx context.Context, id *int) (*resolver.Article, error) {
-	return &resolver.Article{Id: *id, Title: "Title", Content: "Content"}, nil
+	return &resolver.Article{ID: *id, Title: "Title", Content: "Content"}, nil
 }
 
 func (h *WrapperDemoHandler) ListArticles(ctx context.Context, input *resolver.ListArticlesArgs) (*[]*resolver.Article, error) {
 	list := []*resolver.Article{
-		{Id: 1, Title: "Article 1", Content: "Content 1"},
-		{Id: 2, Title: "Article 2", Content: "Content 2"},
+		{ID: 1, Title: "Article 1", Content: "Content 1"},
+		{ID: 2, Title: "Article 2", Content: "Content 2"},
 	}
 	return &list, nil
 }
 
 func (h *WrapperDemoHandler) ListArticlesV2(ctx context.Context, input *resolver.ListArticlesV2Args) (*resolver.ListResArticle, error) {
 	list := []resolver.Article{
-		{Id: 1, Title: "Article 1 (V2)", Content: "Content 1 (V2)"},
-		{Id: 2, Title: "Article 2 (V2)", Content: "Content 2 (V2)"},
+		{ID: 1, Title: "Article 1 (V2)", Content: "Content 1 (V2)"},
+		{ID: 2, Title: "Article 2 (V2)", Content: "Content 2 (V2)"},
 	}
 	return &resolver.ListResArticle{
 		Rows:  list,
@@ -254,19 +254,19 @@ func (h *WrapperDemoHandler) ListArticlesV2(ctx context.Context, input *resolver
 
 func (h *WrapperDemoHandler) GetCategoryTree(ctx context.Context) (*resolver.TreeResCategoryTreeNode, error) {
 	child1 := resolver.CategoryTreeNode{
-		Id:       101,
+		ID:       101,
 		ParentId: 1,
 		Name:     "后端开发",
 		Sort:     1,
 	}
 	child2 := resolver.CategoryTreeNode{
-		Id:       102,
+		ID:       102,
 		ParentId: 1,
 		Name:     "前端开发",
 		Sort:     2,
 	}
 	root := resolver.CategoryTreeNode{
-		Id:       1,
+		ID:       1,
 		ParentId: 0,
 		Name:     "技术专栏",
 		Sort:     1,
@@ -280,13 +280,13 @@ func (h *WrapperDemoHandler) GetCategoryTree(ctx context.Context) (*resolver.Tre
 
 func (h *WrapperDemoHandler) GetCategoryTreeRaw(ctx context.Context) (*resolver.CategoryTreeNode, error) {
 	child := resolver.CategoryTreeNode{
-		Id:       201,
+		ID:       201,
 		ParentId: 2,
 		Name:     "分布式数据库",
 		Sort:     1,
 	}
 	return &resolver.CategoryTreeNode{
-		Id:       2,
+		ID:       2,
 		ParentId: 0,
 		Name:     "数据存储",
 		Sort:     1,
@@ -295,11 +295,11 @@ func (h *WrapperDemoHandler) GetCategoryTreeRaw(ctx context.Context) (*resolver.
 }
 
 func (h *WrapperDemoHandler) CreateArticle(ctx context.Context, input *resolver.CreateArticleArgs) (*resolver.Article, error) {
-	return &resolver.Article{Id: 100, Title: input.Title, Content: input.Content}, nil
+	return &resolver.Article{ID: 100, Title: input.Title, Content: input.Content}, nil
 }
 
 func (h *WrapperDemoHandler) GetArticleRaw(ctx context.Context, id *int) (*resolver.Article, error) {
-	return &resolver.Article{Id: *id, Title: "Raw Title", Content: "Raw Content"}, nil
+	return &resolver.Article{ID: *id, Title: "Raw Title", Content: "Raw Content"}, nil
 }
 
 func (h *WrapperDemoHandler) Logout(ctx context.Context) error {
@@ -311,7 +311,7 @@ type ScalarDemoHandler struct{}
 
 func (h *ScalarDemoHandler) GetEventByTime(ctx context.Context, startTime *scalars.IntTime) (*resolver.Event, error) {
 	now := scalars.IntTime(time.Now())
-	return &resolver.Event{Id: 1, Name: "Time Event", StartTime: *startTime, EndTime: &now, CreatedAt: &now}, nil
+	return &resolver.Event{ID: 1, Name: "Time Event", StartTime: *startTime, EndTime: &now, CreatedAt: &now}, nil
 }
 
 func (h *ScalarDemoHandler) ListEvents(ctx context.Context, input *resolver.QueryEventsInput) (*[]*resolver.Event, error) {
@@ -323,14 +323,14 @@ func (h *ScalarDemoHandler) ListEvents(ctx context.Context, input *resolver.Quer
 		start = now
 	}
 	list := []*resolver.Event{
-		{Id: 1, Name: "Event 1", StartTime: start, EndTime: &now, CreatedAt: &now},
+		{ID: 1, Name: "Event 1", StartTime: start, EndTime: &now, CreatedAt: &now},
 	}
 	return &list, nil
 }
 
 func (h *ScalarDemoHandler) CreateEvent(ctx context.Context, input *resolver.CreateEventInput) (*resolver.Event, error) {
 	now := scalars.IntTime(time.Now())
-	return &resolver.Event{Id: 2, Name: input.Name, StartTime: input.StartTime, EndTime: &input.EndTime, CreatedAt: &now}, nil
+	return &resolver.Event{ID: 2, Name: input.Name, StartTime: input.StartTime, EndTime: &input.EndTime, CreatedAt: &now}, nil
 }
 
 // ContentTypeDemoHandler
@@ -373,11 +373,11 @@ func (h *ContentTypeDemoHandler) ExportXml(ctx context.Context) (*resolver.Repor
 type StatusDemoHandler struct{}
 
 func (h *StatusDemoHandler) GetProduct(ctx context.Context, id *int) (*resolver.Product, error) {
-	return &resolver.Product{Id: *id, Name: "Product", Price: 9.9}, nil
+	return &resolver.Product{ID: *id, Name: "Product", Price: 9.9}, nil
 }
 
 func (h *StatusDemoHandler) CreateProduct(ctx context.Context, input *resolver.CreateProductInput) (*resolver.Product, error) {
-	return &resolver.Product{Id: 2, Name: input.Name, Price: input.Price}, nil
+	return &resolver.Product{ID: 2, Name: input.Name, Price: input.Price}, nil
 }
 
 func (h *StatusDemoHandler) BatchUpdate(ctx context.Context, ids []int) (*string, error) {
@@ -391,15 +391,15 @@ func (h *StatusDemoHandler) DeleteProduct(ctx context.Context, id *int) (*string
 }
 
 func (h *StatusDemoHandler) ListProducts(ctx context.Context, input *resolver.ListProductsArgs) ([]resolver.Product, error) {
-	return []resolver.Product{{Id: 1, Name: "P1", Price: 1.0}}, nil
+	return []resolver.Product{{ID: 1, Name: "P1", Price: 1.0}}, nil
 }
 
 func (h *StatusDemoHandler) GetRawProduct(ctx context.Context, id *int) (*resolver.Product, error) {
-	return &resolver.Product{Id: *id, Name: "Raw Product", Price: 10.0}, nil
+	return &resolver.Product{ID: *id, Name: "Raw Product", Price: 10.0}, nil
 }
 
 func (h *StatusDemoHandler) GetRawProducts(ctx context.Context, page *int) (*[]*resolver.Product, error) {
-	list := []*resolver.Product{{Id: 1, Name: "Raw P1", Price: 2.0}}
+	list := []*resolver.Product{{ID: 1, Name: "Raw P1", Price: 2.0}}
 	return &list, nil
 }
 
@@ -470,7 +470,7 @@ func (h *FileDemoHandler) DownloadDynamic(ctx context.Context, id *int) (*resolv
 func (h *FileDemoHandler) CreatePost(ctx context.Context, input *resolver.CreatePostInput) (*resolver.ContentPostItem, error) {
 	fmt.Printf(">>> [CreatePost] Type: %s, Payload: %+v\n", input.Type, input.Payload)
 	return &resolver.ContentPostItem{
-		Id:      1,
+		ID:      1,
 		Type:    input.Type,
 		Payload: input.Payload,
 	}, nil
@@ -481,7 +481,7 @@ func (h *FileDemoHandler) BatchCreatePost(ctx context.Context, input *resolver.B
 	var items []resolver.ContentPostItem
 	for i, it := range input.Items {
 		items = append(items, resolver.ContentPostItem{
-			Id:      i + 1,
+			ID:      i + 1,
 			Type:    it.Type,
 			Payload: it.Payload,
 		})
@@ -495,7 +495,7 @@ func (h *FileDemoHandler) BatchCreatePost(ctx context.Context, input *resolver.B
 
 func (h *FileDemoHandler) GetPost(ctx context.Context, id *int) (*resolver.ContentPostItem, error) {
 	return &resolver.ContentPostItem{
-		Id:   *id,
+		ID:   *id,
 		Type: resolver.UnionKind_article,
 		Payload: &resolver.UnionArticle{
 			Title:   "Sample Article",

@@ -13,11 +13,11 @@ import (
 type mockStatusDemoBiz struct{}
 
 func (b *mockStatusDemoBiz) GetProduct(ctx context.Context, id *int) (*resolver.Product, error) {
-	return &resolver.Product{Id: *id, Name: "高性能键盘", Price: 599.0}, nil
+	return &resolver.Product{ID: *id, Name: "高性能键盘", Price: 599.0}, nil
 }
 
 func (b *mockStatusDemoBiz) CreateProduct(ctx context.Context, input *resolver.CreateProductInput) (*resolver.Product, error) {
-	return &resolver.Product{Id: 101, Name: input.Name, Price: input.Price}, nil
+	return &resolver.Product{ID: 101, Name: input.Name, Price: input.Price}, nil
 }
 
 func (b *mockStatusDemoBiz) BatchUpdate(ctx context.Context, ids []int) (*string, error) {
@@ -32,19 +32,19 @@ func (b *mockStatusDemoBiz) DeleteProduct(ctx context.Context, id *int) (*string
 
 func (b *mockStatusDemoBiz) ListProducts(ctx context.Context, input *resolver.ListProductsArgs) ([]resolver.Product, error) {
 	list := []resolver.Product{
-		{Id: 1, Name: "商品1", Price: 99.0},
-		{Id: 2, Name: "商品2", Price: 199.0},
+		{ID: 1, Name: "商品1", Price: 99.0},
+		{ID: 2, Name: "商品2", Price: 199.0},
 	}
 	return list, nil
 }
 
 func (b *mockStatusDemoBiz) GetRawProduct(ctx context.Context, id *int) (*resolver.Product, error) {
-	return &resolver.Product{Id: *id, Name: "原始裸商品", Price: 88.0}, nil
+	return &resolver.Product{ID: *id, Name: "原始裸商品", Price: 88.0}, nil
 }
 
 func (b *mockStatusDemoBiz) GetRawProducts(ctx context.Context, page *int) (*[]*resolver.Product, error) {
 	list := []*resolver.Product{
-		{Id: 1, Name: "商品A", Price: 10.0},
+		{ID: 1, Name: "商品A", Price: 10.0},
 	}
 	return &list, nil
 }
@@ -129,7 +129,7 @@ func TestStatusDemo_StatusCodesAndWrapOverrides(t *testing.T) {
 			t.Fatalf("期望状态码 200, 实际为: %d", ctx.resCode)
 		}
 		p, ok := ctx.resBody.(*resolver.Product)
-		if !ok || p.Id != 77 || p.Name != "原始裸商品" {
+		if !ok || p.ID != 77 || p.Name != "原始裸商品" {
 			t.Fatalf("裸响应对象不匹配: %+v", ctx.resBody)
 		}
 	})

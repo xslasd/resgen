@@ -13,21 +13,21 @@ import (
 type mockWrapperDemoBiz struct{}
 
 func (b *mockWrapperDemoBiz) GetArticle(ctx context.Context, id *int) (*resolver.Article, error) {
-	return &resolver.Article{Id: *id, Title: "Resgen 设计指南", Content: "DSL 规范与高效生成"}, nil
+	return &resolver.Article{ID: *id, Title: "Resgen 设计指南", Content: "DSL 规范与高效生成"}, nil
 }
 
 func (b *mockWrapperDemoBiz) ListArticles(ctx context.Context, input *resolver.ListArticlesArgs) (*[]*resolver.Article, error) {
 	list := []*resolver.Article{
-		{Id: 1, Title: "文章1", Content: "内容1"},
-		{Id: 2, Title: "文章2", Content: "内容2"},
+		{ID: 1, Title: "文章1", Content: "内容1"},
+		{ID: 2, Title: "文章2", Content: "内容2"},
 	}
 	return &list, nil
 }
 
 func (b *mockWrapperDemoBiz) ListArticlesV2(ctx context.Context, input *resolver.ListArticlesV2Args) (*resolver.ListResArticle, error) {
 	list := []resolver.Article{
-		{Id: 10, Title: "分页文章1", Content: "分页内容1"},
-		{Id: 20, Title: "分页文章2", Content: "分页内容2"},
+		{ID: 10, Title: "分页文章1", Content: "分页内容1"},
+		{ID: 20, Title: "分页文章2", Content: "分页内容2"},
 	}
 	return &resolver.ListResArticle{
 		Rows:  list,
@@ -36,9 +36,9 @@ func (b *mockWrapperDemoBiz) ListArticlesV2(ctx context.Context, input *resolver
 }
 
 func (b *mockWrapperDemoBiz) GetCategoryTree(ctx context.Context) (*resolver.TreeResCategoryTreeNode, error) {
-	child := resolver.CategoryTreeNode{Id: 101, ParentId: 1, Name: "Go微服务", Sort: 1}
+	child := resolver.CategoryTreeNode{ID: 101, ParentId: 1, Name: "Go微服务", Sort: 1}
 	root := resolver.CategoryTreeNode{
-		Id:       1,
+		ID:       1,
 		ParentId: 0,
 		Name:     "技术架构",
 		Sort:     1,
@@ -52,7 +52,7 @@ func (b *mockWrapperDemoBiz) GetCategoryTree(ctx context.Context) (*resolver.Tre
 
 func (b *mockWrapperDemoBiz) GetCategoryTreeRaw(ctx context.Context) (*resolver.CategoryTreeNode, error) {
 	return &resolver.CategoryTreeNode{
-		Id:       1,
+		ID:       1,
 		ParentId: 0,
 		Name:     "裸树节点",
 		Sort:     1,
@@ -60,11 +60,11 @@ func (b *mockWrapperDemoBiz) GetCategoryTreeRaw(ctx context.Context) (*resolver.
 }
 
 func (b *mockWrapperDemoBiz) CreateArticle(ctx context.Context, input *resolver.CreateArticleArgs) (*resolver.Article, error) {
-	return &resolver.Article{Id: 100, Title: input.Title, Content: input.Content}, nil
+	return &resolver.Article{ID: 100, Title: input.Title, Content: input.Content}, nil
 }
 
 func (b *mockWrapperDemoBiz) GetArticleRaw(ctx context.Context, id *int) (*resolver.Article, error) {
-	return &resolver.Article{Id: *id, Title: "裸文章", Content: "不带包装器"}, nil
+	return &resolver.Article{ID: *id, Title: "裸文章", Content: "不带包装器"}, nil
 }
 
 func (b *mockWrapperDemoBiz) Logout(ctx context.Context) error {
@@ -104,7 +104,7 @@ func TestWrapperDemo_Endpoints(t *testing.T) {
 			t.Fatalf("响应数据不匹配: %+v", ctx.resBody)
 		}
 		art, ok := res.Data.(*resolver.Article)
-		if !ok || art.Id != 42 || art.Title != "Resgen 设计指南" {
+		if !ok || art.ID != 42 || art.Title != "Resgen 设计指南" {
 			t.Fatalf("文章数据解析不匹配: %+v", art)
 		}
 	})
@@ -198,7 +198,7 @@ func TestWrapperDemo_Endpoints(t *testing.T) {
 			t.Fatalf("期望状态码 200, 实际为: %d", ctx.resCode)
 		}
 		art, ok := ctx.resBody.(*resolver.Article)
-		if !ok || art.Id != 99 || art.Title != "裸文章" {
+		if !ok || art.ID != 99 || art.Title != "裸文章" {
 			t.Fatalf("原始对象返回不匹配: %+v", ctx.resBody)
 		}
 	})

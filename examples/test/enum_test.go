@@ -18,7 +18,7 @@ type mockEnumDemoBiz struct {
 func (b *mockEnumDemoBiz) CreateUser(ctx context.Context, input *resolver.CreateUserInput) (*resolver.UserWithRole, error) {
 	b.lastCreateIn = input
 	return &resolver.UserWithRole{
-		Id:        nil,
+		ID:        nil,
 		Role:      &input.Role,
 		Status:    &input.Status,
 		CreatedAt: input.CreatedAt,

@@ -12,3 +12,4 @@
 .idea/vcs.xml
 /editors/jetbrains/.gradle/
 /editors/jetbrains/build/
+/editors/jetbrains/bin/

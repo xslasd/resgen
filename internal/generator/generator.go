@@ -19,7 +19,7 @@ import (
 	"golang.org/x/tools/imports"
 )
 
-const Version = "v0.7.3"
+const Version = "v0.7.4"
 
 //go:embed templates/engine.tmpl
 var engineTmpl string
@@ -449,6 +449,7 @@ type EnumInfo struct {
 	Name       string         `json:"name"`
 	Doc        string         `json:"doc,omitempty"`
 	Module     string         `json:"module,omitempty"`
+	SourceFile string         `json:"sourceFile,omitempty"`
 	BaseType   string         `json:"baseType"`
 	BaseGoType string         `json:"-"`
 	Cases      []EnumCaseInfo `json:"cases"`
@@ -458,6 +459,7 @@ type ModelInfo struct {
 	Name       string       `json:"name"`
 	Doc        string       `json:"doc,omitempty"`
 	Module     string       `json:"module,omitempty"`
+	SourceFile string       `json:"sourceFile,omitempty"`
 	IsInput    bool         `json:"isInput"`
 	IsWrapper  bool         `json:"isWrapper"`
 	HasScalar  bool         `json:"-"`
@@ -488,6 +490,7 @@ type GroupInfo struct {
 type MethodInfo struct {
 	Name                string         `json:"name"`
 	Doc                 string         `json:"doc,omitempty"`
+	SourceFile          string         `json:"sourceFile,omitempty"`
 	Method              string         `json:"method"`
 	Path                string         `json:"path"`
 	FullPath            string         `json:"fullPath"`
@@ -579,6 +582,7 @@ type DataContext struct {
 	Enums                       map[string]*EnumInfo   `json:"-"`
 	OrderedEnums                []*EnumInfo            `json:"enums"`
 	GlobalEnums                 []*EnumInfo            `json:"-"`
+	GlobalModels                []*ModelInfo           `json:"-"`
 	Unions                      []*UnionInfo           `json:"unions,omitempty"`
 	UnionMap                    map[string]*UnionInfo  `json:"-"`
 	Config                      *config.Config         `json:"-"`
@@ -688,15 +692,15 @@ func monomorphizeAST(schema *parser.Schema, defaultWrap string) {
 
 	generated := make(map[string]bool)
 
-	var monomorphizeTypeRef func(t *parser.TypeRef, isTopLevelReturnType bool)
-	monomorphizeTypeRef = func(t *parser.TypeRef, isTopLevelReturnType bool) {
+	var monomorphizeTypeRef func(t *parser.TypeRef, isTopLevelReturnType bool, modName string)
+	monomorphizeTypeRef = func(t *parser.TypeRef, isTopLevelReturnType bool, modName string) {
 		if t == nil {
 			return
 		}
 
 		// 深度优先，先递归单态化子泛型实参
 		for i := range t.TypeArgs {
-			monomorphizeTypeRef(&t.TypeArgs[i], false)
+			monomorphizeTypeRef(&t.TypeArgs[i], false, modName)
 		}
 
 		// 如果当前节点包含泛型实参，且不是最外层被剥离的 wrapper
@@ -767,12 +771,19 @@ func monomorphizeAST(schema *parser.Schema, defaultWrap string) {
 					replaceType(&newProp.Type)
 
 					// 递归单态化属性类型（例如 rows: TreeNode<T> 展开为 rows: TreeNodeRoleInfo）
-					monomorphizeTypeRef(&newProp.Type, false)
+					monomorphizeTypeRef(&newProp.Type, false, modName)
 
 					newModel.Properties = append(newModel.Properties, newProp)
 				}
 
-				// 注入到 schema 声明中
+				// 注入到 schema 声明中，跟随当前的 module
+				if modName != "" {
+					schema.Declarations = append(schema.Declarations, parser.Declaration{
+						Module: &parser.ModuleDecl{
+							Name: modName,
+						},
+					})
+				}
 				schema.Declarations = append(schema.Declarations, parser.Declaration{
 					Pos:   newModel.Pos,
 					Model: newModel,
@@ -788,13 +799,17 @@ func monomorphizeAST(schema *parser.Schema, defaultWrap string) {
 
 	// 遍历原有的所有声明，处理其中的类型引用
 	numDecls := len(schema.Declarations)
+	currentModule := ""
 	for i := 0; i < numDecls; i++ {
 		decl := &schema.Declarations[i]
+		if decl.Module != nil {
+			currentModule = decl.Module.Name
+		}
 
 		if decl.Model != nil {
 			// 对 Model 的属性字段进行单态化扫描
 			for j := range decl.Model.Properties {
-				monomorphizeTypeRef(&decl.Model.Properties[j].Type, false)
+				monomorphizeTypeRef(&decl.Model.Properties[j].Type, false, currentModule)
 			}
 		}
 
@@ -803,10 +818,10 @@ func monomorphizeAST(schema *parser.Schema, defaultWrap string) {
 			for j := range decl.Group.Endpoints {
 				ep := &decl.Group.Endpoints[j]
 				if ep.ReturnType != nil {
-					monomorphizeTypeRef(ep.ReturnType, true)
+					monomorphizeTypeRef(ep.ReturnType, true, currentModule)
 				}
 				for k := range ep.Args {
-					monomorphizeTypeRef(&ep.Args[k].Type, false)
+					monomorphizeTypeRef(&ep.Args[k].Type, false, currentModule)
 				}
 			}
 		}
@@ -1018,11 +1033,16 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 			ctx.UnionMap[u.Name] = u
 		}
 		if decl.Enum != nil {
+			srcFile := filepath.Base(decl.Enum.Pos.Filename)
+			if srcFile == "." || srcFile == "/" || srcFile == "\\" {
+				srcFile = filepath.Base(decl.Pos.Filename)
+			}
 			e := &EnumInfo{
-				Name:     decl.Enum.Name,
-				Doc:      decl.Enum.Doc,
-				Module:   currentModule,
-				BaseType: "String", // Default
+				Name:       decl.Enum.Name,
+				Doc:        decl.Enum.Doc,
+				Module:     currentModule,
+				SourceFile: srcFile,
+				BaseType:   "String", // Default
 			}
 			if decl.Enum.BaseType != "" {
 				e.BaseType = decl.Enum.BaseType
@@ -1074,11 +1094,16 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 					}
 				}
 			}
+			srcFile := filepath.Base(decl.Model.Pos.Filename)
+			if srcFile == "." || srcFile == "/" || srcFile == "\\" {
+				srcFile = filepath.Base(decl.Pos.Filename)
+			}
 			m := &ModelInfo{
 				Name:       decl.Model.Name,
 				IsInput:    decl.Model.Keyword == "input",
 				IsWrapper:  isWrapper,
 				Module:     mName,
+				SourceFile: srcFile,
 				Doc:        decl.Model.Doc,
 				TypeParams: decl.Model.TypeParams,
 			}
@@ -1471,9 +1496,14 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 					}
 				}
 
+				epSrcFile := filepath.Base(ep.Pos.Filename)
+				if epSrcFile == "." || epSrcFile == "/" || epSrcFile == "\\" {
+					epSrcFile = filepath.Base(decl.Pos.Filename)
+				}
 				method := MethodInfo{
 					Name:       ep.Name,
 					Doc:        resolveComment(ep.Doc, ep.TrailingDoc),
+					SourceFile: epSrcFile,
 					Method:     strings.ToUpper(ep.Method),
 					Path:       ep.Path,
 					FullPath:   decl.Group.Path + ep.Path,
@@ -2168,11 +2198,16 @@ func renderAll(ctx *DataContext, targetDir string) error {
 		if m.IsWrapper {
 			continue
 		}
+		matched := false
 		for i := range ctx.Modules {
 			if ctx.Modules[i].Name == m.Module {
 				ctx.Modules[i].Models = append(ctx.Modules[i].Models, m)
+				matched = true
 				break
 			}
+		}
+		if !matched {
+			ctx.GlobalModels = append(ctx.GlobalModels, m)
 		}
 	}
 
@@ -2590,8 +2625,9 @@ func generateApiDocs(ctx *DataContext, targetDir string) error {
 		docCtx.Modules[i] = modCopy
 	}
 
-	// 1. 生成 api.json
-	docData, err := json.MarshalIndent(docCtx, "", "  ")
+	// 1. 生成 OpenAPI 3.0.3 标准格式的 api.json
+	openApiDoc := ConvertToOpenAPI3(&docCtx)
+	docData, err := json.MarshalIndent(openApiDoc, "", "  ")
 	if err != nil {
 		return fmt.Errorf("序列化 API 文档 JSON 失败: %v", err)
 	}

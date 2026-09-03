@@ -475,3 +475,27 @@ func (e *{{.Name}}) FromParam(ctx any, s string) error {
 	}
 }
 {{end}}
+
+// ==========================================
+// Global Models
+// ==========================================
+{{range .GlobalModels}}
+{{- if .Doc}}
+{{FormatComment .Doc ""}}
+{{- else}}
+{{- if .IsInput}}
+// {{.Name}} 输入模型
+{{- else}}
+// {{.Name}} 输出模型
+{{- end}}
+{{- end}}
+type {{.Name}}{{if .TypeParams}}[{{range $i, $p := .TypeParams}}{{if $i}}, {{end}}{{$p}} any{{end}}]{{end}} struct {
+	{{- range .Fields}}
+	{{- if .Doc}}
+{{FormatComment .Doc "\t"}}
+	{{- end}}
+	{{.Name}} {{.GoType}} {{.Tag}}
+	{{- end}}
+}
+{{end}}
+

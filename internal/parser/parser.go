@@ -39,7 +39,7 @@ func ParseSchema(paths ...string) (*Schema, error) {
 
 	for _, file := range files {
 		fmt.Printf("Parsing schema file: %s\n", file)
-		
+
 		// 1. 预处理：提取注释
 		comments, codeLines, err := collectComments(file)
 		if err != nil {
@@ -213,7 +213,7 @@ func parseComments(lines []string) (string, map[string]string) {
 		}
 
 		found := false
-		
+
 		// 1. 尝试使用 ':' 或 '-' 切分（如 'id: ArticleID' 或 'id - ArticleID'）
 		if idx := strings.IndexAny(trimmed, ":-"); idx > 0 {
 			key := strings.TrimSpace(trimmed[:idx])
@@ -285,11 +285,11 @@ func (s *Schema) Validate() error {
 	models := make(map[string]bool)
 	modules := make(map[string]bool)
 	decorators := make(map[string]bool)
-	routes := make(map[string]string) 
-	
+	routes := make(map[string]string)
+
 	// 预置基础类型
 	baseTypes := map[string]bool{
-		"String": true, "Int": true, "Float": true, "Boolean": true, 
+		"String": true, "Int": true, "Float": true, "Boolean": true,
 		"Time": true, "File": true, "Any": true, "Field": true,
 	}
 
@@ -339,7 +339,7 @@ func (s *Schema) Validate() error {
 			for _, tp := range decl.Model.TypeParams {
 				localTypes[tp] = true
 			}
-			
+
 			for _, prop := range decl.Model.Properties {
 				if err := validateTypeRef(prop.Type, models, baseTypes, localTypes); err != nil {
 					return fmt.Errorf("%s: model %s property %s: %v", prop.Pos, decl.Model.Name, prop.Name, err)
@@ -410,7 +410,7 @@ var (
 	resgenLexer = lexer.MustSimple([]lexer.SimpleRule{
 		{Name: "Comment", Pattern: `#[^\n]*`},
 		{Name: "Whitespace", Pattern: `\s+`},
-		{Name: "RoutePath", Pattern: `/[a-zA-Z0-9_\-\/:]*`}, 
+		{Name: "RoutePath", Pattern: `/[a-zA-Z0-9_\-\/:]*`},
 		{Name: "String", Pattern: `"(?:\\.|[^"])*"`},
 		{Name: "Ident", Pattern: `[a-zA-Z_][a-zA-Z0-9_\.]*`},
 		{Name: "Float", Pattern: `[-+]?\d*\.\d+`},
@@ -423,7 +423,7 @@ var (
 	Parser = participle.MustBuild[Schema](
 		participle.Lexer(resgenLexer),
 		participle.Elide("Whitespace", "Comment"),
-		participle.Unquote("String"), 
+		participle.Unquote("String"),
 		participle.UseLookahead(5),
 	)
 )
@@ -496,4 +496,3 @@ func splitLineComment(line string) (code string, comment string, hasComment bool
 	}
 	return line, "", false
 }
-

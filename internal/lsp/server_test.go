@@ -101,4 +101,19 @@ func TestCompletion(t *testing.T) {
 	if !foundAlias || !foundPath {
 		t.Errorf("Expected '@alias' and '@path' in directive completions, got foundAlias=%v, foundPath=%v", foundAlias, foundPath)
 	}
+
+	// 3. 测试 HTTP 方法补全模版格式
+	itemsRoot := buildCompletions(filename, content, 0, 0)
+	var foundDelete bool
+	for _, item := range itemsRoot {
+		if item.Label == "DELETE" {
+			foundDelete = true
+			if item.InsertText == nil || *item.InsertText != "DELETE /${1:path} => ${2:func}(${3:input}): ${4:Output}" {
+				t.Errorf("Unexpected DELETE insertText: %v", item.InsertText)
+			}
+		}
+	}
+	if !foundDelete {
+		t.Errorf("Expected 'DELETE' in keyword completions")
+	}
 }

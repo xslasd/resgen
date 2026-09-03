@@ -172,7 +172,8 @@ group /user {
 
 	conf := &config.Config{
 		Generator: config.GeneratorConfig{
-			Package: "resolver",
+			Package:       "resolver",
+			EnableApiDocs: true,
 		},
 	}
 
@@ -209,6 +210,35 @@ group /user {
 
 	if !strings.Contains(bizCode, "TfDisable *BooleanSearch") {
 		t.Errorf("userbiz.gen.go missing 'TfDisable *BooleanSearch'")
+	}
+
+	// 3. 验证 docs/api.json 符合 OpenAPI 3.0.3 规范且包含 x-res-file
+	apiJsonBytes, err := os.ReadFile(filepath.Join(tmpDir, "docs", "api.json"))
+	if err != nil {
+		t.Fatalf("failed to read api.json: %v", err)
+	}
+	apiJson := string(apiJsonBytes)
+
+	if !strings.Contains(apiJson, `"openapi": "3.0.3"`) {
+		t.Errorf("api.json missing '\"openapi\": \"3.0.3\"'")
+	}
+	if !strings.Contains(apiJson, `"paths": {`) {
+		t.Errorf("api.json missing '\"paths\": {'")
+	}
+	if !strings.Contains(apiJson, `"x-res-file": "01_biz.res"`) {
+		t.Errorf("api.json missing '\"x-res-file\": \"01_biz.res\"'")
+	}
+	if !strings.Contains(apiJson, `"x-res-file": "00_common.res"`) {
+		t.Errorf("api.json missing '\"x-res-file\": \"00_common.res\"'")
+	}
+
+	// 4. 验证 docs/api.html 正确生成
+	apiHtmlBytes, err := os.ReadFile(filepath.Join(tmpDir, "docs", "api.html"))
+	if err != nil {
+		t.Fatalf("failed to read api.html: %v", err)
+	}
+	if len(apiHtmlBytes) == 0 {
+		t.Errorf("api.html is empty")
 	}
 }
 

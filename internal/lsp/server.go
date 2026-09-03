@@ -867,19 +867,24 @@ var builtinKeywords = []struct {
 	detail     string
 	doc        string
 }{
-	{"module", "module ${1:ModuleName} {\n\t$0\n}", true, "声明一个功能模块", "module 用于组织相关的 HTTP 路由和模型"},
+	{"module", "module ${1:ModuleName}\n\n$0", true, "声明一个功能模块", "module 用于组织相关的 HTTP 路由和模型"},
 	{"type", "type ${1:Name} {\n\t${2:id}: ${3:Int} @alias(\"id\")\n\t$0\n}", true, "声明业务数据模型", "type 定义普通数据传输对象或实体"},
 	{"input", "input ${1:Name} {\n\t${2:id}: ${3:Int} @query\n\t$0\n}", true, "声明请求入参模型", "input 定义接口的输入参数"},
-	{"wrap", "wrap ${1:Name} {\n\tcode: Int\n\tmessage: String\n\tdata: Field\n}", true, "声明统一响应包装器", "wrap 定义全局或分组的响应包装层"},
-	{"group", "group ${1:GroupName} {\n\t$0\n}", true, "声明接口路由分组", "group 包含一组具有相同前缀或中间件的 HTTP 接口"},
+	{"wrap", "wrap ${1:Name}<T> {\n\tcode: Int!\n\tmsg: String!\n\tdata: T\n}", true, "声明统一响应包装器", "wrap 定义全局或分组的响应包装层"},
+	{"group", "group ${1:/path} {\n\t$0\n}", true, "声明接口路由分组", "group 包含一组具有相同前缀或中间件的 HTTP 接口"},
 	{"scalar", "scalar ${1:Name}", false, "声明自定义标量", "scalar 扩展自定义基本类型"},
-	{"union", "union ${1:Name} = ${2:TypeA} | ${3:TypeB}", true, "声明联合类型", "union 用于定义多态返回值"},
+	{"union", "union ${1:Name}(${2:field}) {\n\t${3:key}: ${4:Type}\n\tdefault: Any\n}", true, "声明联合类型", "union 用于定义多态返回值"},
 	{"enum", "enum ${1:Name} {\n\t$0\n}", true, "声明枚举类型", "enum 定义枚举常量"},
-	{"GET", "GET /${1:path} (${2:input}) -> ${3:Output}", true, "HTTP GET 接口", "声明一个 GET 请求路由"},
-	{"POST", "POST /${1:path} (${2:input}) -> ${3:Output}", true, "HTTP POST 接口", "声明一个 POST 请求路由"},
-	{"PUT", "PUT /${1:path} (${2:input}) -> ${3:Output}", true, "HTTP PUT 接口", "声明一个 PUT 请求路由"},
-	{"DELETE", "DELETE /${1:path} (${2:input}) -> ${3:Output}", true, "HTTP DELETE 接口", "声明一个 DELETE 请求路由"},
-	{"PATCH", "PATCH /${1:path} (${2:input}) -> ${3:Output}", true, "HTTP PATCH 接口", "声明一个 PATCH 请求路由"},
+	{"GET", "GET /${1:path} => ${2:func}(${3:input}): ${4:Output}", true, "HTTP GET 接口", "声明一个 GET 请求路由"},
+	{"POST", "POST /${1:path} => ${2:func}(${3:input}): ${4:Output}", true, "HTTP POST 接口", "声明一个 POST 请求路由"},
+	{"PUT", "PUT /${1:path} => ${2:func}(${3:input}): ${4:Output}", true, "HTTP PUT 接口", "声明一个 PUT 请求路由"},
+	{"DELETE", "DELETE /${1:path} => ${2:func}(${3:input}): ${4:Output}", true, "HTTP DELETE 接口", "声明一个 DELETE 请求路由"},
+	{"PATCH", "PATCH /${1:path} => ${2:func}(${3:input}): ${4:Output}", true, "HTTP PATCH 接口", "声明一个 PATCH 请求路由"},
+	{"get", "GET /${1:path} => ${2:func}(${3:input}): ${4:Output}", true, "HTTP GET 接口", "声明一个 GET 请求路由"},
+	{"post", "POST /${1:path} => ${2:func}(${3:input}): ${4:Output}", true, "HTTP POST 接口", "声明一个 POST 请求路由"},
+	{"put", "PUT /${1:path} => ${2:func}(${3:input}): ${4:Output}", true, "HTTP PUT 接口", "声明一个 PUT 请求路由"},
+	{"delete", "DELETE /${1:path} => ${2:func}(${3:input}): ${4:Output}", true, "HTTP DELETE 接口", "声明一个 DELETE 请求路由"},
+	{"patch", "PATCH /${1:path} => ${2:func}(${3:input}): ${4:Output}", true, "HTTP PATCH 接口", "声明一个 PATCH 请求路由"},
 }
 
 func buildCompletions(filename, content string, line, col int) []protocol.CompletionItem {

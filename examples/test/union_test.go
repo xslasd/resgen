@@ -24,7 +24,7 @@ func (b *MockUnionDemoBiz) GetPost(ctx context.Context, id *int) (*resolver.Cont
 		return nil, fmt.Errorf("id 不能为空")
 	}
 	return &resolver.ContentPostItem{
-		Id:   *id,
+		ID:   *id,
 		Type: resolver.UnionKind_article,
 		Payload: &resolver.UnionArticle{
 			Title:   "Go 联合类型指南",
@@ -36,7 +36,7 @@ func (b *MockUnionDemoBiz) GetPost(ctx context.Context, id *int) (*resolver.Cont
 func (b *MockUnionDemoBiz) CreatePost(ctx context.Context, input *resolver.CreatePostInput) (*resolver.ContentPostItem, error) {
 	b.LastInput = input
 	return &resolver.ContentPostItem{
-		Id:      1001,
+		ID:      1001,
 		Type:    input.Type,
 		Payload: input.Payload,
 	}, nil
@@ -47,7 +47,7 @@ func (b *MockUnionDemoBiz) BatchCreatePost(ctx context.Context, input *resolver.
 	var items []resolver.ContentPostItem
 	for i, it := range input.Items {
 		items = append(items, resolver.ContentPostItem{
-			Id:      i + 1,
+			ID:      i + 1,
 			Type:    it.Type,
 			Payload: it.Payload,
 		})
@@ -140,7 +140,7 @@ func TestUnionDemo_ParametersAndValidation(t *testing.T) {
 		if !ok {
 			t.Fatalf("💥 失败：input.Payload 实际类型为 %T，未能断言为 *resolver.UnionVideo 单级指针！", biz.LastInput.Payload)
 		}
-		if video.Title != "Resgen 演示视频" || video.Url != "https://video.com/demo.mp4" || video.Duration != 360 {
+		if video.Title != "Resgen 演示视频" || video.URL != "https://video.com/demo.mp4" || video.Duration != 360 {
 			t.Fatalf("视频字段解析不匹配: %+v", video)
 		}
 	})
@@ -212,7 +212,7 @@ func TestUnionDemo_ParametersAndValidation(t *testing.T) {
 		if !ok {
 			t.Fatalf("💥 切片 items[0].Payload 未能断言为 *UnionVideo，实际类型: %T", biz.LastBatchInput.Items[0].Payload)
 		}
-		if item0Video.Duration != 540 || item0Video.Url != "https://video.com/concurrency.mp4" {
+		if item0Video.Duration != 540 || item0Video.URL != "https://video.com/concurrency.mp4" {
 			t.Fatalf("items[0] 视频字段不匹配: %+v", item0Video)
 		}
 
@@ -357,7 +357,7 @@ func TestResolveContentPayload_Adaptive(t *testing.T) {
 		if !ok {
 			t.Fatalf("期望得到 *resolver.UnionVideo 单级指针，实际得到类型: %T", res)
 		}
-		if video.Title != "Go进阶视频" || video.Url != "https://example.com/video.mp4" || video.Duration != 120 {
+		if video.Title != "Go进阶视频" || video.URL != "https://example.com/video.mp4" || video.Duration != 120 {
 			t.Fatalf("字段解析不匹配: %+v", video)
 		}
 	})

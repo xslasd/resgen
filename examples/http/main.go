@@ -158,7 +158,7 @@ func (r *MyResponder) BindPageData(ctx *NativeCtx, data any, err error) resolver
 type AuthDemoHandler struct{}
 
 func (h *AuthDemoHandler) Register(ctx context.Context, input *resolver.RegisterInput) (*resolver.User, error) {
-	return &resolver.User{Id: 1, Username: input.Username, Email: input.Email}, nil
+	return &resolver.User{ID: 1, Username: input.Username, Email: input.Email}, nil
 }
 
 func (h *AuthDemoHandler) SetPeriod(ctx context.Context, input *resolver.TaskPeriodInput) (*string, error) {
@@ -179,7 +179,7 @@ func (h *AuthDemoHandler) Login(ctx context.Context, input *resolver.LoginArgs) 
 }
 
 func (h *AuthDemoHandler) GetMe(ctx context.Context) (*resolver.User, error) {
-	return &resolver.User{Id: 1, Username: "admin", Email: "admin@example.com"}, nil
+	return &resolver.User{ID: 1, Username: "admin", Email: "admin@example.com"}, nil
 }
 
 func (h *AuthDemoHandler) OnInvoke_CheckOwner_UpdateUser(ctx *NativeCtx, info resolver.MethodInfo, input *resolver.UpdateInput) error {
@@ -191,7 +191,7 @@ func (h *AuthDemoHandler) UpdateUser(ctx context.Context, input *resolver.Update
 	if input.Email != nil {
 		email = *input.Email
 	}
-	return &resolver.User{Id: input.Id, Username: "updated", Email: email}, nil
+	return &resolver.User{ID: input.ID, Username: "updated", Email: email}, nil
 }
 
 func (h *AuthDemoHandler) OnResponse_MaskEmail_UpdateUser(ctx *NativeCtx, info resolver.MethodInfo, input *resolver.UpdateInput, result *resolver.User, err error) (*resolver.User, error) {
@@ -209,33 +209,33 @@ func (h *AuthDemoHandler) DeleteUser(ctx context.Context, id *int) (*string, err
 type WrapperDemoHandler struct{}
 
 func (h *WrapperDemoHandler) GetArticle(ctx context.Context, id *int) (*resolver.Article, error) {
-	return &resolver.Article{Id: *id, Title: "Title", Content: "Content"}, nil
+	return &resolver.Article{ID: *id, Title: "Title", Content: "Content"}, nil
 }
 
 func (h *WrapperDemoHandler) ListArticles(ctx context.Context, input *resolver.ListArticlesArgs) (*[]*resolver.Article, error) {
-	return &[]*resolver.Article{{Id: 1, Title: "A1", Content: "C1"}}, nil
+	return &[]*resolver.Article{{ID: 1, Title: "A1", Content: "C1"}}, nil
 }
 
 func (h *WrapperDemoHandler) ListArticlesV2(ctx context.Context, input *resolver.ListArticlesV2Args) (*resolver.ListResArticle, error) {
-	return &resolver.ListResArticle{Rows: []resolver.Article{{Id: 1, Title: "A1", Content: "C1"}}, Total: 1}, nil
+	return &resolver.ListResArticle{Rows: []resolver.Article{{ID: 1, Title: "A1", Content: "C1"}}, Total: 1}, nil
 }
 
 func (h *WrapperDemoHandler) GetCategoryTree(ctx context.Context) (*resolver.TreeResCategoryTreeNode, error) {
-	child := resolver.CategoryTreeNode{Id: 101, ParentId: 1, Name: "后端开发", Sort: 1}
-	root := resolver.CategoryTreeNode{Id: 1, ParentId: 0, Name: "技术分类", Sort: 1, Children: &[]resolver.CategoryTreeNode{child}}
+	child := resolver.CategoryTreeNode{ID: 101, ParentId: 1, Name: "后端开发", Sort: 1}
+	root := resolver.CategoryTreeNode{ID: 1, ParentId: 0, Name: "技术分类", Sort: 1, Children: &[]resolver.CategoryTreeNode{child}}
 	return &resolver.TreeResCategoryTreeNode{Items: []resolver.CategoryTreeNode{root}, Total: 2}, nil
 }
 
 func (h *WrapperDemoHandler) GetCategoryTreeRaw(ctx context.Context) (*resolver.CategoryTreeNode, error) {
-	return &resolver.CategoryTreeNode{Id: 1, ParentId: 0, Name: "原生分类", Sort: 1}, nil
+	return &resolver.CategoryTreeNode{ID: 1, ParentId: 0, Name: "原生分类", Sort: 1}, nil
 }
 
 func (h *WrapperDemoHandler) CreateArticle(ctx context.Context, input *resolver.CreateArticleArgs) (*resolver.Article, error) {
-	return &resolver.Article{Id: 100, Title: input.Title, Content: input.Content}, nil
+	return &resolver.Article{ID: 100, Title: input.Title, Content: input.Content}, nil
 }
 
 func (h *WrapperDemoHandler) GetArticleRaw(ctx context.Context, id *int) (*resolver.Article, error) {
-	return &resolver.Article{Id: *id, Title: "Raw Title", Content: "Raw Content"}, nil
+	return &resolver.Article{ID: *id, Title: "Raw Title", Content: "Raw Content"}, nil
 }
 
 func (h *WrapperDemoHandler) Logout(ctx context.Context) error {
@@ -246,7 +246,7 @@ type ScalarDemoHandler struct{}
 
 func (h *ScalarDemoHandler) GetEventByTime(ctx context.Context, startTime *scalars.IntTime) (*resolver.Event, error) {
 	now := scalars.IntTime(time.Now())
-	return &resolver.Event{Id: 1, Name: "Time Event", StartTime: *startTime, EndTime: &now, CreatedAt: &now}, nil
+	return &resolver.Event{ID: 1, Name: "Time Event", StartTime: *startTime, EndTime: &now, CreatedAt: &now}, nil
 }
 
 func (h *ScalarDemoHandler) ListEvents(ctx context.Context, input *resolver.QueryEventsInput) (*[]*resolver.Event, error) {
@@ -257,12 +257,12 @@ func (h *ScalarDemoHandler) ListEvents(ctx context.Context, input *resolver.Quer
 	} else {
 		start = now
 	}
-	return &[]*resolver.Event{{Id: 1, Name: "Event 1", StartTime: start, EndTime: &now, CreatedAt: &now}}, nil
+	return &[]*resolver.Event{{ID: 1, Name: "Event 1", StartTime: start, EndTime: &now, CreatedAt: &now}}, nil
 }
 
 func (h *ScalarDemoHandler) CreateEvent(ctx context.Context, input *resolver.CreateEventInput) (*resolver.Event, error) {
 	now := scalars.IntTime(time.Now())
-	return &resolver.Event{Id: 2, Name: input.Name, StartTime: input.StartTime, EndTime: &input.EndTime, CreatedAt: &now}, nil
+	return &resolver.Event{ID: 2, Name: input.Name, StartTime: input.StartTime, EndTime: &input.EndTime, CreatedAt: &now}, nil
 }
 
 type ContentTypeDemoHandler struct{}
@@ -297,10 +297,10 @@ func (h *ContentTypeDemoHandler) ExportXml(ctx context.Context) (*resolver.Repor
 type StatusDemoHandler struct{}
 
 func (h *StatusDemoHandler) GetProduct(ctx context.Context, id *int) (*resolver.Product, error) {
-	return &resolver.Product{Id: *id, Name: "Product", Price: 9.9}, nil
+	return &resolver.Product{ID: *id, Name: "Product", Price: 9.9}, nil
 }
 func (h *StatusDemoHandler) CreateProduct(ctx context.Context, input *resolver.CreateProductInput) (*resolver.Product, error) {
-	return &resolver.Product{Id: 2, Name: input.Name, Price: input.Price}, nil
+	return &resolver.Product{ID: 2, Name: input.Name, Price: input.Price}, nil
 }
 func (h *StatusDemoHandler) BatchUpdate(ctx context.Context, ids []int) (*string, error) {
 	s := "updated"
@@ -311,13 +311,13 @@ func (h *StatusDemoHandler) DeleteProduct(ctx context.Context, id *int) (*string
 	return &s, nil
 }
 func (h *StatusDemoHandler) ListProducts(ctx context.Context, input *resolver.ListProductsArgs) ([]resolver.Product, error) {
-	return []resolver.Product{{Id: 1, Name: "P1", Price: 1.0}}, nil
+	return []resolver.Product{{ID: 1, Name: "P1", Price: 1.0}}, nil
 }
 func (h *StatusDemoHandler) GetRawProduct(ctx context.Context, id *int) (*resolver.Product, error) {
-	return &resolver.Product{Id: *id, Name: "Raw", Price: 10.0}, nil
+	return &resolver.Product{ID: *id, Name: "Raw", Price: 10.0}, nil
 }
 func (h *StatusDemoHandler) GetRawProducts(ctx context.Context, page *int) (*[]*resolver.Product, error) {
-	return &[]*resolver.Product{{Id: 1, Name: "Raw P1", Price: 2.0}}, nil
+	return &[]*resolver.Product{{ID: 1, Name: "Raw P1", Price: 2.0}}, nil
 }
 
 type FileDemoHandler struct{}
@@ -349,7 +349,7 @@ func (h *FileDemoHandler) DownloadDynamic(ctx context.Context, id *int) (*resolv
 }
 func (h *FileDemoHandler) CreatePost(ctx context.Context, input *resolver.CreatePostInput) (*resolver.ContentPostItem, error) {
 	return &resolver.ContentPostItem{
-		Id:      1,
+		ID:      1,
 		Type:    input.Type,
 		Payload: input.Payload,
 	}, nil
@@ -357,7 +357,7 @@ func (h *FileDemoHandler) CreatePost(ctx context.Context, input *resolver.Create
 
 func (h *FileDemoHandler) GetPost(ctx context.Context, id *int) (*resolver.ContentPostItem, error) {
 	return &resolver.ContentPostItem{
-		Id:   *id,
+		ID:   *id,
 		Type: resolver.UnionKind_article,
 		Payload: &resolver.UnionArticle{
 			Title:   "Sample Article",

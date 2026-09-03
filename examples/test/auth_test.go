@@ -17,7 +17,7 @@ type mockAuthDemoBiz struct {
 }
 
 func (b *mockAuthDemoBiz) Register(ctx context.Context, input *resolver.RegisterInput) (*resolver.User, error) {
-	return &resolver.User{Id: 1, Username: input.Username, Email: input.Email}, nil
+	return &resolver.User{ID: 1, Username: input.Username, Email: input.Email}, nil
 }
 
 func (b *mockAuthDemoBiz) SetPeriod(ctx context.Context, input *resolver.TaskPeriodInput) (*string, error) {
@@ -50,12 +50,12 @@ func (b *mockAuthDemoBiz) Login(ctx context.Context, input *resolver.LoginArgs) 
 }
 
 func (b *mockAuthDemoBiz) GetMe(ctx context.Context) (*resolver.User, error) {
-	return &resolver.User{Id: 1, Username: "admin_user", Email: "admin@resgen.dev"}, nil
+	return &resolver.User{ID: 1, Username: "admin_user", Email: "admin@resgen.dev"}, nil
 }
 
 func (b *mockAuthDemoBiz) OnInvoke_CheckOwner_UpdateUser(ctx any, info resolver.MethodInfo, input *resolver.UpdateInput) error {
 	b.checkOwnerCalled = true
-	if input.Id == 999 {
+	if input.ID == 999 {
 		return fmt.Errorf("权限不足：您不是该资源的所有者")
 	}
 	return nil
@@ -66,7 +66,7 @@ func (b *mockAuthDemoBiz) UpdateUser(ctx context.Context, input *resolver.Update
 	if input.Email != nil {
 		email = *input.Email
 	}
-	return &resolver.User{Id: input.Id, Username: "updated_user", Email: email}, nil
+	return &resolver.User{ID: input.ID, Username: "updated_user", Email: email}, nil
 }
 
 func (b *mockAuthDemoBiz) OnResponse_MaskEmail_UpdateUser(ctx any, info resolver.MethodInfo, input *resolver.UpdateInput, result *resolver.User, err error) (*resolver.User, error) {
