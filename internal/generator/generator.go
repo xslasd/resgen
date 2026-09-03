@@ -495,6 +495,8 @@ type MethodInfo struct {
 	Path                string         `json:"path"`
 	FullPath            string         `json:"fullPath"`
 	InputName           string         `json:"inputName,omitempty"`
+	InputGoType         string         `json:"inputGoType,omitempty"`
+	IsInputPointer      bool           `json:"isInputPointer"`
 	InputModel          *ModelInfo     `json:"-"`
 	ReturnType          string         `json:"returnType"`
 	ReturnModel         *ModelInfo     `json:"-"`
@@ -1652,11 +1654,19 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 				}
 
 				if len(args) == 1 && args[0].Name == "" {
-					method.InputName = args[0].GoType
+					if args[0].RefModel != nil {
+						method.InputName = args[0].RefModel.Name
+					} else {
+						method.InputName = strings.TrimPrefix(args[0].GoType, "*")
+					}
+					method.InputGoType = args[0].GoType
+					method.IsInputPointer = strings.HasPrefix(args[0].GoType, "*")
 					method.IsArgsWrapped = false
 					method.Args = args
 				} else if len(args) == 1 && args[0].RefModel != nil && (args[0].Source == "Body" || (ep.Method == "GET" && !args[0].IsScalar)) {
 					method.InputName = args[0].RefModel.Name
+					method.InputGoType = args[0].GoType
+					method.IsInputPointer = strings.HasPrefix(args[0].GoType, "*")
 					method.IsArgsWrapped = false
 					method.Args = args
 				} else if len(args) > 1 {
@@ -1682,16 +1692,22 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 						}
 					}
 					method.InputName = inputModelName
+					method.InputGoType = "*" + inputModelName
+					method.IsInputPointer = true
 					method.Args = args
 					method.IsArgsWrapped = true
 					ctx.Models = append(ctx.Models, inputModel)
 					ctx.ModelMap[inputModelName] = inputModel
 				} else if len(args) == 1 {
 					method.InputName = ""
+					method.InputGoType = ""
+					method.IsInputPointer = false
 					method.Args = args
 					method.IsArgsWrapped = false
 				} else {
 					method.InputName = ""
+					method.InputGoType = ""
+					method.IsInputPointer = false
 					method.Args = nil
 					method.IsArgsWrapped = false
 				}

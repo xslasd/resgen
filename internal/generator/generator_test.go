@@ -242,4 +242,69 @@ group /user {
 	}
 }
 
+func TestInputPointerVsValueType(t *testing.T) {
+	schemaContent := `
+module EventMod
+
+type Event {
+	id: Int!
+	name: String!
+}
+
+input QueryEventsInput {
+	keyword: String
+}
+
+group /events {
+	GET /list => ListEvents(input: QueryEventsInput): [Event]
+	GET /list-required => ListEventsRequired(input: QueryEventsInput!): [Event]
+}
+`
+	schema, err := parser.ParseFileContent("event.res", schemaContent)
+	if err != nil {
+		t.Fatalf("ParseFileContent failed: %v", err)
+	}
+
+	tmpDir, err := os.MkdirTemp("", "resgen-input-type-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	conf := &config.Config{
+		Generator: config.GeneratorConfig{
+			Package: "eventpkg",
+		},
+	}
+
+	if err := Generate(schema, tmpDir, conf); err != nil {
+		t.Fatalf("Generate failed: %v", err)
+	}
+
+	contentBytes, err := os.ReadFile(filepath.Join(tmpDir, "eventmod.gen.go"))
+	if err != nil {
+		t.Fatalf("failed to read generated file: %v", err)
+	}
+	code := string(contentBytes)
+
+	// 1. 验证可空输入 QueryEventsInput 生成指针类型 *QueryEventsInput
+	if !strings.Contains(code, "ListEvents(ctx context.Context, input *QueryEventsInput) (*[]*Event, error)") {
+		t.Errorf("expected ListEvents with pointer input '*QueryEventsInput', but got code:\n%s", code)
+	}
+	// 验证可空调用的执行器传递 &input
+	if !strings.Contains(code, "e.biz.ListEvents(request.Context(), &input)") {
+		t.Errorf("expected e.biz.ListEvents to pass '&input', but got code:\n%s", code)
+	}
+
+	// 2. 验证必填输入 QueryEventsInput! 生成值类型 QueryEventsInput
+	if !strings.Contains(code, "ListEventsRequired(ctx context.Context, input QueryEventsInput) (*[]*Event, error)") {
+		t.Errorf("expected ListEventsRequired with value input 'QueryEventsInput', but got code:\n%s", code)
+	}
+	// 验证必填调用的执行器传递 input
+	if !strings.Contains(code, "e.biz.ListEventsRequired(request.Context(), input)") {
+		t.Errorf("expected e.biz.ListEventsRequired to pass 'input', but got code:\n%s", code)
+	}
+}
+
+
 
