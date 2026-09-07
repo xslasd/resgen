@@ -306,5 +306,74 @@ group /events {
 	}
 }
 
+func TestNestedWrapperWithDefaultWrapEquivalence(t *testing.T) {
+	schemaContent := `
+module ArticleMod
+
+wrap ResData<T> {
+	code: Int!
+	msg: String!
+	data: T
+}
+
+wrap ListRes<T> {
+	rows: [T!]!
+	total: Int!
+}
+
+type Article {
+	id: Int!
+	title: String!
+}
+
+group /articles {
+	# 隐式自动包装 ListRes<Article>，外层由 default_wrap: ResData 包装
+	GET /list-implicit => ListImplicit(): ListRes<Article>
+	# 显式声明外层 ResData<ListRes<Article>>
+	GET /list-explicit => ListExplicit(): ResData<ListRes<Article>>
+}
+`
+	schema, err := parser.ParseFileContent("article.res", schemaContent)
+	if err != nil {
+		t.Fatalf("ParseFileContent failed: %v", err)
+	}
+
+	tmpDir, err := os.MkdirTemp("", "resgen-nested-wrap-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	conf := &config.Config{
+		Generator: config.GeneratorConfig{
+			Package:     "articlepkg",
+			DefaultWrap: "ResData",
+		},
+	}
+
+	if err := Generate(schema, tmpDir, conf); err != nil {
+		t.Fatalf("Generate failed: %v", err)
+	}
+
+	contentBytes, err := os.ReadFile(filepath.Join(tmpDir, "articlemod.gen.go"))
+	if err != nil {
+		t.Fatalf("failed to read generated file: %v", err)
+	}
+	code := string(contentBytes)
+
+	// 1. 验证两种声明方式生成的 Resolver 签名完全一致：均返回 (*ListResArticle, error)
+	if !strings.Contains(code, "ListImplicit(ctx context.Context) (*ListResArticle, error)") {
+		t.Errorf("expected ListImplicit to return (*ListResArticle, error), got code:\n%s", code)
+	}
+	if !strings.Contains(code, "ListExplicit(ctx context.Context) (*ListResArticle, error)") {
+		t.Errorf("expected ListExplicit to return (*ListResArticle, error), got code:\n%s", code)
+	}
+
+	// 2. 验证执行器中均通过 BindResData 进行包装渲染
+	if !strings.Contains(code, "e.r.BindResData(native, result, nil)") {
+		t.Errorf("expected executor to render with BindResData, got code:\n%s", code)
+	}
+}
+
 
 

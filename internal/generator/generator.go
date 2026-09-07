@@ -694,24 +694,32 @@ func monomorphizeAST(schema *parser.Schema, defaultWrap string) {
 
 	generated := make(map[string]bool)
 
-	var monomorphizeTypeRef func(t *parser.TypeRef, isTopLevelReturnType bool, modName string)
-	monomorphizeTypeRef = func(t *parser.TypeRef, isTopLevelReturnType bool, modName string) {
+	var monomorphizeTypeRef func(t *parser.TypeRef, isTopLevelReturnType bool, modName string, activeWrap string)
+	monomorphizeTypeRef = func(t *parser.TypeRef, isTopLevelReturnType bool, modName string, activeWrap string) {
 		if t == nil {
 			return
 		}
 
 		// 深度优先，先递归单态化子泛型实参
 		for i := range t.TypeArgs {
-			monomorphizeTypeRef(&t.TypeArgs[i], false, modName)
+			monomorphizeTypeRef(&t.TypeArgs[i], false, modName, activeWrap)
 		}
 
-		// 如果当前节点包含泛型实参，且不是最外层被剥离的 wrapper
-		isWrapper := false
-		if model, ok := modelDeclMap[t.Name]; ok && (model.Keyword == "wrap" || t.Name == defaultWrap) {
-			isWrapper = true
+		// 判定当前类型是否是最外层被剥离的 wrapper
+		isUnwrappedWrapper := false
+		if isTopLevelReturnType {
+			if activeWrap != "" && strings.ToLower(activeWrap) != "none" {
+				if t.Name == activeWrap {
+					isUnwrappedWrapper = true
+				}
+			} else if activeWrap == "" {
+				if model, ok := modelDeclMap[t.Name]; ok && model.Keyword == "wrap" {
+					isUnwrappedWrapper = true
+				}
+			}
 		}
 
-		if len(t.TypeArgs) > 0 && !(isTopLevelReturnType && isWrapper) {
+		if len(t.TypeArgs) > 0 && !isUnwrappedWrapper {
 			origModel, ok := modelDeclMap[t.Name]
 			if !ok {
 				return
@@ -773,7 +781,7 @@ func monomorphizeAST(schema *parser.Schema, defaultWrap string) {
 					replaceType(&newProp.Type)
 
 					// 递归单态化属性类型（例如 rows: TreeNode<T> 展开为 rows: TreeNodeRoleInfo）
-					monomorphizeTypeRef(&newProp.Type, false, modName)
+					monomorphizeTypeRef(&newProp.Type, false, modName, activeWrap)
 
 					newModel.Properties = append(newModel.Properties, newProp)
 				}
@@ -811,19 +819,27 @@ func monomorphizeAST(schema *parser.Schema, defaultWrap string) {
 		if decl.Model != nil {
 			// 对 Model 的属性字段进行单态化扫描
 			for j := range decl.Model.Properties {
-				monomorphizeTypeRef(&decl.Model.Properties[j].Type, false, currentModule)
+				monomorphizeTypeRef(&decl.Model.Properties[j].Type, false, currentModule, "")
 			}
 		}
 
 		if decl.Group != nil {
+			groupWrap := defaultWrap
+			if v, ok := metaGet(decl.Group.Meta, "wrap"); ok {
+				groupWrap = v
+			}
 			// 对 API 端点进行单态化扫描
 			for j := range decl.Group.Endpoints {
 				ep := &decl.Group.Endpoints[j]
+				epWrap := groupWrap
+				if v, ok := metaGet(ep.ResponseMeta, "wrap"); ok {
+					epWrap = v
+				}
 				if ep.ReturnType != nil {
-					monomorphizeTypeRef(ep.ReturnType, true, currentModule)
+					monomorphizeTypeRef(ep.ReturnType, true, currentModule, epWrap)
 				}
 				for k := range ep.Args {
-					monomorphizeTypeRef(&ep.Args[k].Type, false, currentModule)
+					monomorphizeTypeRef(&ep.Args[k].Type, false, currentModule, "")
 				}
 			}
 		}
@@ -1366,6 +1382,28 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 				}
 			}
 			for _, ep := range decl.Group.Endpoints {
+				// 从接口级 ResponseMeta 读取 wrap/state；接口优先于组级
+				errorType := groupErrorType
+				successStatus := groupSuccessStatus
+				if v, ok := metaGet(ep.ResponseMeta, "wrap"); ok {
+					errorType = v
+				}
+				if v, ok := metaGetInt(ep.ResponseMeta, "state"); ok {
+					successStatus = v
+				}
+
+				isErrorWrapped := false
+				errorTypeBase := ""
+				if baseModel, ok := ctx.ModelMap[errorType]; ok && baseModel.IsWrapper {
+					isErrorWrapped = true
+					errorTypeBase = baseModel.Name
+				}
+
+				isNoWrap := false
+				if strings.ToLower(errorType) == "none" {
+					isNoWrap = true
+				}
+
 				var fullReturnType string
 				var innerReturnType string
 				isReturnWrapped := false
@@ -1421,25 +1459,34 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 					fullReturnType = ToGoType(*ep.ReturnType, ctx.Config, &ctx.ExtraImports, contextStr, ctx.ModelMap)
 					innerReturnType = fullReturnType
 					if baseModel, ok := ctx.ModelMap[ep.ReturnType.Name]; ok && baseModel.IsWrapper {
-						isReturnWrapped = true
-						returnTypeBase = baseModel.Name
-						if len(ep.ReturnType.TypeArgs) > 0 {
-							innerReturnType = ToGoType(ep.ReturnType.TypeArgs[0], ctx.Config, &ctx.ExtraImports, ep.Name+".InnerReturn", ctx.ModelMap)
-							isReturnArray = ep.ReturnType.TypeArgs[0].IsArray
+						// 判定 ep.ReturnType 是否作为当前接口的“最外层响应外壳”进行 Unwrap：
+						// 1. 若当前接口配置/继承了有效的顶层包装器 (isErrorWrapped == true，例如 errorType == "ResData")：
+						//    - 只有当出参顶层类型名与当前生效的外层包装器一致 (ep.ReturnType.Name == errorType) 时，才视作显式声明的外壳并执行 Unwrap；
+						//    - 若出参顶层类型名与 errorType 不同 (例如 ep.ReturnType.Name == "ListRes")，则说明它是装载在 ResData.data 内部的业务数据模型，不应作为外层壳解包。
+						// 2. 若当前接口无顶层包装器或显式禁用了外层包装器 (isNoWrap == true 或 !isErrorWrapped)：
+						//    - 出参本身的 wrapper 即为顶层响应外壳，执行 Unwrap。
+						shouldUnwrap := false
+						if isErrorWrapped {
+							if ep.ReturnType.Name == errorType {
+								shouldUnwrap = true
+							}
+						} else {
+							shouldUnwrap = true
+						}
+
+						if shouldUnwrap {
+							isReturnWrapped = true
+							returnTypeBase = baseModel.Name
+							if len(ep.ReturnType.TypeArgs) > 0 {
+								innerReturnType = ToGoType(ep.ReturnType.TypeArgs[0], ctx.Config, &ctx.ExtraImports, ep.Name+".InnerReturn", ctx.ModelMap)
+								isReturnArray = ep.ReturnType.TypeArgs[0].IsArray
+							}
+						} else {
+							isReturnArray = ep.ReturnType.IsArray
 						}
 					} else {
 						isReturnArray = ep.ReturnType.IsArray
 					}
-				}
-
-				// 从接口级 ResponseMeta 读取 wrap/state；接口优先于组级
-				errorType := groupErrorType
-				successStatus := groupSuccessStatus
-				if v, ok := metaGet(ep.ResponseMeta, "wrap"); ok {
-					errorType = v
-				}
-				if v, ok := metaGetInt(ep.ResponseMeta, "state"); ok {
-					successStatus = v
 				}
 
 				// 接口级装饰器（组级已统一继承）
@@ -1449,18 +1496,6 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 				}
 				for _, d := range ep.Directives {
 					filteredDirectives = append(filteredDirectives, d)
-				}
-
-				isErrorWrapped := false
-				errorTypeBase := ""
-				if baseModel, ok := ctx.ModelMap[errorType]; ok && baseModel.IsWrapper {
-					isErrorWrapped = true
-					errorTypeBase = baseModel.Name
-				}
-
-				isNoWrap := false
-				if strings.ToLower(errorType) == "none" {
-					isNoWrap = true
 				}
 
 				isSuccessNoWrap := false
