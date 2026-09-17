@@ -1,93 +1,97 @@
 # 示例 2：装饰器与校验器
 # 展示：
-#   - 校验器定义与字段级使用
-#   - 装饰器的三个阶段（request / invoke / response）
-#   - global（全局）和 specialized（业务模块独立控制）两种作用域
-#   - @customBind / @customValidate 逻辑接管
+# - 校验器定义与字段级使用
+# - 装饰器的三个阶段（request / invoke / response）
+# - global（全局）和 specialized（业务模块独立控制）两种作用域
+# - @customBind / @customValidate 逻辑接管
 module AuthDemo
 
 # 公共定义（ResData）已在 00_common.res 中声明，此处直接使用
-
 # ── 校验器定义 ──────────────────────────────────────────
 validator email
+
 validator mobile
+
 validator min(len: Int!)
+
 validator max(len: Int!)
+
 # 🌟 声明高级跨字段关联校验器：Field! 自动捕获同级或子级目标字段并在编译期转为强类型路径
 validator timeBefore(targetField: Field!)
 
-
-
 # ── 装饰器定义（阶段 + 作用域）─────────────────────────
 # 全局请求拦截：所有模块共用（如 JWT 鉴权）
-decorator auth(role: String!) [stage=request, scope=global]
+decorator @auth(role: String!)[stage=request, scope=global]
 
 # 全局请求拦截：登录态检查
-decorator loginRequired [stage=request, scope=global]
+decorator @loginRequired[stage=request, scope=global]
 
 # 特化调用前拦截：仅由当前 Resolver 独立实现（如资源归属校验）
-decorator checkOwner [stage=invoke, scope=specialized]
+decorator @checkOwner[stage=invoke, scope=specialized]
 
 # 特化响应后处理：仅由当前 Resolver 独立实现（如数据脱敏）
-decorator maskEmail [stage=response, scope=specialized]
+decorator @maskEmail[stage=response, scope=specialized]
 
 # 数据模型
 type User {
-    id:       Int!
+    id: Int!
     username: String!
-    email:    String!
+    email: String!
 }
 
 type Token {
-    token:     String!
-    expiresAt: Int!
+    token: String!
+    expires_at: Int!
 }
 
 input RegisterInput {
     username: String! @min(3) @max(20)
-    email:    String! @email
-    mobile:   String! @mobile
+    email: String! @email
+    mobile: String! @mobile
     password: String! @min(8)
 }
 
 input UpdateInput {
-    id:    Int!
+    id: Int!
     email: String @email
 }
 
 # 跨字段校验输入模型：startTime 关联校验 endTime
 input TaskPeriodInput {
-    startTime: IntTime! @timeBefore("endTime")
-    endTime:   IntTime!
+    start_time: IntTime! @timeBefore("endTime")
+    end_time: IntTime!
 }
 
 group /auth {
     # 注册：使用字段级校验器，请求 form 表单
-    POST /register [ctype=form] => Register(input: RegisterInput): User [state=201]
-
+    POST /register[ctype=form] => Register(input: RegisterInput): User [state=201]
     # 跨字段关联校验：校验 startTime 是否早于 endTime
     POST /period => SetPeriod(input: TaskPeriodInput): String
-
     # 登录：完全接管绑定与校验逻辑（业务层手动处理）
     @customBind
     @customValidate
-    POST /login => Login(username: String, password: String): Token
-
+    POST /login => Login(
+        username: String,
+        password: String
+    ): Token
     # 获取当前用户：全局 loginRequired 装饰器在请求阶段拦截
     @loginRequired
     GET /me => GetMe(): User
-
     # 更新用户：
-    #   - loginRequired（request 阶段，全局）：验证登录态
-    #   - checkOwner（invoke 阶段，业务独立）：验证是否为资源拥有者
-    #   - maskEmail（response 阶段，业务独立）：脱敏邮件地址后再返回
+    # - loginRequired（request 阶段，全局）：验证登录态
+    # - checkOwner（invoke 阶段，业务独立）：验证是否为资源拥有者
+    # - maskEmail（response 阶段，业务独立）：脱敏邮件地址后再返回
     @loginRequired
     @checkOwner
     @maskEmail
-    POST /update => UpdateUser(input: UpdateInput): User
-
+    POST /update => UpdateUser(
+        input: UpdateInput
+    ): User
     # 管理员接口：需要特定角色，组合多个全局装饰器
+    # sssss
     @auth("admin")
     @loginRequired
-    DELETE /:id => DeleteUser(id: Int @path): String
+    DELETE /:id => DeleteUser(
+        id: Int @path
+    ): String
 }

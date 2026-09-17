@@ -33,8 +33,8 @@ func (b *MockUnionDemoBiz) GetPost(ctx context.Context, id *int) (*resolver.Cont
 	}, nil
 }
 
-func (b *MockUnionDemoBiz) CreatePost(ctx context.Context, input *resolver.CreatePostInput) (*resolver.ContentPostItem, error) {
-	b.LastInput = input
+func (b *MockUnionDemoBiz) CreatePost(ctx context.Context, input resolver.CreatePostInput) (*resolver.ContentPostItem, error) {
+	b.LastInput = &input
 	return &resolver.ContentPostItem{
 		ID:      1001,
 		Type:    input.Type,
@@ -42,8 +42,8 @@ func (b *MockUnionDemoBiz) CreatePost(ctx context.Context, input *resolver.Creat
 	}, nil
 }
 
-func (b *MockUnionDemoBiz) BatchCreatePost(ctx context.Context, input *resolver.BatchCreatePostInput) (*resolver.BatchCreatePostResult, error) {
-	b.LastBatchInput = input
+func (b *MockUnionDemoBiz) BatchCreatePost(ctx context.Context, input resolver.BatchCreatePostInput) (*resolver.BatchCreatePostResult, error) {
+	b.LastBatchInput = &input
 	var items []resolver.ContentPostItem
 	for i, it := range input.Items {
 		items = append(items, resolver.ContentPostItem{

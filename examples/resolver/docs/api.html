@@ -188,7 +188,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TreeRes"
+                  "$ref": "#/components/schemas/TreeResCategoryTreeNode"
                 }
               }
             }
@@ -197,8 +197,8 @@
         "x-res-file": "01_wrapper.res",
         "x-res-group": "/articles",
         "x-res-module": "WrapperDemo",
-        "x-res-return-type": "TreeRes\u003cCategoryTreeNode\u003e",
-        "x-res-return-type-dsl": "TreeRes\u003cCategoryTreeNode\u003e"
+        "x-res-return-type": "TreeResCategoryTreeNode",
+        "x-res-return-type-dsl": "TreeResCategoryTreeNode"
       }
     },
     "/articles/create": {
@@ -711,7 +711,7 @@
           "AuthDemo"
         ],
         "summary": "DeleteUser",
-        "description": "管理员接口：需要特定角色，组合多个全局装饰器",
+        "description": "管理员接口：需要特定角色，组合多个全局装饰器\nsssss",
         "operationId": "DeleteUser",
         "parameters": [
           {
@@ -1785,7 +1785,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PageData"
+                  "$ref": "#/components/schemas/PageDataListProduct"
                 }
               }
             }
@@ -1794,8 +1794,8 @@
         "x-res-file": "05_status_wrap.res",
         "x-res-group": "/products",
         "x-res-module": "StatusDemo",
-        "x-res-return-type": "PageData\u003c[Product]\u003e",
-        "x-res-return-type-dsl": "PageData\u003c[Product]\u003e"
+        "x-res-return-type": "PageDataListProduct",
+        "x-res-return-type-dsl": "PageDataListProduct"
       }
     },
     "/products/{id}": {
@@ -2063,8 +2063,7 @@
           "id",
           "parent_id",
           "name",
-          "sort",
-          "children"
+          "sort"
         ],
         "properties": {
           "children": {
@@ -2108,6 +2107,10 @@
       "CreateArticleArgs": {
         "type": "object",
         "title": "CreateArticleArgs",
+        "required": [
+          "title",
+          "content"
+        ],
         "properties": {
           "content": {
             "type": "string"
@@ -2412,6 +2415,28 @@
           "page"
         ],
         "properties": {
+          "page": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer"
+          }
+        },
+        "x-res-file": "05_status_wrap.res"
+      },
+      "PageDataListProduct": {
+        "type": "object",
+        "title": "PageDataListProduct",
+        "description": "分页专用包装器 (单态化展开自 PageData\u003c[Product]\u003e)",
+        "required": [
+          "list",
+          "total",
+          "page"
+        ],
+        "properties": {
+          "list": {
+            "$ref": "#/components/schemas/Product"
+          },
           "page": {
             "type": "integer"
           },
@@ -2898,7 +2923,7 @@
       }
     }
   },
-  "version": "v0.7.3",
+  "version": "v0.7.4",
   "package": "resolver",
   "validators": [
     {
@@ -3017,6 +3042,7 @@
               "method": "GET",
               "path": "/:id",
               "fullPath": "/articles/:id",
+              "isInputPointer": false,
               "returnType": "ResData\u003cArticle\u003e",
               "returnTypeDSL": "ResData\u003cArticle\u003e",
               "innerReturnType": "Article",
@@ -3051,6 +3077,8 @@
               "path": "/list",
               "fullPath": "/articles/list",
               "inputName": "ListArticlesArgs",
+              "inputGoType": "*ListArticlesArgs",
+              "isInputPointer": true,
               "returnType": "ResData\u003c[Article]\u003e",
               "returnTypeDSL": "ResData\u003c[Article]\u003e",
               "innerReturnType": "[]*Article",
@@ -3091,6 +3119,8 @@
               "path": "/list/v2",
               "fullPath": "/articles/list/v2",
               "inputName": "ListArticlesV2Args",
+              "inputGoType": "*ListArticlesV2Args",
+              "isInputPointer": true,
               "returnType": "ResData\u003cListResArticle\u003e",
               "returnTypeDSL": "ResData\u003cListResArticle\u003e",
               "innerReturnType": "ListResArticle",
@@ -3131,6 +3161,7 @@
               "method": "GET",
               "path": "/categories/tree",
               "fullPath": "/articles/categories/tree",
+              "isInputPointer": false,
               "returnType": "ResData\u003cTreeResCategoryTreeNode\u003e",
               "returnTypeDSL": "ResData\u003cTreeResCategoryTreeNode\u003e",
               "innerReturnType": "TreeResCategoryTreeNode",
@@ -3155,12 +3186,12 @@
               "method": "GET",
               "path": "/categories/tree/raw",
               "fullPath": "/articles/categories/tree/raw",
-              "returnType": "TreeRes\u003cCategoryTreeNode\u003e",
-              "returnTypeDSL": "TreeRes\u003cCategoryTreeNode\u003e",
-              "innerReturnType": "CategoryTreeNode",
-              "isReturnWrapped": true,
+              "isInputPointer": false,
+              "returnType": "TreeResCategoryTreeNode",
+              "returnTypeDSL": "TreeResCategoryTreeNode",
+              "innerReturnType": "TreeResCategoryTreeNode",
+              "isReturnWrapped": false,
               "isReturnArray": false,
-              "returnTypeBase": "TreeRes",
               "errorType": "none",
               "isErrorWrapped": false,
               "isNoWrap": true,
@@ -3179,6 +3210,8 @@
               "path": "/create",
               "fullPath": "/articles/create",
               "inputName": "CreateArticleArgs",
+              "inputGoType": "*CreateArticleArgs",
+              "isInputPointer": true,
               "returnType": "ResData\u003cArticle\u003e",
               "returnTypeDSL": "ResData\u003cArticle\u003e",
               "innerReturnType": "Article",
@@ -3228,6 +3261,7 @@
               "method": "GET",
               "path": "/raw/:id",
               "fullPath": "/articles/raw/:id",
+              "isInputPointer": false,
               "returnType": "Article",
               "returnTypeDSL": "Article",
               "innerReturnType": "Article",
@@ -3259,6 +3293,7 @@
               "method": "POST",
               "path": "/logout",
               "fullPath": "/articles/logout",
+              "isInputPointer": false,
               "returnType": "",
               "isReturnWrapped": false,
               "isReturnArray": false,
@@ -3294,6 +3329,8 @@
               "path": "/register",
               "fullPath": "/auth/register",
               "inputName": "RegisterInput",
+              "inputGoType": "*RegisterInput",
+              "isInputPointer": true,
               "returnType": "ResData\u003cUser\u003e",
               "returnTypeDSL": "ResData\u003cUser\u003e",
               "innerReturnType": "User",
@@ -3327,6 +3364,8 @@
               "path": "/period",
               "fullPath": "/auth/period",
               "inputName": "TaskPeriodInput",
+              "inputGoType": "*TaskPeriodInput",
+              "isInputPointer": true,
               "returnType": "ResData\u003cString\u003e",
               "returnTypeDSL": "ResData\u003cString\u003e",
               "innerReturnType": "string",
@@ -3360,6 +3399,8 @@
               "path": "/login",
               "fullPath": "/auth/login",
               "inputName": "LoginArgs",
+              "inputGoType": "*LoginArgs",
+              "isInputPointer": true,
               "returnType": "ResData\u003cToken\u003e",
               "returnTypeDSL": "ResData\u003cToken\u003e",
               "innerReturnType": "Token",
@@ -3399,6 +3440,7 @@
               "method": "GET",
               "path": "/me",
               "fullPath": "/auth/me",
+              "isInputPointer": false,
               "returnType": "ResData\u003cUser\u003e",
               "returnTypeDSL": "ResData\u003cUser\u003e",
               "innerReturnType": "User",
@@ -3423,6 +3465,8 @@
               "path": "/update",
               "fullPath": "/auth/update",
               "inputName": "UpdateInput",
+              "inputGoType": "*UpdateInput",
+              "isInputPointer": true,
               "returnType": "ResData\u003cUser\u003e",
               "returnTypeDSL": "ResData\u003cUser\u003e",
               "innerReturnType": "User",
@@ -3450,11 +3494,12 @@
             },
             {
               "name": "DeleteUser",
-              "doc": "管理员接口：需要特定角色，组合多个全局装饰器",
+              "doc": "管理员接口：需要特定角色，组合多个全局装饰器\nsssss",
               "sourceFile": "02_decorator_validator.res",
               "method": "DELETE",
               "path": "/:id",
               "fullPath": "/auth/:id",
+              "isInputPointer": false,
               "returnType": "ResData\u003cString\u003e",
               "returnTypeDSL": "ResData\u003cString\u003e",
               "innerReturnType": "string",
@@ -3521,6 +3566,7 @@
               "method": "GET",
               "path": "/:startTime",
               "fullPath": "/events/:startTime",
+              "isInputPointer": false,
               "returnType": "ResData\u003cEvent\u003e",
               "returnTypeDSL": "ResData\u003cEvent\u003e",
               "innerReturnType": "Event",
@@ -3555,6 +3601,8 @@
               "path": "/list",
               "fullPath": "/events/list",
               "inputName": "QueryEventsInput",
+              "inputGoType": "*QueryEventsInput",
+              "isInputPointer": true,
               "returnType": "ResData\u003c[Event]\u003e",
               "returnTypeDSL": "ResData\u003c[Event]\u003e",
               "innerReturnType": "[]*Event",
@@ -3589,6 +3637,8 @@
               "path": "/create",
               "fullPath": "/events/create",
               "inputName": "CreateEventInput",
+              "inputGoType": "*CreateEventInput",
+              "isInputPointer": true,
               "returnType": "ResData\u003cEvent\u003e",
               "returnTypeDSL": "ResData\u003cEvent\u003e",
               "innerReturnType": "Event",
@@ -3636,6 +3686,8 @@
               "path": "/json",
               "fullPath": "/content/json",
               "inputName": "JsonInput",
+              "inputGoType": "*JsonInput",
+              "isInputPointer": true,
               "returnType": "ResData\u003cString\u003e",
               "returnTypeDSL": "ResData\u003cString\u003e",
               "innerReturnType": "string",
@@ -3669,6 +3721,8 @@
               "path": "/form",
               "fullPath": "/content/form",
               "inputName": "FormInput",
+              "inputGoType": "*FormInput",
+              "isInputPointer": true,
               "returnType": "ResData\u003cString\u003e",
               "returnTypeDSL": "ResData\u003cString\u003e",
               "innerReturnType": "string",
@@ -3702,6 +3756,8 @@
               "path": "/form/nested",
               "fullPath": "/content/form/nested",
               "inputName": "NestedFormInput",
+              "inputGoType": "*NestedFormInput",
+              "isInputPointer": true,
               "returnType": "ResData\u003cString\u003e",
               "returnTypeDSL": "ResData\u003cString\u003e",
               "innerReturnType": "string",
@@ -3734,6 +3790,7 @@
               "method": "POST",
               "path": "/multipart",
               "fullPath": "/content/multipart",
+              "isInputPointer": false,
               "returnType": "ResData\u003cString\u003e",
               "returnTypeDSL": "ResData\u003cString\u003e",
               "innerReturnType": "string",
@@ -3778,6 +3835,7 @@
               "method": "GET",
               "path": "/text",
               "fullPath": "/export/text",
+              "isInputPointer": false,
               "returnType": "ResData\u003cString\u003e",
               "returnTypeDSL": "ResData\u003cString\u003e",
               "innerReturnType": "string",
@@ -3802,6 +3860,7 @@
               "method": "GET",
               "path": "/json",
               "fullPath": "/export/json",
+              "isInputPointer": false,
               "returnType": "ResData\u003cReport\u003e",
               "returnTypeDSL": "ResData\u003cReport\u003e",
               "innerReturnType": "Report",
@@ -3826,6 +3885,7 @@
               "method": "GET",
               "path": "/xml",
               "fullPath": "/export/xml",
+              "isInputPointer": false,
               "returnType": "ResData\u003cReport\u003e",
               "returnTypeDSL": "ResData\u003cReport\u003e",
               "innerReturnType": "Report",
@@ -3864,6 +3924,7 @@
               "method": "GET",
               "path": "/:id",
               "fullPath": "/products/:id",
+              "isInputPointer": false,
               "returnType": "ResData\u003cProduct\u003e",
               "returnTypeDSL": "ResData\u003cProduct\u003e",
               "innerReturnType": "Product",
@@ -3897,6 +3958,8 @@
               "path": "/create",
               "fullPath": "/products/create",
               "inputName": "CreateProductInput",
+              "inputGoType": "*CreateProductInput",
+              "isInputPointer": true,
               "returnType": "ResData\u003cProduct\u003e",
               "returnTypeDSL": "ResData\u003cProduct\u003e",
               "innerReturnType": "Product",
@@ -3929,6 +3992,7 @@
               "method": "POST",
               "path": "/batch-update",
               "fullPath": "/products/batch-update",
+              "isInputPointer": false,
               "returnType": "ResData\u003cString\u003e",
               "returnTypeDSL": "ResData\u003cString\u003e",
               "innerReturnType": "string",
@@ -3951,6 +4015,11 @@
                     {
                       "name": "Required"
                     }
+                  ],
+                  "itemValidators": [
+                    {
+                      "name": "Required"
+                    }
                   ]
                 }
               ],
@@ -3966,6 +4035,7 @@
               "method": "DELETE",
               "path": "/:id",
               "fullPath": "/products/:id",
+              "isInputPointer": false,
               "returnType": "String",
               "returnTypeDSL": "String",
               "innerReturnType": "string",
@@ -3998,12 +4068,13 @@
               "path": "/list",
               "fullPath": "/products/list",
               "inputName": "ListProductsArgs",
-              "returnType": "PageData\u003c[Product]\u003e",
-              "returnTypeDSL": "PageData\u003c[Product]\u003e",
-              "innerReturnType": "[]Product",
-              "isReturnWrapped": true,
-              "isReturnArray": true,
-              "returnTypeBase": "PageData",
+              "inputGoType": "*ListProductsArgs",
+              "isInputPointer": true,
+              "returnType": "PageDataListProduct",
+              "returnTypeDSL": "PageDataListProduct",
+              "innerReturnType": "PageDataListProduct",
+              "isReturnWrapped": false,
+              "isReturnArray": false,
               "errorType": "none",
               "isErrorWrapped": false,
               "isNoWrap": true,
@@ -4044,6 +4115,7 @@
               "method": "GET",
               "path": "/product/:id",
               "fullPath": "/raw/product/:id",
+              "isInputPointer": false,
               "returnType": "Product",
               "returnTypeDSL": "Product",
               "innerReturnType": "Product",
@@ -4075,6 +4147,7 @@
               "method": "GET",
               "path": "/products",
               "fullPath": "/raw/products",
+              "isInputPointer": false,
               "returnType": "ResData\u003c[Product]\u003e",
               "returnTypeDSL": "ResData\u003c[Product]\u003e",
               "innerReturnType": "[]*Product",
@@ -4122,6 +4195,8 @@
               "path": "/avatar",
               "fullPath": "/files/avatar",
               "inputName": "UploadAvatarInput",
+              "inputGoType": "*UploadAvatarInput",
+              "isInputPointer": true,
               "returnType": "ResData\u003cUploadResult\u003e",
               "returnTypeDSL": "ResData\u003cUploadResult\u003e",
               "innerReturnType": "UploadResult",
@@ -4155,6 +4230,8 @@
               "path": "/document",
               "fullPath": "/files/document",
               "inputName": "UploadDocumentInput",
+              "inputGoType": "*UploadDocumentInput",
+              "isInputPointer": true,
               "returnType": "ResData\u003cUploadResult\u003e",
               "returnTypeDSL": "ResData\u003cUploadResult\u003e",
               "innerReturnType": "UploadResult",
@@ -4187,6 +4264,7 @@
               "method": "GET",
               "path": "/download/:id",
               "fullPath": "/files/download/:id",
+              "isInputPointer": false,
               "returnType": "File",
               "returnTypeDSL": "File",
               "innerReturnType": "LocalFileDownload",
@@ -4219,6 +4297,7 @@
               "method": "GET",
               "path": "/export/csv",
               "fullPath": "/files/export/csv",
+              "isInputPointer": false,
               "returnType": "File",
               "returnTypeDSL": "File",
               "innerReturnType": "LocalFileDownload",
@@ -4251,6 +4330,7 @@
               "method": "GET",
               "path": "/dynamic/:id",
               "fullPath": "/files/dynamic/:id",
+              "isInputPointer": false,
               "returnType": "File",
               "returnTypeDSL": "File",
               "innerReturnType": "LocalFileDownload",
@@ -4296,6 +4376,7 @@
               "method": "GET",
               "path": "/:id",
               "fullPath": "/posts/:id",
+              "isInputPointer": false,
               "returnType": "ResData\u003cContentPostItem\u003e",
               "returnTypeDSL": "ResData\u003cContentPostItem\u003e",
               "innerReturnType": "ContentPostItem",
@@ -4329,6 +4410,8 @@
               "path": "/",
               "fullPath": "/posts/",
               "inputName": "CreatePostInput",
+              "inputGoType": "CreatePostInput",
+              "isInputPointer": false,
               "returnType": "ResData\u003cContentPostItem\u003e",
               "returnTypeDSL": "ResData\u003cContentPostItem\u003e",
               "innerReturnType": "ContentPostItem",
@@ -4367,6 +4450,8 @@
               "path": "/batch",
               "fullPath": "/posts/batch",
               "inputName": "BatchCreatePostInput",
+              "inputGoType": "BatchCreatePostInput",
+              "isInputPointer": false,
               "returnType": "ResData\u003cBatchCreatePostResult\u003e",
               "returnTypeDSL": "ResData\u003cBatchCreatePostResult\u003e",
               "innerReturnType": "BatchCreatePostResult",
@@ -4418,6 +4503,8 @@
               "path": "/create",
               "fullPath": "/enum/create",
               "inputName": "CreateUserInput",
+              "inputGoType": "CreateUserInput",
+              "isInputPointer": false,
               "returnType": "ResData\u003cUserWithRole\u003e",
               "returnTypeDSL": "ResData\u003cUserWithRole\u003e",
               "innerReturnType": "UserWithRole",
@@ -4456,6 +4543,8 @@
               "path": "/query",
               "fullPath": "/enum/query",
               "inputName": "QueryByRoleArgs",
+              "inputGoType": "*QueryByRoleArgs",
+              "isInputPointer": true,
               "returnType": "ResData\u003cUserWithRole\u003e",
               "returnTypeDSL": "ResData\u003cUserWithRole\u003e",
               "innerReturnType": "UserWithRole",
@@ -4686,6 +4775,11 @@
               "name": "Required"
             }
           ],
+          "itemValidators": [
+            {
+              "name": "Required"
+            }
+          ],
           "tags": {
             "application/json": "rows",
             "application/toml": "rows",
@@ -4798,6 +4892,11 @@
           "jsonName": "items",
           "originalType": "T",
           "validators": [
+            {
+              "name": "Required"
+            }
+          ],
+          "itemValidators": [
             {
               "name": "Required"
             }
@@ -5129,7 +5228,7 @@
           "type": "CategoryTreeNode",
           "jsonName": "children",
           "originalType": "CategoryTreeNode",
-          "validators": [
+          "itemValidators": [
             {
               "name": "Required"
             }
@@ -5429,7 +5528,7 @@
         {
           "name": "expires_at",
           "type": "Int",
-          "jsonName": "expiresAt",
+          "jsonName": "expires_at",
           "originalType": "Int",
           "validators": [
             {
@@ -5441,7 +5540,7 @@
             "application/toml": "expires_at",
             "application/x-www-form-urlencoded": "expires_at",
             "application/x-yaml": "expires_at",
-            "application/xml": "expiresAt",
+            "application/xml": "expires_at",
             "form": "expires_at",
             "html": "expires_at",
             "json": "expires_at",
@@ -5451,7 +5550,7 @@
             "text/html": "expires_at",
             "text/plain": "expires_at",
             "toml": "expires_at",
-            "xml": "expiresAt",
+            "xml": "expires_at",
             "yaml": "expires_at"
           },
           "isUnion": false
@@ -5714,7 +5813,7 @@
         {
           "name": "start_time",
           "type": "Int",
-          "jsonName": "startTime",
+          "jsonName": "start_time",
           "originalType": "Int",
           "validators": [
             {
@@ -5740,7 +5839,7 @@
             "application/toml": "start_time",
             "application/x-www-form-urlencoded": "start_time",
             "application/x-yaml": "start_time",
-            "application/xml": "startTime",
+            "application/xml": "start_time",
             "form": "start_time",
             "html": "start_time",
             "json": "start_time",
@@ -5750,7 +5849,7 @@
             "text/html": "start_time",
             "text/plain": "start_time",
             "toml": "start_time",
-            "xml": "startTime",
+            "xml": "start_time",
             "yaml": "start_time"
           },
           "isUnion": false
@@ -5758,7 +5857,7 @@
         {
           "name": "end_time",
           "type": "Int",
-          "jsonName": "endTime",
+          "jsonName": "end_time",
           "originalType": "Int",
           "validators": [
             {
@@ -5770,7 +5869,7 @@
             "application/toml": "end_time",
             "application/x-www-form-urlencoded": "end_time",
             "application/x-yaml": "end_time",
-            "application/xml": "endTime",
+            "application/xml": "end_time",
             "form": "end_time",
             "html": "end_time",
             "json": "end_time",
@@ -5780,7 +5879,7 @@
             "text/html": "end_time",
             "text/plain": "end_time",
             "toml": "end_time",
-            "xml": "endTime",
+            "xml": "end_time",
             "yaml": "end_time"
           },
           "isUnion": false
@@ -7779,6 +7878,11 @@
               "name": "Required"
             }
           ],
+          "itemValidators": [
+            {
+              "name": "Required"
+            }
+          ],
           "tags": {
             "application/json": "items",
             "application/toml": "items",
@@ -7875,6 +7979,11 @@
           "jsonName": "items",
           "originalType": "ContentPostItem",
           "validators": [
+            {
+              "name": "Required"
+            }
+          ],
+          "itemValidators": [
             {
               "name": "Required"
             }
@@ -8123,6 +8232,11 @@
               "name": "Required"
             }
           ],
+          "itemValidators": [
+            {
+              "name": "Required"
+            }
+          ],
           "tags": {
             "application/json": "rows",
             "application/toml": "rows",
@@ -8195,6 +8309,11 @@
               "name": "Required"
             }
           ],
+          "itemValidators": [
+            {
+              "name": "Required"
+            }
+          ],
           "tags": {
             "application/json": "items",
             "application/toml": "items",
@@ -8243,6 +8362,111 @@
             "toml": "total",
             "xml": "total",
             "yaml": "total"
+          },
+          "isUnion": false
+        }
+      ]
+    },
+    {
+      "name": "PageDataListProduct",
+      "doc": "分页专用包装器 (单态化展开自 PageData\u003c[Product]\u003e)",
+      "module": "Default",
+      "sourceFile": "05_status_wrap.res",
+      "isInput": false,
+      "isWrapper": false,
+      "fields": [
+        {
+          "name": "list",
+          "type": "Product",
+          "jsonName": "list",
+          "originalType": "Product",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ],
+          "itemValidators": [
+            {
+              "name": "Required"
+            }
+          ],
+          "tags": {
+            "application/json": "list",
+            "application/toml": "list",
+            "application/x-www-form-urlencoded": "list",
+            "application/x-yaml": "list",
+            "application/xml": "list",
+            "form": "list",
+            "html": "list",
+            "json": "list",
+            "multipart": "list",
+            "multipart/form-data": "list",
+            "text": "list",
+            "text/html": "list",
+            "text/plain": "list",
+            "toml": "list",
+            "xml": "list",
+            "yaml": "list"
+          },
+          "isUnion": false
+        },
+        {
+          "name": "total",
+          "type": "Int",
+          "jsonName": "total",
+          "originalType": "Int",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ],
+          "tags": {
+            "application/json": "total",
+            "application/toml": "total",
+            "application/x-www-form-urlencoded": "total",
+            "application/x-yaml": "total",
+            "application/xml": "total",
+            "form": "total",
+            "html": "total",
+            "json": "total",
+            "multipart": "total",
+            "multipart/form-data": "total",
+            "text": "total",
+            "text/html": "total",
+            "text/plain": "total",
+            "toml": "total",
+            "xml": "total",
+            "yaml": "total"
+          },
+          "isUnion": false
+        },
+        {
+          "name": "page",
+          "type": "Int",
+          "jsonName": "page",
+          "originalType": "Int",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ],
+          "tags": {
+            "application/json": "page",
+            "application/toml": "page",
+            "application/x-www-form-urlencoded": "page",
+            "application/x-yaml": "page",
+            "application/xml": "page",
+            "form": "page",
+            "html": "page",
+            "json": "page",
+            "multipart": "page",
+            "multipart/form-data": "page",
+            "text": "page",
+            "text/html": "page",
+            "text/plain": "page",
+            "toml": "page",
+            "xml": "page",
+            "yaml": "page"
           },
           "isUnion": false
         }
@@ -8375,6 +8599,11 @@
           "type": "String",
           "jsonName": "title",
           "originalType": "String",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ],
           "tags": {
             "application/json": "title",
             "application/toml": "title",
@@ -8400,6 +8629,11 @@
           "type": "String",
           "jsonName": "content",
           "originalType": "String",
+          "validators": [
+            {
+              "name": "Required"
+            }
+          ],
           "tags": {
             "application/json": "content",
             "application/toml": "content",

@@ -50,12 +50,17 @@ func (b *mockWrapperDemoBiz) GetCategoryTree(ctx context.Context) (*resolver.Tre
 	}, nil
 }
 
-func (b *mockWrapperDemoBiz) GetCategoryTreeRaw(ctx context.Context) (*resolver.CategoryTreeNode, error) {
-	return &resolver.CategoryTreeNode{
-		ID:       1,
-		ParentId: 0,
-		Name:     "裸树节点",
-		Sort:     1,
+func (b *mockWrapperDemoBiz) GetCategoryTreeRaw(ctx context.Context) (*resolver.TreeResCategoryTreeNode, error) {
+	return &resolver.TreeResCategoryTreeNode{
+		Items: []resolver.CategoryTreeNode{
+			{
+				ID:       1,
+				ParentId: 0,
+				Name:     "裸树节点",
+				Sort:     1,
+			},
+		},
+		Total: 1,
 	}, nil
 }
 
@@ -169,7 +174,7 @@ func TestWrapperDemo_Endpoints(t *testing.T) {
 		if ctx.resCode != 200 {
 			t.Fatalf("期望状态码 200, 实际为: %d", ctx.resCode)
 		}
-		treeRes, ok := ctx.resBody.(resolver.TreeRes)
+		treeRes, ok := ctx.resBody.(*resolver.TreeResCategoryTreeNode)
 		if !ok || len(treeRes.Items) != 1 {
 			t.Fatalf("TreeRes 包装器返回不匹配: %+v", ctx.resBody)
 		}

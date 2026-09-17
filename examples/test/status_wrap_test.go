@@ -30,12 +30,16 @@ func (b *mockStatusDemoBiz) DeleteProduct(ctx context.Context, id *int) (*string
 	return &msg, nil
 }
 
-func (b *mockStatusDemoBiz) ListProducts(ctx context.Context, input *resolver.ListProductsArgs) ([]resolver.Product, error) {
+func (b *mockStatusDemoBiz) ListProducts(ctx context.Context, input *resolver.ListProductsArgs) (*resolver.PageDataListProduct, error) {
 	list := []resolver.Product{
 		{ID: 1, Name: "商品1", Price: 99.0},
 		{ID: 2, Name: "商品2", Price: 199.0},
 	}
-	return list, nil
+	return &resolver.PageDataListProduct{
+		List:  list,
+		Total: 2,
+		Page:  1,
+	}, nil
 }
 
 func (b *mockStatusDemoBiz) GetRawProduct(ctx context.Context, id *int) (*resolver.Product, error) {
@@ -112,8 +116,8 @@ func TestStatusDemo_StatusCodesAndWrapOverrides(t *testing.T) {
 		if ctx.resCode != 200 {
 			t.Fatalf("期望状态码 200, 实际为: %d", ctx.resCode)
 		}
-		res, ok := ctx.resBody.(resolver.PageData)
-		if !ok || res.Total != 100 {
+		res, ok := ctx.resBody.(*resolver.PageDataListProduct)
+		if !ok || res.Total != 2 {
 			t.Fatalf("PageData 包装器解析失败: %+v", ctx.resBody)
 		}
 	})

@@ -29,12 +29,6 @@ type LocalFileDownload struct {
 	ContentType string // 文件 MIME 类型。若 DSL 中已声明已知格式 (如 ctype=pdf)，留空即可由执行器强行注入契约 MIME
 }
 
-// Core Engine Definitions
-type CodedError interface {
-	error
-	Code() int
-}
-
 // ServerContextBase 包含了底层 Web 框架的通用参数绑定与渲染契约
 // 框架适配层（如 GinContext）必须实现此接口。
 type ServerContextBase interface {
@@ -91,6 +85,22 @@ type MethodInfo struct {
 	Path       string
 	HandlerPos string // 新增：可一键在控制台点击跳转的物理处理器路径
 }
+
+{{- if .Config.Generator.AuthDecorator}}
+// PermDefine 权限标识定义
+type PermDefine struct {
+	Module string
+	Perm   string
+	Title  string
+}
+
+// SystemPerms 全系统注册的权限标识字典
+var SystemPerms = []PermDefine{
+{{- range .SystemPerms}}
+	{Module: "{{.Module}}", Perm: "{{.Perm}}", Title: "{{.Title}}"},{{if .Doc}} // {{.Doc}}{{end}}
+{{- end}}
+}
+{{- end}}
 
 // Engine 核心 API 引擎
 type Engine[C ServerContextBase] struct {

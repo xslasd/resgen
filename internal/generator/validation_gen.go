@@ -7,6 +7,10 @@ import (
 
 // parseGoType extracts array and pointer modifiers from a Go type string
 func parseGoType(goType string) (isArray, isPointer, isElementPointer bool, baseType string) {
+	if strings.HasPrefix(goType, "*") {
+		isPointer = true
+		goType = goType[1:]
+	}
 	if strings.HasPrefix(goType, "[]") {
 		isArray = true
 		goType = goType[2:]
@@ -23,43 +27,74 @@ func parseGoType(goType string) (isArray, isPointer, isElementPointer bool, base
 	return
 }
 
+func hasAnyValidation(validators, itemValidators []MetaInfo, isEnum bool, refModel *ModelInfo) bool {
+	if len(validators) > 0 || len(itemValidators) > 0 || isEnum {
+		return true
+	}
+	if refModel != nil {
+		for _, f := range refModel.Fields {
+			if hasAnyValidation(f.Validators, f.ItemValidators, f.IsEnum, f.RefModel) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func generateValidationCode(method *MethodInfo) string {
 	var sb strings.Builder
 	
-	var walk func(validators []MetaInfo, accessor, jsonPath, goType string, isEnum bool, refModel *ModelInfo, indent string)
-	walk = func(validators []MetaInfo, accessor, jsonPath, goType string, isEnum bool, refModel *ModelInfo, indent string) {
+	var walk func(validators, itemValidators []MetaInfo, accessor, jsonPath, goType string, isEnum bool, refModel *ModelInfo, indent string)
+	walk = func(validators, itemValidators []MetaInfo, accessor, jsonPath, goType string, isEnum bool, refModel *ModelInfo, indent string) {
+		if !hasAnyValidation(validators, itemValidators, isEnum, refModel) {
+			return
+		}
+
 		isArray, isPointer, isElementPointer, baseType := parseGoType(goType)
 
 		// 1. Process array
 		if isArray {
+			callAccessor := accessor
+			innerIndent := indent
 			if isPointer {
 				sb.WriteString(fmt.Sprintf("%sif %s != nil {\n", indent, accessor))
-				indent += "\t"
+				innerIndent += "\t"
+				callAccessor = "*" + accessor
 			}
-			
-			// A simple way to avoid conflicts is to base it on depth, but 'item' is usually fine if we don't nest arrays. 
-			// If we do, we might need i1, item1. For simplicity, we just use i, item (resgen currently doesn't support multidimensional arrays)
-			
-			sb.WriteString(fmt.Sprintf("%sfor i, item := range %s {\n", indent, accessor))
-			
-			itemAccessor := "item"
-			if isElementPointer {
-				sb.WriteString(fmt.Sprintf("%s\tif item != nil {\n", indent))
-				// inner block
-				itemJSONPath := fmt.Sprintf("%s + \"[\" + strconv.Itoa(i) + \"]\"", jsonPath)
-				// Re-call walk for the item type
-				walk(validators, itemAccessor, itemJSONPath, "*"+baseType, isEnum, refModel, indent+"\t\t")
+
+			// 数组本身的校验器（如 ArrNotNull 带来的 Required、切片长度 MinLen/MaxLen 等）
+			for _, v := range validators {
+				var vArgs []string
+				for _, a := range v.Args {
+					vArgs = append(vArgs, a.GoValue)
+				}
+				argsStr := strings.Join(vArgs, ", ")
+				if argsStr != "" {
+					argsStr = ", " + argsStr
+				}
+				sb.WriteString(fmt.Sprintf("%sif err := e.v.%s(ctx, %s, %s%s); err != nil { return err }\n", innerIndent, v.Name, jsonPath, callAccessor, argsStr))
+			}
+
+			// 数组元素的校验（遍历切片）
+			if hasAnyValidation(itemValidators, nil, isEnum, refModel) {
+				rangeTarget := accessor
+				if isPointer {
+					rangeTarget = "*" + accessor
+				}
+				sb.WriteString(fmt.Sprintf("%sfor i, item := range %s {\n", innerIndent, rangeTarget))
 				
-				sb.WriteString(fmt.Sprintf("%s\t}\n", indent))
-			} else {
+				itemAccessor := "item"
 				itemJSONPath := fmt.Sprintf("%s + \"[\" + strconv.Itoa(i) + \"]\"", jsonPath)
-				walk(validators, itemAccessor, itemJSONPath, baseType, isEnum, refModel, indent+"\t")
+				if isElementPointer {
+					walk(itemValidators, nil, itemAccessor, itemJSONPath, "*"+baseType, isEnum, refModel, innerIndent+"\t")
+				} else {
+					walk(itemValidators, nil, itemAccessor, itemJSONPath, baseType, isEnum, refModel, innerIndent+"\t")
+				}
+				
+				sb.WriteString(fmt.Sprintf("%s}\n", innerIndent))
 			}
-			
-			sb.WriteString(fmt.Sprintf("%s}\n", indent))
 			
 			if isPointer {
-				indent = indent[:len(indent)-1]
 				sb.WriteString(fmt.Sprintf("%s}\n", indent))
 			}
 			return
@@ -106,12 +141,8 @@ func generateValidationCode(method *MethodInfo) string {
 		if refModel != nil {
 			for _, field := range refModel.Fields {
 				fieldAccessor := fmt.Sprintf("%s.%s", accessor, field.Name)
-				if isPointer {
-					// wait, if it's a pointer to struct, the struct field is accessed via accessor.Name directly in Go
-					// e.g. input.User.Email
-				}
 				fieldJSONPath := fmt.Sprintf("%s + \".%s\"", jsonPath, field.JSONName)
-				walk(field.Validators, fieldAccessor, fieldJSONPath, field.GoType, field.IsEnum, field.RefModel, innerIndent)
+				walk(field.Validators, field.ItemValidators, fieldAccessor, fieldJSONPath, field.GoType, field.IsEnum, field.RefModel, innerIndent)
 			}
 		}
 
@@ -122,13 +153,13 @@ func generateValidationCode(method *MethodInfo) string {
 
 	if method.IsArgsWrapped {
 		for _, arg := range method.Args {
-			walk(arg.Validators, "input."+arg.GoName, `"`+arg.Name+`"`, arg.GoType, arg.IsEnum, arg.RefModel, "\t")
+			walk(arg.Validators, arg.ItemValidators, "input."+arg.GoName, `"`+arg.Name+`"`, arg.GoType, arg.IsEnum, arg.RefModel, "\t")
 		}
 	} else if len(method.Args) > 0 {
 		inputModel := method.Args[0].RefModel
 		if inputModel != nil {
 			for _, field := range inputModel.Fields {
-				walk(field.Validators, "input."+field.Name, `"`+field.JSONName+`"`, field.GoType, field.IsEnum, field.RefModel, "\t")
+				walk(field.Validators, field.ItemValidators, "input."+field.Name, `"`+field.JSONName+`"`, field.GoType, field.IsEnum, field.RefModel, "\t")
 			}
 		}
 	}

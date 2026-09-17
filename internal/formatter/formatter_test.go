@@ -70,3 +70,30 @@ group /users {
 		t.Fatalf("Parse error on formatted content: %v\nFormatted source:\n%s", err, output)
 	}
 }
+
+func TestFormatSingleArgMultilineCollapse(t *testing.T) {
+	input := `module test
+
+group /oper {
+    DELETE /sys-oper-log => DeleteSysOperLog(
+        req: SysOperLogDeleteReq!
+    )
+}
+`
+	schema, err := parser.ParseFileContent("multiline.res", input)
+	if err != nil {
+		t.Fatalf("Parse error: %v", err)
+	}
+
+	var buf bytes.Buffer
+	f := NewFormatter(4)
+	if err := f.Format(schema, &buf); err != nil {
+		t.Fatalf("Format error: %v", err)
+	}
+
+	output := buf.String()
+	expected := "DELETE /sys-oper-log => DeleteSysOperLog(req: SysOperLogDeleteReq!)"
+	if !strings.Contains(output, expected) {
+		t.Errorf("Expected output to collapse single arg into single line: %s, got:\n%s", expected, output)
+	}
+}

@@ -345,7 +345,8 @@ func formatTypeRef(t parser.TypeRef) string {
 		}
 		res += "<" + strings.Join(args, ", ") + ">"
 	}
-	if t.IsArray {
+	depth := t.GetArrayDepth()
+	for i := 0; i < depth; i++ {
 		res = "[" + res + "]"
 	}
 	return res
@@ -379,8 +380,11 @@ func applyTypeModifiers(base string, t parser.TypeRef) string {
 	if !t.ItemNotNull && t.Name != "File" && t.Name != "Any" && t.Name != "Field" && !strings.HasPrefix(res, "*") && !strings.Contains(res, "any") {
 		res = "*" + res
 	}
-	if t.IsArray {
-		res = "[]" + res
+	depth := t.GetArrayDepth()
+	if depth > 0 {
+		for i := 0; i < depth; i++ {
+			res = "[]" + res
+		}
 		if !t.ArrNotNull {
 			res = "*" + res
 		}
@@ -401,6 +405,7 @@ type ModelField struct {
 	OriginalType          string            `json:"originalType"`
 	GoValue               string            `json:"value,omitempty"`
 	Validators            []MetaInfo        `json:"validators,omitempty"`
+	ItemValidators        []MetaInfo        `json:"itemValidators,omitempty"`
 	Tag                   string            `json:"-"`
 	Tags                  map[string]string `json:"tags,omitempty"`
 	XMLName               string            `json:"-"`
@@ -550,7 +555,8 @@ type ArgumentInfo struct {
 	BaseGoType  string     `json:"-"`
 	GoName      string     `json:"-"`
 	Source      string     `json:"source"`
-	Validators  []MetaInfo `json:"validators,omitempty"`
+	Validators     []MetaInfo `json:"validators,omitempty"`
+	ItemValidators []MetaInfo `json:"itemValidators,omitempty"`
 	RefModel    *ModelInfo `json:"-"`
 }
 
@@ -569,6 +575,13 @@ type MetaInfo struct {
 type RenderFuncInfo struct {
 	Name     string `json:"-"` // e.g. "Json", "Text"
 	MimeType string `json:"-"` // e.g. "application/json"
+}
+
+type PermDefine struct {
+	Module string
+	Perm   string
+	Title  string
+	Doc    string `json:"-"`
 }
 
 type DataContext struct {
@@ -592,6 +605,7 @@ type DataContext struct {
 	ExtraImports                []string               `json:"-"`
 	RenderFuncs                 []RenderFuncInfo       `json:"-"` // 收集用到的所有渲染函数
 	ModuleSpecializedDecorators map[string][]MetaInfo  `json:"-"` // 按模块收集特化装饰器
+	SystemPerms                 []PermDefine           `json:"-"` // 全系统注册的权限标识字典
 }
 
 type ApiInfo struct {
@@ -725,10 +739,14 @@ func monomorphizeAST(schema *parser.Schema, defaultWrap string) {
 				return
 			}
 
-			// 生成单态化名称，例如 ListResRoleInfo
+			// 生成单态化名称，例如 ListResRoleInfo；如果泛型实参是切片，则增加 List 前缀，如 ListResListRoleInfo
 			monoName := t.Name
 			for _, arg := range t.TypeArgs {
-				monoName += capitalize(arg.Name)
+				argName := capitalize(arg.Name)
+				for i := 0; i < arg.GetArrayDepth(); i++ {
+					argName = "List" + argName
+				}
+				monoName += argName
 			}
 
 			if !generated[monoName] {
@@ -763,13 +781,18 @@ func monomorphizeAST(schema *parser.Schema, defaultWrap string) {
 						if argRef, isGeneric := paramMap[tr.Name]; isGeneric {
 							tr.Name = argRef.Name
 							tr.TypeArgs = argRef.TypeArgs
-							if argRef.IsArray {
+
+							currentDepth := tr.GetArrayDepth()
+							argDepth := argRef.GetArrayDepth()
+							totalDepth := currentDepth + argDepth
+							if totalDepth > 0 {
 								tr.IsArray = true
+								tr.ArrayDepth = totalDepth
 							}
 							if argRef.ItemNotNull {
 								tr.ItemNotNull = true
 							}
-							if argRef.ArrNotNull {
+							if argRef.ArrNotNull || (currentDepth > 0 && tr.ArrNotNull) {
 								tr.ArrNotNull = true
 							}
 						}
@@ -1146,8 +1169,8 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 					for _, tp := range m.TypeParams {
 						if field.Type.Name == tp {
 							goType = "any"
-							if field.Type.IsArray {
-								goType = "[]any"
+							if field.Type.GetArrayDepth() > 0 {
+								goType = strings.Repeat("[]", field.Type.GetArrayDepth()) + "any"
 							}
 							break
 						}
@@ -1155,8 +1178,8 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 				}
 				if ctx.UnionMap[field.Type.Name] != nil {
 					goType = "any"
-					if field.Type.IsArray {
-						goType = "[]any"
+					if field.Type.GetArrayDepth() > 0 {
+						goType = strings.Repeat("[]", field.Type.GetArrayDepth()) + "any"
 					}
 				}
 				alias := extractAliasDirective(field.Directives)
@@ -1309,15 +1332,31 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 		if decl.Model != nil {
 			m := ctx.ModelMap[decl.Model.Name]
 			for i, field := range decl.Model.Properties {
-				if field.Type.ItemNotNull {
+				isArr := field.Type.GetArrayDepth() > 0
+				if (!isArr && field.Type.ItemNotNull) || (isArr && field.Type.ArrNotNull) {
 					m.Fields[i].Validators = append(m.Fields[i].Validators, requiredInfo)
+				}
+				if isArr && field.Type.ItemNotNull {
+					m.Fields[i].ItemValidators = append(m.Fields[i].ItemValidators, requiredInfo)
 				}
 				for _, d := range field.Directives {
 					switch strings.ToLower(d.Name) {
 					case "path", "query", "header":
 						m.Fields[i].Source = capitalize(d.Name)
 						continue
-					case "required", "alias":
+					case "alias":
+						continue
+					case "required":
+						hasReq := false
+						for _, v := range m.Fields[i].Validators {
+							if strings.EqualFold(v.Name, "required") {
+								hasReq = true
+								break
+							}
+						}
+						if !hasReq {
+							m.Fields[i].Validators = append(m.Fields[i].Validators, requiredInfo)
+						}
 						continue
 					}
 					vInfo, _ := validatorMap[strings.ToLower(d.Name)]
@@ -1479,23 +1518,37 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 							returnTypeBase = baseModel.Name
 							if len(ep.ReturnType.TypeArgs) > 0 {
 								innerReturnType = ToGoType(ep.ReturnType.TypeArgs[0], ctx.Config, &ctx.ExtraImports, ep.Name+".InnerReturn", ctx.ModelMap)
-								isReturnArray = ep.ReturnType.TypeArgs[0].IsArray
+								isReturnArray = ep.ReturnType.TypeArgs[0].GetArrayDepth() > 0
 							}
 						} else {
-							isReturnArray = ep.ReturnType.IsArray
+							isReturnArray = ep.ReturnType.GetArrayDepth() > 0
 						}
 					} else {
-						isReturnArray = ep.ReturnType.IsArray
+						isReturnArray = ep.ReturnType.GetArrayDepth() > 0
 					}
 				}
 
-				// 接口级装饰器（组级已统一继承）
+				// 接口级装饰器（组级已统一继承，接口级同名装饰器覆盖组级）
 				var filteredDirectives []parser.DirectiveUsage
-				for _, d := range decl.Group.Directives {
-					filteredDirectives = append(filteredDirectives, d)
+				epDirectivesConsumed := make([]bool, len(ep.Directives))
+				for _, gd := range decl.Group.Directives {
+					overridden := false
+					for idx, ed := range ep.Directives {
+						if strings.EqualFold(gd.Name, ed.Name) {
+							filteredDirectives = append(filteredDirectives, ed)
+							epDirectivesConsumed[idx] = true
+							overridden = true
+							break
+						}
+					}
+					if !overridden {
+						filteredDirectives = append(filteredDirectives, gd)
+					}
 				}
-				for _, d := range ep.Directives {
-					filteredDirectives = append(filteredDirectives, d)
+				for idx, ed := range ep.Directives {
+					if !epDirectivesConsumed[idx] {
+						filteredDirectives = append(filteredDirectives, ed)
+					}
 				}
 
 				isSuccessNoWrap := false
@@ -1653,15 +1706,31 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 					if arg.Type.Name == "File" {
 						argInfo.Source = "Form"
 					}
-					if arg.Type.ItemNotNull {
+					isArr := arg.Type.GetArrayDepth() > 0
+					if (!isArr && arg.Type.ItemNotNull) || (isArr && arg.Type.ArrNotNull) {
 						argInfo.Validators = append(argInfo.Validators, requiredInfo)
+					}
+					if isArr && arg.Type.ItemNotNull {
+						argInfo.ItemValidators = append(argInfo.ItemValidators, requiredInfo)
 					}
 
 					for _, d := range arg.Directives {
 						switch strings.ToLower(d.Name) {
 						case "path", "query", "header":
 							argInfo.Source = capitalize(d.Name)
-						case "required", "alias":
+						case "alias":
+							continue
+						case "required":
+							hasReq := false
+							for _, v := range argInfo.Validators {
+								if strings.EqualFold(v.Name, "required") {
+									hasReq = true
+									break
+								}
+							}
+							if !hasReq {
+								argInfo.Validators = append(argInfo.Validators, requiredInfo)
+							}
 							continue
 						default:
 							vInfo, _ := validatorMap[strings.ToLower(d.Name)]
@@ -1709,18 +1778,20 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 					inputModel := &ModelInfo{Name: inputModelName, IsInput: true, Module: modName}
 					for _, arg := range args {
 						inputModel.Fields = append(inputModel.Fields, ModelField{
-							Name:         arg.GoName,
-							JSONName:     arg.Name,
-							Alias:        arg.Alias,
-							Doc:          arg.Doc,
-							Type:         arg.Type,
-							GoType:       arg.GoType,
-							IsScalar:     arg.IsScalar || ctx.Enums[arg.Type] != nil,
-							IsEnum:       arg.IsEnum || ctx.Enums[arg.Type] != nil,
-							ScalarModel:  arg.ScalarModel,
-							BaseGoType:   arg.BaseGoType,
-							OriginalType: arg.Type,
-							Tag:          generateTags(arg.Name, ctx.Config, arg.Alias),
+							Name:           arg.GoName,
+							JSONName:       arg.Name,
+							Alias:          arg.Alias,
+							Doc:            arg.Doc,
+							Type:           arg.Type,
+							GoType:         arg.GoType,
+							IsScalar:       arg.IsScalar || ctx.Enums[arg.Type] != nil,
+							IsEnum:         arg.IsEnum || ctx.Enums[arg.Type] != nil,
+							ScalarModel:    arg.ScalarModel,
+							BaseGoType:     arg.BaseGoType,
+							OriginalType:   arg.Type,
+							Tag:            generateTags(arg.Name, ctx.Config, arg.Alias),
+							Validators:     arg.Validators,
+							ItemValidators: arg.ItemValidators,
 						})
 						if arg.IsScalar || ctx.Enums[arg.Type] != nil {
 							inputModel.HasScalar = true
@@ -1803,6 +1874,9 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 						permissionVal := ""
 						authParam := strings.TrimPrefix(ctx.Config.Generator.AuthParamName, "@")
 
+						// 检查是否显式标记为仅登录模式 (如 @auth(true) 或 @auth(login_only: true))
+						isLoginOnly := false
+
 						if authParam != "" {
 							// 寻找匹配指定参数名的参数值，同时兼容没有写参数名的位置参数
 							for idx, arg := range d.Args {
@@ -1811,27 +1885,64 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 									paramName = dInfo.Args[idx].Name
 								}
 
+								// 检查是否包含 login_only 等仅登录免权限标记
+								if strings.EqualFold(paramName, "login_only") || strings.EqualFold(paramName, "loginonly") {
+									if arg.Value.Ident != nil && *arg.Value.Ident == "true" {
+										isLoginOnly = true
+									}
+								}
+
 								if strings.EqualFold(paramName, authParam) {
 									if arg.Value.String != nil {
 										permissionVal = *arg.Value.String
-									} else if arg.Value.Ident != nil {
+									} else if arg.Value.Ident != nil && *arg.Value.Ident != "true" && *arg.Value.Ident != "false" {
 										permissionVal = *arg.Value.Ident
 									}
-									break
 								}
 							}
 						} else {
-							// 若未配置参数名，默认取第一个参数
-							if len(d.Args) > 0 {
-								arg := d.Args[0]
-								if arg.Value.String != nil {
-									permissionVal = *arg.Value.String
-								} else if arg.Value.Ident != nil {
-									permissionVal = *arg.Value.Ident
+							// 若未配置参数名：遍历参数寻找权限码或布尔开关
+							for idx, arg := range d.Args {
+								paramName := arg.Name
+								if paramName == "" && idx < len(dInfo.Args) {
+									paramName = dInfo.Args[idx].Name
+								}
+								paramType := ""
+								if idx < len(dInfo.Args) {
+									paramType = dInfo.Args[idx].Type
+								}
+
+								isBool := strings.EqualFold(paramType, "Boolean") || strings.EqualFold(paramType, "bool")
+								if arg.Value.Ident != nil && (*arg.Value.Ident == "true" || *arg.Value.Ident == "false") {
+									isBool = true
+								}
+
+								if isBool {
+									if arg.Value.Ident != nil && *arg.Value.Ident == "true" {
+										// 布尔值为 true，且形参名为 login_only 或未指定形参名(如 @auth(true))，判定为仅登录放行模式
+										if strings.EqualFold(paramName, "login_only") || strings.EqualFold(paramName, "loginonly") || paramName == "" || len(d.Args) == 1 {
+											isLoginOnly = true
+										}
+									}
+								} else {
+									// 非布尔类型，提取作为权限码
+									if permissionVal == "" {
+										if arg.Value.String != nil {
+											permissionVal = *arg.Value.String
+										} else if arg.Value.Ident != nil && *arg.Value.Ident != "true" && *arg.Value.Ident != "false" {
+											permissionVal = *arg.Value.Ident
+										}
+									}
 								}
 							}
 						}
-						if permissionVal != "" {
+
+						if isLoginOnly {
+							method.Permission = ""
+						} else {
+							if permissionVal == "" {
+								permissionVal = strings.ToLower(modName + "." + ep.Name)
+							}
 							method.Permission = permissionVal
 						}
 					}
@@ -1879,7 +1990,7 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 				}
 
 				m := method.Method
-				if m == "POST" || m == "PUT" || m == "PATCH" {
+				if m == "POST" || m == "PUT" || m == "PATCH" || m == "DELETE" {
 					// 检测 input 中是否含有 File 字段（File 字段必须使用 multipart）
 					hasFile := false
 					for _, arg := range method.Args {
@@ -1914,6 +2025,9 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 				if sourceSymbol == "" {
 					sourceSymbol = conf.Generator.DefaultContentType
 				}
+				if sourceSymbol == "" {
+					sourceSymbol = "json"
+				}
 				method.RequestContentType = sourceSymbol
 
 				switch strings.ToLower(sourceSymbol) {
@@ -1944,13 +2058,13 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 				// 检查是否有任何校验逻辑或枚举自检，决定是否生成校验区块和校验方法调用
 				hasValidation := false
 				for _, arg := range method.Args {
-					if len(arg.Validators) > 0 || arg.IsEnum {
+					if len(arg.Validators) > 0 || len(arg.ItemValidators) > 0 || arg.IsEnum {
 						hasValidation = true
 						break
 					}
 					if arg.RefModel != nil {
 						for _, f := range arg.RefModel.Fields {
-							if len(f.Validators) > 0 || f.IsEnum {
+							if len(f.Validators) > 0 || len(f.ItemValidators) > 0 || f.IsEnum {
 								hasValidation = true
 								break
 							}
@@ -2011,10 +2125,184 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 		}
 	}
 
+	// 收集全系统权限标识字典（基于权限标识全局唯一去重与智能代表仲裁）
+	authDec := strings.TrimPrefix(ctx.Config.Generator.AuthDecorator, "@")
+	if authDec != "" {
+		type permCandidate struct {
+			define PermDefine
+			score  int
+			order  int
+		}
+
+		// 预先建立模块名索引集合（不区分大小写匹配）
+		knownModules := make(map[string]string)
+		for _, mod := range ctx.Modules {
+			knownModules[strings.ToLower(mod.Name)] = strings.ToLower(mod.Name)
+		}
+
+		candidates := make(map[string]*permCandidate)
+		var permOrder []string
+		orderCounter := 0
+
+		for _, mod := range ctx.Modules {
+			modLower := strings.ToLower(mod.Name)
+			for _, grp := range mod.Groups {
+				for _, ep := range grp.Endpoints {
+					if ep.Permission == "" {
+						continue
+					}
+
+					permKey := strings.ToLower(ep.Permission)
+
+					// 1. 判定原生归属模块 (Module)
+					// 前缀归属原则：从权限码中提取首段命名空间 (如 authcenter.updatesysrole 或 system:user:list)
+					ownerModule := modLower
+					var prefix, action string
+					if sepIdx := strings.IndexAny(permKey, ".:"); sepIdx != -1 {
+						prefix = permKey[:sepIdx]
+						action = permKey[sepIdx+1:]
+					} else {
+						action = permKey
+					}
+
+					if prefix != "" {
+						if m, ok := knownModules[prefix]; ok {
+							ownerModule = m
+						}
+					}
+
+					// 2. 判定 Title
+					docText := strings.TrimSpace(ep.Doc)
+					docText = strings.ReplaceAll(docText, "\r\n", " ")
+					docText = strings.ReplaceAll(docText, "\n", " ")
+					docText = strings.ReplaceAll(docText, "\r", " ")
+
+					titleText := extractTitle(ep.Doc, 30)
+
+					// 3. 计算候选人代表权重 Score
+					score := 0
+					if modLower == ownerModule {
+						score += 200 // 第一优先级：端点所属模块与权限前缀/归属模块一致
+					}
+
+					// 端点名与权限动作名精确匹配 (如 ListSysDictType 与 listsysdicttype)
+					epNameLower := strings.ToLower(ep.Name)
+					cleanAction := strings.ReplaceAll(strings.ReplaceAll(action, ".", ""), ":", "")
+					if epNameLower == cleanAction || epNameLower == permKey {
+						score += 100 // 主端点完全契合
+					} else if strings.Contains(epNameLower, cleanAction) || strings.Contains(cleanAction, epNameLower) {
+						score += 50 // 包含匹配
+					}
+
+					if titleText != "" {
+						score += 50 // 注释非空
+					}
+
+					// 列表/查询类主入口权重微调
+					if strings.HasPrefix(epNameLower, "list") || strings.HasPrefix(epNameLower, "get") {
+						score += 10
+					}
+
+					if existing, exists := candidates[permKey]; !exists {
+						orderCounter++
+						candidates[permKey] = &permCandidate{
+							define: PermDefine{
+								Module: ownerModule,
+								Perm:   ep.Permission,
+								Title:  titleText,
+								Doc:    docText,
+							},
+							score: score,
+							order: orderCounter,
+						}
+						permOrder = append(permOrder, permKey)
+					} else {
+						// 动态仲裁：如果新候选人权重更高，更新为更优的 Title/Doc/Module
+						if score > existing.score {
+							existing.score = score
+							existing.define.Title = titleText
+							existing.define.Doc = docText
+							if modLower == ownerModule {
+								existing.define.Module = ownerModule
+							}
+						}
+					}
+				}
+			}
+		}
+
+		for _, k := range permOrder {
+			if c, ok := candidates[k]; ok {
+				ctx.SystemPerms = append(ctx.SystemPerms, c.define)
+			}
+		}
+	}
+
 	// 智能推导并应用各模型的结构体 Tag（根据 API 入参和出参实际使用的 ctype / etype）
 	inferAndApplyModelTags(ctx)
 
 	return renderAll(ctx, targetDir)
+}
+
+// extractTitle 从注释中提取简洁的 Title（首行/首句 + 最大长度限制）
+func extractTitle(doc string, maxLen int) string {
+	doc = strings.TrimSpace(doc)
+	if doc == "" {
+		return ""
+	}
+
+	// 1. 取第一行非空内容
+	lines := strings.Split(doc, "\n")
+	firstLine := ""
+	for _, l := range lines {
+		l = strings.TrimSpace(l)
+		l = strings.TrimPrefix(l, "//")
+		l = strings.TrimSpace(l)
+		if l != "" {
+			firstLine = l
+			break
+		}
+	}
+	if firstLine == "" {
+		return ""
+	}
+
+	// 2. 按首个断句标点截断（。 ； . ; ! ? ！）
+	delimiters := []rune{'。', '；', ';', '!', '?', '！'}
+	runes := []rune(firstLine)
+	cutoff := len(runes)
+
+	for i, r := range runes {
+		// 英文句号需要判断非小数点（如 1.0）
+		if r == '.' {
+			if i+1 < len(runes) && runes[i+1] >= '0' && runes[i+1] <= '9' {
+				continue
+			}
+			cutoff = i
+			break
+		}
+		for _, d := range delimiters {
+			if r == d {
+				cutoff = i
+				break
+			}
+		}
+		if cutoff != len(runes) {
+			break
+		}
+	}
+
+	titleRunes := runes[:cutoff]
+
+	// 3. 长度超限保护
+	if maxLen <= 0 {
+		maxLen = 30
+	}
+	if len(titleRunes) > maxLen {
+		titleRunes = titleRunes[:maxLen]
+	}
+
+	return strings.TrimSpace(string(titleRunes))
 }
 
 // inferAndApplyModelTags 智能按需推导模型 Tag，避免盲目全量输出不相关的协议标签

@@ -246,9 +246,11 @@ func ConvertToOpenAPI3(ctx *DataContext) *OpenAPIDocument {
 
 				if ep.InputName != "" && modelMap[ep.InputName] != nil {
 					inputMod := modelMap[ep.InputName]
-					if strings.Contains(strings.ToLower(ep.Method), "post") ||
-						strings.Contains(strings.ToLower(ep.Method), "put") ||
-						strings.Contains(strings.ToLower(ep.Method), "patch") {
+					mLower := strings.ToLower(ep.Method)
+					if strings.Contains(mLower, "post") ||
+						strings.Contains(mLower, "put") ||
+						strings.Contains(mLower, "patch") ||
+						strings.Contains(mLower, "delete") {
 						op.RequestBody = &OpenAPIRequestBody{
 							Required: true,
 							Content: map[string]OpenAPIMediaType{

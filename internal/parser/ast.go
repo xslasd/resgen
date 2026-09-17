@@ -158,12 +158,27 @@ type ArgDecl struct {
 type TypeRef struct {
 	Pos         lexer.Position
 	IsArray     bool      `@"["?`
+	ArrayDepth  int       // 数组维度深度，0 表示标量，若解析器解析出 IsArray 默认为 1
 	Name        string    `@Ident`
 	TypeArgs    []TypeRef `("<" @@ ("," @@)* ">")?`
 	UnionParam  string    `("(" @Ident ( "." @Ident )* ")")?`
 	ItemNotNull bool      `@"!"?`
 	ArrEnd      bool      `@"]"?`
 	ArrNotNull  bool      `@"!"?`
+}
+
+// GetArrayDepth 返回当前类型的数组切片嵌套深度
+func (t *TypeRef) GetArrayDepth() int {
+	if t == nil {
+		return 0
+	}
+	if t.ArrayDepth > 0 {
+		return t.ArrayDepth
+	}
+	if t.IsArray {
+		return 1
+	}
+	return 0
 }
 
 type DirectiveUsage struct {

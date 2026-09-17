@@ -132,9 +132,6 @@ func (r *MyResponder) BindResData(ctx *NativeCtx, data any, err error) resolver.
 	res := resolver.ResData{Code: 0, Msg: "success", Data: data}
 	if err != nil {
 		res.Code = 500
-		if ce, ok := err.(resolver.CodedError); ok {
-			res.Code = ce.Code()
-		}
 		res.Msg = err.Error()
 		res.Data = nil
 	}
@@ -226,8 +223,8 @@ func (h *WrapperDemoHandler) GetCategoryTree(ctx context.Context) (*resolver.Tre
 	return &resolver.TreeResCategoryTreeNode{Items: []resolver.CategoryTreeNode{root}, Total: 2}, nil
 }
 
-func (h *WrapperDemoHandler) GetCategoryTreeRaw(ctx context.Context) (*resolver.CategoryTreeNode, error) {
-	return &resolver.CategoryTreeNode{ID: 1, ParentId: 0, Name: "原生分类", Sort: 1}, nil
+func (h *WrapperDemoHandler) GetCategoryTreeRaw(ctx context.Context) (*resolver.TreeResCategoryTreeNode, error) {
+	return &resolver.TreeResCategoryTreeNode{Items: []resolver.CategoryTreeNode{{ID: 1, ParentId: 0, Name: "原生分类", Sort: 1}}, Total: 1}, nil
 }
 
 func (h *WrapperDemoHandler) CreateArticle(ctx context.Context, input *resolver.CreateArticleArgs) (*resolver.Article, error) {
@@ -310,8 +307,8 @@ func (h *StatusDemoHandler) DeleteProduct(ctx context.Context, id *int) (*string
 	s := "deleted product"
 	return &s, nil
 }
-func (h *StatusDemoHandler) ListProducts(ctx context.Context, input *resolver.ListProductsArgs) ([]resolver.Product, error) {
-	return []resolver.Product{{ID: 1, Name: "P1", Price: 1.0}}, nil
+func (h *StatusDemoHandler) ListProducts(ctx context.Context, input *resolver.ListProductsArgs) (*resolver.PageDataListProduct, error) {
+	return &resolver.PageDataListProduct{List: []resolver.Product{{ID: 1, Name: "P1", Price: 1.0}}, Total: 1, Page: 1}, nil
 }
 func (h *StatusDemoHandler) GetRawProduct(ctx context.Context, id *int) (*resolver.Product, error) {
 	return &resolver.Product{ID: *id, Name: "Raw", Price: 10.0}, nil
@@ -368,7 +365,7 @@ func (h *FileDemoHandler) GetPost(ctx context.Context, id *int) (*resolver.Conte
 
 type EnumDemoHandler struct{}
 
-func (h *EnumDemoHandler) CreateUser(ctx context.Context, input *resolver.CreateUserInput) (*resolver.UserWithRole, error) {
+func (h *EnumDemoHandler) CreateUser(ctx context.Context, input resolver.CreateUserInput) (*resolver.UserWithRole, error) {
 	return &resolver.UserWithRole{Role: &input.Role}, nil
 }
 

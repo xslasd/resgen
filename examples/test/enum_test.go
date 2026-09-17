@@ -15,8 +15,8 @@ type mockEnumDemoBiz struct {
 	lastQueryArgs *resolver.QueryByRoleArgs
 }
 
-func (b *mockEnumDemoBiz) CreateUser(ctx context.Context, input *resolver.CreateUserInput) (*resolver.UserWithRole, error) {
-	b.lastCreateIn = input
+func (b *mockEnumDemoBiz) CreateUser(ctx context.Context, input resolver.CreateUserInput) (*resolver.UserWithRole, error) {
+	b.lastCreateIn = &input
 	return &resolver.UserWithRole{
 		ID:        nil,
 		Role:      &input.Role,

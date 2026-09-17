@@ -195,14 +195,17 @@ func (f *Formatter) formatDecl(decl parser.Declaration, w io.Writer, depth int) 
 
 			multiline := false
 			if len(ep.Args) > 0 {
-				if ep.Args[len(ep.Args)-1].Pos.Line > ep.Pos.Line {
-					multiline = true
-				}
+				hasDoc := false
 				for _, arg := range ep.Args {
 					if arg.Doc != "" {
-						multiline = true
+						hasDoc = true
 						break
 					}
+				}
+				if hasDoc {
+					multiline = true
+				} else if len(ep.Args) > 1 && ep.Args[len(ep.Args)-1].Pos.Line > ep.Pos.Line {
+					multiline = true
 				}
 			}
 
