@@ -258,7 +258,7 @@ func (e *WrapperDemoExecutor[T, C]) handleGetArticle(request C, info MethodInfo)
 func (e *WrapperDemoExecutor[T, C]) handleListArticles(request C, info MethodInfo) {
 	native := request.Native()
 	var input ListArticlesArgs
-	if err := e.bindListArticles(request, &input); err != nil {
+	if err := e.bindListArticles(request, info, &input); err != nil {
 		request.RenderJson(e.r.ErrorToStatus(native, err), e.r.BindResData(native, nil, err))
 		return
 	}
@@ -271,7 +271,7 @@ func (e *WrapperDemoExecutor[T, C]) handleListArticles(request C, info MethodInf
 }
 
 // bindListArticles 自动生成的参数提取与转换实现
-func (e *WrapperDemoExecutor[T, C]) bindListArticles(request C, input *ListArticlesArgs) error {
+func (e *WrapperDemoExecutor[T, C]) bindListArticles(request C, info MethodInfo, input *ListArticlesArgs) error {
 	if val := request.GetQuery("page"); val != "" {
 		if v, err := IntFromParam(val); err == nil {
 			v2 := v
@@ -295,7 +295,7 @@ func (e *WrapperDemoExecutor[T, C]) bindListArticles(request C, input *ListArtic
 func (e *WrapperDemoExecutor[T, C]) handleListArticlesV2(request C, info MethodInfo) {
 	native := request.Native()
 	var input ListArticlesV2Args
-	if err := e.bindListArticlesV2(request, &input); err != nil {
+	if err := e.bindListArticlesV2(request, info, &input); err != nil {
 		request.RenderJson(e.r.ErrorToStatus(native, err), e.r.BindResData(native, nil, err))
 		return
 	}
@@ -308,7 +308,7 @@ func (e *WrapperDemoExecutor[T, C]) handleListArticlesV2(request C, info MethodI
 }
 
 // bindListArticlesV2 自动生成的参数提取与转换实现
-func (e *WrapperDemoExecutor[T, C]) bindListArticlesV2(request C, input *ListArticlesV2Args) error {
+func (e *WrapperDemoExecutor[T, C]) bindListArticlesV2(request C, info MethodInfo, input *ListArticlesV2Args) error {
 	if val := request.GetQuery("page"); val != "" {
 		if v, err := IntFromParam(val); err == nil {
 			v2 := v
@@ -354,7 +354,7 @@ func (e *WrapperDemoExecutor[T, C]) handleGetCategoryTreeRaw(request C, info Met
 func (e *WrapperDemoExecutor[T, C]) handleCreateArticle(request C, info MethodInfo) {
 	native := request.Native()
 	var input CreateArticleArgs
-	if err := e.bindCreateArticle(request, &input); err != nil {
+	if err := e.bindCreateArticle(request, info, &input); err != nil {
 		request.RenderJson(e.r.ErrorToStatus(native, err), e.r.BindResData(native, nil, err))
 		return
 	}
@@ -371,7 +371,7 @@ func (e *WrapperDemoExecutor[T, C]) handleCreateArticle(request C, info MethodIn
 }
 
 // bindCreateArticle 自动生成的参数提取与转换实现
-func (e *WrapperDemoExecutor[T, C]) bindCreateArticle(request C, input *CreateArticleArgs) error {
+func (e *WrapperDemoExecutor[T, C]) bindCreateArticle(request C, info MethodInfo, input *CreateArticleArgs) error {
 	if err := request.Payload(SourceJSON, input); err != nil {
 		return err
 	}

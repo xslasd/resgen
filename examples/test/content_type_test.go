@@ -33,7 +33,11 @@ func (b *mockContentTypeDemoBiz) SubmitNestedForm(ctx context.Context, input *re
 	return &res, nil
 }
 
-func (b *mockContentTypeDemoBiz) SubmitMultipart(ctx context.Context, title string) (*string, error) {
+func (b *mockContentTypeDemoBiz) SubmitMultipart(ctx context.Context, input *resolver.SubmitMultipartArgs) (*string, error) {
+	title := ""
+	if input != nil {
+		title = input.Title
+	}
 	res := fmt.Sprintf("收到 Multipart: %s", title)
 	return &res, nil
 }

@@ -303,7 +303,7 @@ func (e *UnionDemoExecutor[T, C]) handleGetPost(request C, info MethodInfo) {
 func (e *UnionDemoExecutor[T, C]) handleCreatePost(request C, info MethodInfo) {
 	native := request.Native()
 	var input CreatePostInput
-	if err := e.bindCreatePost(request, &input); err != nil {
+	if err := e.bindCreatePost(request, info, &input); err != nil {
 		request.RenderJson(e.r.ErrorToStatus(native, err), e.r.BindResData(native, nil, err))
 		return
 	}
@@ -320,7 +320,7 @@ func (e *UnionDemoExecutor[T, C]) handleCreatePost(request C, info MethodInfo) {
 }
 
 // bindCreatePost 自动生成的参数提取与转换实现
-func (e *UnionDemoExecutor[T, C]) bindCreatePost(request C, input *CreatePostInput) error {
+func (e *UnionDemoExecutor[T, C]) bindCreatePost(request C, info MethodInfo, input *CreatePostInput) error {
 	if err := request.Payload(SourceJSON, input); err != nil {
 		return err
 	}
@@ -347,7 +347,7 @@ func (e *UnionDemoExecutor[T, C]) validateCreatePost(ctx T, input *CreatePostInp
 func (e *UnionDemoExecutor[T, C]) handleBatchCreatePost(request C, info MethodInfo) {
 	native := request.Native()
 	var input BatchCreatePostInput
-	if err := e.bindBatchCreatePost(request, &input); err != nil {
+	if err := e.bindBatchCreatePost(request, info, &input); err != nil {
 		request.RenderJson(e.r.ErrorToStatus(native, err), e.r.BindResData(native, nil, err))
 		return
 	}
@@ -364,7 +364,7 @@ func (e *UnionDemoExecutor[T, C]) handleBatchCreatePost(request C, info MethodIn
 }
 
 // bindBatchCreatePost 自动生成的参数提取与转换实现
-func (e *UnionDemoExecutor[T, C]) bindBatchCreatePost(request C, input *BatchCreatePostInput) error {
+func (e *UnionDemoExecutor[T, C]) bindBatchCreatePost(request C, info MethodInfo, input *BatchCreatePostInput) error {
 	if err := request.Payload(SourceJSON, input); err != nil {
 		return err
 	}

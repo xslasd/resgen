@@ -2,6 +2,8 @@ package parser
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/alecthomas/participle/v2/lexer"
 )
 
@@ -105,15 +107,48 @@ type MetaEntry struct {
 	Value MetaValue  `@@`
 }
 
-// MetaValue 表示元数据的值，支持标识符、字符串、整数
-type MetaValue struct {
+type GenericValue struct {
 	Pos  lexer.Position
-	Str  *string `  @( Ident | String )`
-	Int  *int64  `| @Int`
+	Name string    `@Ident`
+	Args []TypeRef `"<" @@ ("," @@)* ">"`
+}
+
+func formatTypeRef(t TypeRef) string {
+	res := t.Name
+	if len(t.TypeArgs) > 0 {
+		args := make([]string, len(t.TypeArgs))
+		for i, a := range t.TypeArgs {
+			args[i] = formatTypeRef(a)
+		}
+		res += "<" + strings.Join(args, ", ") + ">"
+	}
+	return res
+}
+
+func (g GenericValue) String() string {
+	if len(g.Args) == 0 {
+		return g.Name
+	}
+	args := make([]string, len(g.Args))
+	for i, arg := range g.Args {
+		args[i] = formatTypeRef(arg)
+	}
+	return fmt.Sprintf("%s<%s>", g.Name, strings.Join(args, ", "))
+}
+
+// MetaValue 表示元数据的值，支持标识符、字符串、整数以及泛型实例化
+type MetaValue struct {
+	Pos     lexer.Position
+	Generic *GenericValue `  @@`
+	Str     *string       `| @( Ident | String )`
+	Int     *int64        `| @Int`
 }
 
 // MetaStr 返回值的字符串形式
 func (v MetaValue) MetaStr() string {
+	if v.Generic != nil {
+		return v.Generic.String()
+	}
 	if v.Str != nil {
 		return *v.Str
 	}

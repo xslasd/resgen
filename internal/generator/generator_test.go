@@ -997,3 +997,141 @@ group /demo {
 	}
 }
 
+func TestSingleScalarBodyArgWrapped(t *testing.T) {
+	schemaContent := `
+module TaskDemo
+
+group /tasks {
+	# 1. POST 单标量 Body 参数自动合成包装模型
+	POST /cancel => CancelTask(task_id: Int!): Boolean
+
+	# 2. PUT 单标量 Body 参数自动合成包装模型
+	PUT /name => UpdateName(new_name: String!): Boolean
+
+	# 3. PATCH 单标量 Body 参数自动合成包装模型
+	PATCH /status => PatchStatus(status: Int!): Boolean
+
+	# 4. DELETE 单标量 Body 参数自动合成包装模型（与 POST/PUT/PATCH 完全一致）
+	DELETE /delete => DeleteTask(task_id: Int!): Boolean
+
+	# 5. 显式 @query 的 POST 参数不被包装，保持平铺 Query 提取
+	POST /trigger => TriggerTask(task_id: Int! @query): Boolean
+
+	# 6. 显式 @query 的 DELETE 参数不被包装，保持平铺 Query 提取
+	DELETE /item => DeleteItem(id: String! @query): Boolean
+
+	# 7. 显式 @path 的 POST 参数不被包装，保持平铺 Path 提取
+	POST /reset/:id => ResetItem(id: Int! @path): Boolean
+}
+`
+	schema, err := parser.ParseFileContent("task.res", schemaContent)
+	if err != nil {
+		t.Fatalf("ParseFileContent failed: %v", err)
+	}
+
+	tmpDir, err := os.MkdirTemp("", "resgen-single-body-arg-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	conf := &config.Config{
+		Generator: config.GeneratorConfig{
+			Package:       "taskpkg",
+			EnableApiDocs: true,
+			ContentTypes: map[string]config.ContentTypeSpec{
+				"json": {Tag: "json"},
+			},
+		},
+	}
+
+	if err := Generate(schema, tmpDir, conf); err != nil {
+		t.Fatalf("Generate failed: %v", err)
+	}
+
+	contentBytes, err := os.ReadFile(filepath.Join(tmpDir, "taskdemo.gen.go"))
+	if err != nil {
+		t.Fatalf("failed to read taskdemo.gen.go: %v", err)
+	}
+	code := string(contentBytes)
+
+	// 1. 验证 POST /cancel 自动合成了 CancelTaskArgs 结构体并使用 request.Payload
+	if !strings.Contains(code, "type CancelTaskArgs struct") {
+		t.Errorf("expected CancelTaskArgs struct to be generated, code:\n%s", code)
+	}
+	if !strings.Contains(code, "TaskID int `json:\"task_id\"") {
+		t.Errorf("expected CancelTaskArgs to contain TaskID field with json tag, code:\n%s", code)
+	}
+	if !strings.Contains(code, "request.Payload(SourceJSON, input)") {
+		t.Errorf("expected bindCancelTask to invoke request.Payload, code:\n%s", code)
+	}
+
+	// 2. 验证 PUT /name 自动合成了 UpdateNameArgs
+	if !strings.Contains(code, "type UpdateNameArgs struct") {
+		t.Errorf("expected UpdateNameArgs struct to be generated, code:\n%s", code)
+	}
+	if !strings.Contains(code, "NewName string `json:\"new_name\"") {
+		t.Errorf("expected UpdateNameArgs to contain NewName field, code:\n%s", code)
+	}
+
+	// 3. 验证 PATCH /status 自动合成了 PatchStatusArgs
+	if !strings.Contains(code, "type PatchStatusArgs struct") {
+		t.Errorf("expected PatchStatusArgs struct to be generated, code:\n%s", code)
+	}
+	if !strings.Contains(code, "Status int `json:\"status\"") {
+		t.Errorf("expected PatchStatusArgs to contain Status field, code:\n%s", code)
+	}
+
+	// 4. 验证 DELETE /delete 自动合成了 DeleteTaskArgs 并使用 request.Payload
+	if !strings.Contains(code, "type DeleteTaskArgs struct") {
+		t.Errorf("expected DeleteTaskArgs struct to be generated, code:\n%s", code)
+	}
+	if !strings.Contains(code, "TaskID int `json:\"task_id\"") {
+		t.Errorf("expected DeleteTaskArgs to contain TaskID field with json tag, code:\n%s", code)
+	}
+
+	// 5. 验证 POST /trigger (显式 @query) 保持平铺，调用 GetQuery
+	if strings.Contains(code, "type TriggerTaskArgs struct") {
+		t.Errorf("TriggerTask with @query should NOT generate TriggerTaskArgs struct")
+	}
+	if !strings.Contains(code, `request.GetQuery("task_id")`) {
+		t.Errorf("expected TriggerTask to call GetQuery for @query param, code:\n%s", code)
+	}
+
+	// 6. 验证 DELETE /item (显式 @query) 保持平铺，调用 GetQuery
+	if strings.Contains(code, "type DeleteItemArgs struct") {
+		t.Errorf("DeleteItem with @query should NOT generate DeleteItemArgs struct")
+	}
+	if !strings.Contains(code, `request.GetQuery("id")`) {
+		t.Errorf("expected DeleteItem to call GetQuery for @query param, code:\n%s", code)
+	}
+
+	// 7. 验证 POST /reset/:id (显式 @path) 保持平铺，调用 GetPath
+	if strings.Contains(code, "type ResetItemArgs struct") {
+		t.Errorf("ResetItem with @path should NOT generate ResetItemArgs struct")
+	}
+	if !strings.Contains(code, `request.GetPath("id")`) {
+		t.Errorf("expected ResetItem to call GetPath for @path param, code:\n%s", code)
+	}
+
+	// 8. 验证 api.json OpenAPI 契约中非 GET 的 Body 参数生成了 requestBody
+	apiJsonBytes, err := os.ReadFile(filepath.Join(tmpDir, "docs", "api.json"))
+	if err != nil {
+		t.Fatalf("failed to read api.json: %v", err)
+	}
+	apiJson := string(apiJsonBytes)
+
+	if !strings.Contains(apiJson, `#/components/schemas/CancelTaskArgs`) {
+		t.Errorf("expected api.json to contain requestBody referencing CancelTaskArgs, got:\n%s", apiJson)
+	}
+	if !strings.Contains(apiJson, `#/components/schemas/UpdateNameArgs`) {
+		t.Errorf("expected api.json to contain requestBody referencing UpdateNameArgs, got:\n%s", apiJson)
+	}
+	if !strings.Contains(apiJson, `#/components/schemas/PatchStatusArgs`) {
+		t.Errorf("expected api.json to contain requestBody referencing PatchStatusArgs, got:\n%s", apiJson)
+	}
+	if !strings.Contains(apiJson, `#/components/schemas/DeleteTaskArgs`) {
+		t.Errorf("expected api.json to contain requestBody referencing DeleteTaskArgs, got:\n%s", apiJson)
+	}
+}
+

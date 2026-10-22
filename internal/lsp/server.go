@@ -40,6 +40,12 @@ func RunServer(version string) {
 	initLog()
 	writeLog("RunServer started with version: %s", version)
 
+	handler := NewHandler(version)
+	s := server.NewServer(&handler, "resgen-lsp", false)
+	s.RunStdio()
+}
+
+func NewHandler(version string) protocol.Handler {
 	handler := protocol.Handler{}
 
 	handler.Initialize = func(context *glsp.Context, params *protocol.InitializeParams) (any, error) {
@@ -79,7 +85,7 @@ func RunServer(version string) {
 		targetLine := int(params.Position.Line) + 1
 		targetCol := int(params.Position.Character) + 1
 
-		ident := findIdentifierAt(schema, targetLine, targetCol)
+		ident := findIdentifierAt(schema, targetLine, targetCol, content)
 		if ident == "" {
 			return nil, nil
 		}
@@ -89,17 +95,31 @@ func RunServer(version string) {
 		case "alias":
 			hoverText = "### Built-in Directive: `@alias`\n\n用于指定模型字段或接口入参在传输层（JSON/Form/Query/Path/Header）使用的自定义别名，方便兼容老系统或不规范的接口命名规范。\n\n**示例**:\n```res\ninput QueryInput {\n    startTime: IntTime @alias(\"st_time\")\n}\n```"
 		case "path":
-			hoverText = "### Built-in Directive: `@path`\n\n标记参数来源于 URL 路径变量 (Path Variable)。"
+			hoverText = "### Built-in Directive: `@path`\n\n标记参数来源于 URL 路径变量 (Path Variable)。\n\n**示例**:\n```res\nGET /users/:id => GetUser(id: Int! @path): User\n```"
 		case "query":
-			hoverText = "### Built-in Directive: `@query`\n\n标记参数来源于 URL 查询字符串 (Query String)。"
+			hoverText = "### Built-in Directive: `@query`\n\n标记参数来源于 URL 查询字符串 (Query String)。\n\n**参数提取规则**:\n- **GET 接口**：未标注的平铺参数默认提取自 URL 查询字符串，通常无需显式标注 `@query`。\n- **POST / PUT / PATCH / DELETE 接口**：未标注的平铺形参默认绑定至 **请求体 (Body)** 并自动合成 `XxxArgs` 包装模型；若需要在非 GET 接口中强制提取自 URL Query，**必须显式标注 `@query`**。\n\n**示例**:\n```res\nPOST /tasks/trigger => TriggerTask(task_id: Int! @query): Boolean\nDELETE /tasks/item => DeleteItem(id: String! @query): Boolean\n```"
 		case "header":
-			hoverText = "### Built-in Directive: `@header`\n\n标记参数来源于 HTTP 请求头 (Header)。"
+			hoverText = "### Built-in Directive: `@header`\n\n标记参数来源于 HTTP 请求头 (Header)。\n\n**示例**:\n```res\nGET /profile => GetProfile(token: String! @header): UserProfile\n```"
 		case "required":
 			hoverText = "### Built-in Directive: `@required`\n\n标记字段或形参必填且非空。"
 		case "custombind":
 			hoverText = "### Built-in Directive: `@customBind`\n\n接管参数绑定逻辑，由业务层在 Resolver 中手动实现 Bind 方法。"
 		case "customvalidate":
 			hoverText = "### Built-in Directive: `@customValidate`\n\n接管参数校验逻辑，由业务层在 Resolver 中手动实现 Validate 方法。"
+		case "payload":
+			hoverText = "### Built-in Directive: `@payload`\n\n标注载体字段在解密/解包后的内部明文结构。\n\n物理传输层为 String 密文或数据容器，在 DSL 中使用 `@payload(LoginReq)` 辅助说明其内部关联的明文数据模型（在 `seal` 信封与普通 API 模型中均可使用）。"
+		case "seal":
+			hoverText = "### Meta Attribute: `seal`\n\n在 RequestMeta 或 ResponseMeta 中声明该接口在物理传输层使用的加解封信封与实例化载荷。\n\n例如：`POST /login [seal=CipherWrap<LoginReq>] => Login(input: LoginReq): Token`"
+		case "get":
+			hoverText = "### HTTP Method: `GET`\n\n声明一个 HTTP GET 请求路由。\n\n**参数绑定规则**:\n- **默认规则**：未显式标注的平铺参数默认从 **URL Query**（查询字符串）提取。\n- **路径变量**：标注 `@path` 的参数从 URL 路径提取（如 `/users/:id`）。\n- **请求头**：标注 `@header` 的参数从 HTTP Header 提取。\n- **模型入参**：若传入自定义 `input` 模型，生成器会自动将其字段扁平化展开为 URL 查询参数（禁止嵌套子结构）。"
+		case "post":
+			hoverText = "### HTTP Method: `POST`\n\n声明一个 HTTP POST 请求路由。\n\n**参数绑定规则**:\n- **平铺参数自动合成**：未显式标注的平铺形参（无论是单标量如 `task_id: Int!` 还是多个参数）默认绑定至 **请求体 (Body)** 反序列化，编译器会自动合成对应的 `XxxArgs` 包装模型。\n- **单一输入模型**：若传入自定义 `input` 结构体模型作为唯一参数，直接映射为请求体 (Body) 载荷。\n- **强制 Query 参数**：若期望通过 URL 查询参数传递，必须显式声明 `@query`（例如 `task_id: Int! @query`）。\n- **路径变量**：标注 `@path` 从 URL 路径提取。\n- **请求头**：标注 `@header` 从 HTTP Header 提取。"
+		case "put":
+			hoverText = "### HTTP Method: `PUT`\n\n声明一个 HTTP PUT 请求路由。\n\n**参数绑定规则**:\n- **与 POST 一致**：未显式标注的平铺形参默认绑定至 **请求体 (Body)** 并自动合成 `XxxArgs` 包装模型。\n- **单一输入模型**：传入自定义 `input` 模型直接映射为请求体 (Body) 载荷。\n- **强制 Query 参数**：显式标注 `@query` 从 URL 查询参数提取。\n- **路径变量**：标注 `@path` 从 URL 路径提取。"
+		case "patch":
+			hoverText = "### HTTP Method: `PATCH`\n\n声明一个 HTTP PATCH 请求路由。\n\n**参数绑定规则**:\n- **与 POST 一致**：未显式标注的平铺形参默认绑定至 **请求体 (Body)** 并自动合成 `XxxArgs` 包装模型。\n- **单一输入模型**：传入自定义 `input` 模型直接映射为请求体 (Body) 增量更新载荷。\n- **强制 Query 参数**：显式标注 `@query` 从 URL 查询参数提取。\n- **路径变量**：标注 `@path` 从 URL 路径提取。"
+		case "delete":
+			hoverText = "### HTTP Method: `DELETE`\n\n声明一个 HTTP DELETE 请求路由。\n\n**参数绑定规则**:\n- **与 POST/PUT/PATCH 完全一致**：未显式标注的平铺形参默认绑定至 **请求体 (Body)** 并自动合成 `XxxArgs` 包装模型。\n- **特别提示**：若期望通过 URL 查询参数传递删除筛选条件，**必须显式声明 `@query`**（例如 `id: String! @query`）。\n- **路径变量**：标注 `@path` 从 URL 路径提取（例如 `DELETE /items/:id => DeleteItem(id: Int! @path): Boolean`）。"
 		}
 
 		if hoverText != "" {
@@ -233,7 +253,7 @@ func RunServer(version string) {
 		targetLine := int(params.Position.Line) + 1
 		targetCol := int(params.Position.Character) + 1
 
-		ident := findIdentifierAt(schema, targetLine, targetCol)
+		ident := findIdentifierAt(schema, targetLine, targetCol, content)
 		if ident == "" {
 			return nil, nil
 		}
@@ -273,8 +293,7 @@ func RunServer(version string) {
 		return items, nil
 	}
 
-	s := server.NewServer(&handler, "resgen-lsp", false)
-	s.RunStdio()
+	return handler
 }
 
 func camelToSnake(s string) string {
@@ -430,7 +449,24 @@ func addSymbols(schema *parser.Schema, filePath string, symbols map[string]Symbo
 	}
 }
 
-func findIdentifierAt(schema *parser.Schema, line, col int) string {
+func findIdentifierAt(schema *parser.Schema, line, col int, content ...string) string {
+	var fileContent string
+	if len(content) > 0 {
+		fileContent = content[0]
+	}
+
+	// 1. 如果提供了源码文本，优先尝试从光标位置提取词法单词
+	word := getWordAt(fileContent, line, col)
+	if word != "" {
+		wLower := strings.ToLower(word)
+		switch wLower {
+		case "get", "post", "put", "delete", "patch",
+			"alias", "path", "query", "header", "required",
+			"custombind", "customvalidate", "payload", "seal":
+			return word
+		}
+	}
+
 	var foundIdent string
 
 	inRange := func(pos lexer.Position, name string) bool {
@@ -462,71 +498,127 @@ func findIdentifierAt(schema *parser.Schema, line, col int) string {
 		return false
 	}
 
-	for _, decl := range schema.Declarations {
-		if decl.Model != nil {
-			m := decl.Model
-			for _, prop := range m.Properties {
-				if visitTypeRef(prop.Type) {
-					return foundIdent
-				}
-				for _, dir := range prop.Directives {
-					if visitDirective(dir) {
+	if schema != nil {
+		for _, decl := range schema.Declarations {
+			if decl.Model != nil {
+				m := decl.Model
+				for _, prop := range m.Properties {
+					if visitTypeRef(prop.Type) {
 						return foundIdent
 					}
-				}
-			}
-			for _, dir := range m.Directives {
-				if visitDirective(dir) {
-					return foundIdent
-				}
-			}
-		}
-		if decl.Enum != nil {
-			if inRange(decl.Enum.Pos, decl.Enum.Name) {
-				return decl.Enum.Name
-			}
-		}
-		if decl.Union != nil {
-			if inRange(decl.Union.Pos, decl.Union.Name) {
-				return decl.Union.Name
-			}
-			for _, c := range decl.Union.Cases {
-				if inRange(c.Pos, c.Type) {
-					return c.Type
-				}
-			}
-		}
-		if decl.Group != nil {
-			g := decl.Group
-			for _, dir := range g.Directives {
-				if visitDirective(dir) {
-					return foundIdent
-				}
-			}
-			for _, ep := range g.Endpoints {
-				for _, dir := range ep.Directives {
-					if visitDirective(dir) {
-						return foundIdent
-					}
-				}
-				if ep.ReturnType != nil && visitTypeRef(*ep.ReturnType) {
-					return foundIdent
-				}
-				for _, arg := range ep.Args {
-					for _, dir := range arg.Directives {
+					for _, dir := range prop.Directives {
 						if visitDirective(dir) {
 							return foundIdent
 						}
 					}
-					if visitTypeRef(arg.Type) {
+				}
+				for _, dir := range m.Directives {
+					if visitDirective(dir) {
 						return foundIdent
+					}
+				}
+			}
+			if decl.Enum != nil {
+				if inRange(decl.Enum.Pos, decl.Enum.Name) {
+					return decl.Enum.Name
+				}
+			}
+			if decl.Union != nil {
+				if inRange(decl.Union.Pos, decl.Union.Name) {
+					return decl.Union.Name
+				}
+				for _, c := range decl.Union.Cases {
+					if inRange(c.Pos, c.Type) {
+						return c.Type
+					}
+				}
+			}
+			if decl.Group != nil {
+				g := decl.Group
+				for _, dir := range g.Directives {
+					if visitDirective(dir) {
+						return foundIdent
+					}
+				}
+				for _, ep := range g.Endpoints {
+					if inRange(ep.Pos, ep.Method) {
+						return ep.Method
+					}
+					for _, dir := range ep.Directives {
+						if visitDirective(dir) {
+							return foundIdent
+						}
+					}
+					if ep.ReturnType != nil && visitTypeRef(*ep.ReturnType) {
+						return foundIdent
+					}
+					for _, arg := range ep.Args {
+						for _, dir := range arg.Directives {
+							if visitDirective(dir) {
+								return foundIdent
+							}
+						}
+						if visitTypeRef(arg.Type) {
+							return foundIdent
+						}
 					}
 				}
 			}
 		}
 	}
 
-	return foundIdent
+	if foundIdent != "" {
+		return foundIdent
+	}
+
+	return word
+}
+
+func getWordAt(content string, line, col int) string {
+	if content == "" || line < 1 {
+		return ""
+	}
+	lines := strings.Split(content, "\n")
+	if line > len(lines) {
+		return ""
+	}
+	lineStr := strings.TrimRight(lines[line-1], "\r")
+	if len(lineStr) == 0 {
+		return ""
+	}
+
+	targetIdx := col - 1
+	if targetIdx < 0 {
+		targetIdx = 0
+	}
+	if targetIdx > len(lineStr) {
+		targetIdx = len(lineStr)
+	}
+
+	// 若光标在行尾或非单词字符处，尝试向前回退一个字符（例如光标停在单词末尾紧随的位置）
+	if targetIdx == len(lineStr) || !isWordChar(rune(lineStr[targetIdx])) {
+		if targetIdx > 0 && isWordChar(rune(lineStr[targetIdx-1])) {
+			targetIdx--
+		} else {
+			return ""
+		}
+	}
+
+	start := targetIdx
+	for start > 0 && isWordChar(rune(lineStr[start-1])) {
+		start--
+	}
+	end := targetIdx
+	for end < len(lineStr) && isWordChar(rune(lineStr[end])) {
+		end++
+	}
+
+	word := lineStr[start:end]
+	return strings.TrimPrefix(word, "@")
+}
+
+func isWordChar(r rune) bool {
+	return (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' || r == '@'
 }
 
 func publishDiagnostics(context *glsp.Context, uri, content string) {
@@ -837,12 +929,13 @@ type directiveDef struct {
 
 var builtinDirectives = []directiveDef{
 	{name: "path", insertText: "path", detail: "@path - URL 路径变量", doc: "标记参数来源于 URL 路径变量 (Path Variable)"},
-	{name: "query", insertText: "query", detail: "@query - URL 查询参数", doc: "标记参数来源于 URL 查询字符串 (Query String)"},
+	{name: "query", insertText: "query", detail: "@query - URL 查询参数", doc: "标记参数来源于 URL 查询字符串 (Query String)。在 POST/PUT/PATCH/DELETE 接口中，未标注的平铺参数默认绑定至请求体 (Body) 并自动合成 XxxArgs 包装模型；若需强制使用 URL Query 传参，必须显式标注 @query"},
 	{name: "header", insertText: "header", detail: "@header - HTTP 请求头", doc: "标记参数来源于 HTTP 请求头 (Header)"},
 	{name: "alias", insertText: "alias(\"${1:field_name}\")", isSnippet: true, detail: "@alias(\"...\") - 传输层字段别名", doc: "用于指定模型字段或接口入参在传输层使用的自定义别名"},
 	{name: "required", insertText: "required", detail: "@required - 必填校验", doc: "标记字段或形参必填且非空"},
 	{name: "customBind", insertText: "customBind", detail: "@customBind - 自定义绑定", doc: "接管参数绑定逻辑，由业务层在 Resolver 中手动实现 Bind 方法"},
 	{name: "customValidate", insertText: "customValidate", detail: "@customValidate - 自定义校验", doc: "接管参数校验逻辑，由业务层在 Resolver 中手动实现 Validate 方法"},
+	{name: "payload", insertText: "payload(${1:PayloadModel})", isSnippet: true, detail: "@payload(M) - 载体字段补充明文结构说明", doc: "标注字段解封后的内部明文结构。物理层为字符串，业务上补充说明解包后的明文模型（支持 seal 信封和普通模型）。"},
 }
 
 var builtinTypes = []struct {
@@ -875,16 +968,16 @@ var builtinKeywords = []struct {
 	{"scalar", "scalar ${1:Name}", false, "声明自定义标量", "scalar 扩展自定义基本类型"},
 	{"union", "union ${1:Name}(${2:field}) {\n\t${3:key}: ${4:Type}\n\tdefault: Any\n}", true, "声明联合类型", "union 用于定义多态返回值"},
 	{"enum", "enum ${1:Name} {\n\t$0\n}", true, "声明枚举类型", "enum 定义枚举常量"},
-	{"GET", "GET /${1:path} => ${2:func}(${3:input}): ${4:Output}", true, "HTTP GET 接口", "声明一个 GET 请求路由"},
-	{"POST", "POST /${1:path} => ${2:func}(${3:input}): ${4:Output}", true, "HTTP POST 接口", "声明一个 POST 请求路由"},
-	{"PUT", "PUT /${1:path} => ${2:func}(${3:input}): ${4:Output}", true, "HTTP PUT 接口", "声明一个 PUT 请求路由"},
-	{"DELETE", "DELETE /${1:path} => ${2:func}(${3:input}): ${4:Output}", true, "HTTP DELETE 接口", "声明一个 DELETE 请求路由"},
-	{"PATCH", "PATCH /${1:path} => ${2:func}(${3:input}): ${4:Output}", true, "HTTP PATCH 接口", "声明一个 PATCH 请求路由"},
-	{"get", "GET /${1:path} => ${2:func}(${3:input}): ${4:Output}", true, "HTTP GET 接口", "声明一个 GET 请求路由"},
-	{"post", "POST /${1:path} => ${2:func}(${3:input}): ${4:Output}", true, "HTTP POST 接口", "声明一个 POST 请求路由"},
-	{"put", "PUT /${1:path} => ${2:func}(${3:input}): ${4:Output}", true, "HTTP PUT 接口", "声明一个 PUT 请求路由"},
-	{"delete", "DELETE /${1:path} => ${2:func}(${3:input}): ${4:Output}", true, "HTTP DELETE 接口", "声明一个 DELETE 请求路由"},
-	{"patch", "PATCH /${1:path} => ${2:func}(${3:input}): ${4:Output}", true, "HTTP PATCH 接口", "声明一个 PATCH 请求路由"},
+	{"GET", "GET /${1:path} => ${2:func}(${3:input}): ${4:Output}", true, "HTTP GET 接口", "声明一个 GET 请求路由。未显式标注的平铺参数默认提取自 URL 查询参数 (Query)"},
+	{"POST", "POST /${1:path} => ${2:func}(${3:input}): ${4:Output}", true, "HTTP POST 接口", "声明一个 POST 请求路由。平铺参数默认提取自请求体 (Body) 并自动合成 XxxArgs 包装模型；若期望使用 URL 查询参数请显式标注 @query"},
+	{"PUT", "PUT /${1:path} => ${2:func}(${3:input}): ${4:Output}", true, "HTTP PUT 接口", "声明一个 PUT 请求路由。平铺参数默认提取自请求体 (Body) 并自动合成 XxxArgs 包装模型；若期望使用 URL 查询参数请显式标注 @query"},
+	{"DELETE", "DELETE /${1:path} => ${2:func}(${3:input}): ${4:Output}", true, "HTTP DELETE 接口", "声明一个 DELETE 请求路由。平铺参数默认提取自请求体 (Body) 并自动合成 XxxArgs 包装模型；若期望使用 URL 查询参数请显式标注 @query"},
+	{"PATCH", "PATCH /${1:path} => ${2:func}(${3:input}): ${4:Output}", true, "HTTP PATCH 接口", "声明一个 PATCH 请求路由。平铺参数默认提取自请求体 (Body) 并自动合成 XxxArgs 包装模型；若期望使用 URL 查询参数请显式标注 @query"},
+	{"get", "GET /${1:path} => ${2:func}(${3:input}): ${4:Output}", true, "HTTP GET 接口", "声明一个 GET 请求路由。未显式标注的平铺参数默认提取自 URL 查询参数 (Query)"},
+	{"post", "POST /${1:path} => ${2:func}(${3:input}): ${4:Output}", true, "HTTP POST 接口", "声明一个 POST 请求路由。平铺参数默认提取自请求体 (Body) 并自动合成 XxxArgs 包装模型；若期望使用 URL 查询参数请显式标注 @query"},
+	{"put", "PUT /${1:path} => ${2:func}(${3:input}): ${4:Output}", true, "HTTP PUT 接口", "声明一个 PUT 请求路由。平铺参数默认提取自请求体 (Body) 并自动合成 XxxArgs 包装模型；若期望使用 URL 查询参数请显式标注 @query"},
+	{"delete", "DELETE /${1:path} => ${2:func}(${3:input}): ${4:Output}", true, "HTTP DELETE 接口", "声明一个 DELETE 请求路由。平铺参数默认提取自请求体 (Body) 并自动合成 XxxArgs 包装模型；若期望使用 URL 查询参数请显式标注 @query"},
+	{"patch", "PATCH /${1:path} => ${2:func}(${3:input}): ${4:Output}", true, "HTTP PATCH 接口", "声明一个 PATCH 请求路由。平铺参数默认提取自请求体 (Body) 并自动合成 XxxArgs 包装模型；若期望使用 URL 查询参数请显式标注 @query"},
 }
 
 func buildCompletions(filename, content string, line, col int) []protocol.CompletionItem {

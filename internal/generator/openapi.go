@@ -6,23 +6,35 @@ import (
 	"strings"
 )
 
+type ResSealInfo struct {
+	InSealChain    []string `json:"inSealChain,omitempty"`
+	InSealGoType   string   `json:"inSealGoType,omitempty"`
+	InnerInputName string   `json:"innerInputName,omitempty"`
+	OutSealChain   []string `json:"outSealChain,omitempty"`
+	OutSealGoType  string   `json:"outSealGoType,omitempty"`
+	OutPayloadDSL  string   `json:"outPayloadDSL,omitempty"`
+}
+
+type OpenAPIInfo struct {
+	Title       string `json:"title"`
+	Version     string `json:"version"`
+	Description string `json:"description,omitempty"`
+}
+
 // OpenAPIDocument represents the OpenAPI 3.0.3 root document
 type OpenAPIDocument struct {
 	OpenAPI    string                            `json:"openapi"`
-	Info       ApiInfo                           `json:"info"`
+	Info       OpenAPIInfo                       `json:"info"`
 	Servers    []OpenAPIServer                   `json:"servers,omitempty"`
 	Tags       []OpenAPITag                      `json:"tags,omitempty"`
 	Paths      map[string]map[string]OpenAPIOperation `json:"paths"`
 	Components OpenAPIComponents                 `json:"components"`
 
-	// Specification Extensions for resgen compatibility and tools
-	Version    string                            `json:"version,omitempty"`
-	Package    string                            `json:"package,omitempty"`
-	Validators []MetaInfo                        `json:"validators,omitempty"`
-	Scalars    map[string]*ScalarInfo            `json:"scalars,omitempty"`
-	Modules    []ModuleInfo                      `json:"modules,omitempty"`
-	Models     []*ModelInfo                      `json:"models,omitempty"`
-	Enums      []*EnumInfo                       `json:"enums,omitempty"`
+	// Specification Extensions for resgen compatibility and tools (prefixed with x-resgen-)
+	Version    string                            `json:"x-resgen-version,omitempty"`
+	Package    string                            `json:"x-resgen-package,omitempty"`
+	Validators []MetaInfo                        `json:"x-resgen-validators,omitempty"`
+	Scalars    map[string]*ScalarInfo            `json:"x-resgen-scalars,omitempty"`
 }
 
 type OpenAPIServer struct {
@@ -36,21 +48,23 @@ type OpenAPITag struct {
 }
 
 type OpenAPIOperation struct {
-	Tags        []string                    `json:"tags,omitempty"`
-	Summary     string                      `json:"summary,omitempty"`
-	Description string                      `json:"description,omitempty"`
-	OperationID string                      `json:"operationId,omitempty"`
-	Parameters  []OpenAPIParameter          `json:"parameters,omitempty"`
-	RequestBody *OpenAPIRequestBody         `json:"requestBody,omitempty"`
-	Responses   map[string]OpenAPIResponse  `json:"responses"`
+	Tags          []string                    `json:"tags,omitempty"`
+	Summary       string                      `json:"summary,omitempty"`
+	Description   string                      `json:"description,omitempty"`
+	OperationID   string                      `json:"operationId,omitempty"`
+	Parameters    []OpenAPIParameter          `json:"parameters,omitempty"`
+	RequestBody   *OpenAPIRequestBody         `json:"requestBody,omitempty"`
+	Responses     map[string]OpenAPIResponse  `json:"responses"`
 	
 	// Resgen extensions
-	ResFile     string                      `json:"x-res-file,omitempty"`
-	ResGroup    string                      `json:"x-res-group,omitempty"`
-	ResModule   string                      `json:"x-res-module,omitempty"`
-	Permission  string                      `json:"x-res-permission,omitempty"`
-	ReturnType  string                      `json:"x-res-return-type,omitempty"`
-	ReturnTypeDSL string                    `json:"x-res-return-type-dsl,omitempty"`
+	ResFile       string                      `json:"x-res-file,omitempty"`
+	ResGroup      string                      `json:"x-res-group,omitempty"`
+	ResModule     string                      `json:"x-res-module,omitempty"`
+	Permission    string                      `json:"x-res-permission,omitempty"`
+	ReturnType    string                      `json:"x-res-return-type,omitempty"`
+	ReturnTypeDSL string                      `json:"x-res-return-type-dsl,omitempty"`
+	ResSeal       *ResSealInfo                `json:"x-res-seal,omitempty"`
+	ResInputName  string                      `json:"x-res-input-name,omitempty"`
 }
 
 type OpenAPIParameter struct {
@@ -92,16 +106,22 @@ type OpenAPISchema struct {
 	Ref                  string                    `json:"$ref,omitempty"`
 	AdditionalProperties any                       `json:"additionalProperties,omitempty"`
 	
-	// Resgen extension
+	// Resgen extensions
 	ResFile              string                    `json:"x-res-file,omitempty"`
+	ResEnumCases         []EnumCaseInfo            `json:"x-res-enum-cases,omitempty"`
+	ResPayload           string                    `json:"x-res-payload,omitempty"`
 }
 
 // ConvertToOpenAPI3 converts the internal DataContext to OpenAPI 3.0.3 document
 func ConvertToOpenAPI3(ctx *DataContext) *OpenAPIDocument {
 	doc := &OpenAPIDocument{
-		OpenAPI:    "3.0.3",
-		Info:       ctx.Info,
-		Paths:      make(map[string]map[string]OpenAPIOperation),
+		OpenAPI: "3.0.3",
+		Info: OpenAPIInfo{
+			Title:       ctx.Info.Title,
+			Version:     ctx.Info.Version,
+			Description: ctx.Info.Description,
+		},
+		Paths: make(map[string]map[string]OpenAPIOperation),
 		Components: OpenAPIComponents{
 			Schemas: make(map[string]*OpenAPISchema),
 		},
@@ -109,9 +129,6 @@ func ConvertToOpenAPI3(ctx *DataContext) *OpenAPIDocument {
 		Package:    ctx.Package,
 		Validators: ctx.Validators,
 		Scalars:    ctx.Scalars,
-		Modules:    ctx.Modules,
-		Models:     ctx.Models,
-		Enums:      ctx.OrderedEnums,
 	}
 
 	if ctx.Info.BaseURL != "" {
@@ -138,7 +155,19 @@ func ConvertToOpenAPI3(ctx *DataContext) *OpenAPIDocument {
 		var reqList []string
 		for _, f := range m.Fields {
 			propSchema := buildTypeSchema(f.Type, ctx.Scalars, modelMap)
-			if f.Doc != "" {
+			if f.IsPayload {
+				propSchema.ResPayload = f.PayloadArg
+				codec := f.PayloadCodec
+				if codec == "" {
+					codec = "json"
+				}
+				desc := fmt.Sprintf("【载荷解封字段】物理传输格式为字符串，内部补充明文结构契约: %s (Codec: %s)", f.PayloadArg, codec)
+				if f.Doc != "" {
+					propSchema.Description = desc + "\n" + f.Doc
+				} else {
+					propSchema.Description = desc
+				}
+			} else if f.Doc != "" {
 				propSchema.Description = f.Doc
 			}
 			name := f.Name
@@ -172,10 +201,18 @@ func ConvertToOpenAPI3(ctx *DataContext) *OpenAPIDocument {
 			eSchema.Type = "integer"
 		}
 		var enumVals []any
+		var enumCases []EnumCaseInfo
 		for _, c := range e.Cases {
 			enumVals = append(enumVals, c.Value)
+			enumCases = append(enumCases, EnumCaseInfo{
+				Name:     c.Name,
+				Value:    c.Value,
+				Doc:      c.Doc,
+				IsString: c.IsString,
+			})
 		}
 		eSchema.Enum = enumVals
+		eSchema.ResEnumCases = enumCases
 		doc.Components.Schemas[e.Name] = eSchema
 	}
 
@@ -209,16 +246,38 @@ func ConvertToOpenAPI3(ctx *DataContext) *OpenAPIDocument {
 					Permission:    ep.Permission,
 					ReturnType:    ep.ReturnType,
 					ReturnTypeDSL: ep.ReturnTypeDSL,
+					ResInputName:  ep.InputName,
 					Responses:     make(map[string]OpenAPIResponse),
+				}
+				if len(ep.InSealChain) > 0 || len(ep.OutSealChain) > 0 {
+					op.ResSeal = &ResSealInfo{
+						InSealChain:    ep.InSealChain,
+						InSealGoType:   ep.InSealGoType,
+						InnerInputName: ep.InnerInputName,
+						OutSealChain:   ep.OutSealChain,
+						OutSealGoType:  ep.OutSealGoType,
+						OutPayloadDSL:  ep.OutPayloadDSL,
+					}
 				}
 
 				// Build Parameters
+				isSealedInput := len(ep.InSealChain) > 0 && ep.InEnvelopeModel != nil
+
 				for _, arg := range ep.Args {
 					inType := strings.ToLower(arg.Source)
 					if inType == "body" {
 						continue // Handled in requestBody
 					}
+					// 在信封加封场景下，未显式声明传输位置(如 @header/@path/@query)的参数为 Body 载荷，已被 seal 信封物理接管
+					if isSealedInput && inType == "" {
+						continue
+					}
+					// 在有 RequestBody 的非 GET 接口中，未显式声明位置的参数属于 RequestBody 字段，不应错误列入 Query 参数
 					if inType == "" {
+						mLower := strings.ToLower(ep.Method)
+						if (mLower == "post" || mLower == "put" || mLower == "patch" || mLower == "delete") && ep.InputName != "" {
+							continue
+						}
 						inType = "query"
 					}
 					isReq := inType == "path"
@@ -244,7 +303,20 @@ func ConvertToOpenAPI3(ctx *DataContext) *OpenAPIDocument {
 					reqMime = "application/json"
 				}
 
-				if ep.InputName != "" && modelMap[ep.InputName] != nil {
+				if len(ep.InSealChain) > 0 && ep.InEnvelopeModel != nil {
+					// 物理传输入参使用信封模型定义
+					op.RequestBody = &OpenAPIRequestBody{
+						Description: fmt.Sprintf("物理请求体：使用信封 %s 封装（解封后明文结构: %s）", ep.InEnvelopeModel.Name, ep.InnerInputName),
+						Required:    true,
+						Content: map[string]OpenAPIMediaType{
+							reqMime: {
+								Schema: &OpenAPISchema{
+									Ref: "#/components/schemas/" + ep.InEnvelopeModel.Name,
+								},
+							},
+						},
+					}
+				} else if ep.InputName != "" && modelMap[ep.InputName] != nil {
 					inputMod := modelMap[ep.InputName]
 					mLower := strings.ToLower(ep.Method)
 					if strings.Contains(mLower, "post") ||
@@ -282,7 +354,19 @@ func ConvertToOpenAPI3(ctx *DataContext) *OpenAPIDocument {
 						},
 					},
 				}
-				if ep.ReturnTypeBase != "" && doc.Components.Schemas[ep.ReturnTypeBase] != nil {
+				if len(ep.OutSealChain) > 0 && ep.OutEnvelopeModel != nil {
+					// 物理传输出参使用信封模型定义
+					successResp = OpenAPIResponse{
+						Description: fmt.Sprintf("物理响应体：使用信封 %s 封装（解封后明文结构: %s）", ep.OutEnvelopeModel.Name, ep.OutPayloadDSL),
+						Content: map[string]OpenAPIMediaType{
+							respMime: {
+								Schema: &OpenAPISchema{
+									Ref: "#/components/schemas/" + ep.OutEnvelopeModel.Name,
+								},
+							},
+						},
+					}
+				} else if ep.ReturnTypeBase != "" && doc.Components.Schemas[ep.ReturnTypeBase] != nil {
 					successResp.Content[respMime] = OpenAPIMediaType{
 						Schema: &OpenAPISchema{
 							Ref: "#/components/schemas/" + ep.ReturnTypeBase,

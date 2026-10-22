@@ -47,6 +47,11 @@ type NestedFormInput struct {
 	Address AddressInput `json:"address" form:"address"`
 }
 
+// SubmitMultipartArgs 输入模型
+type SubmitMultipartArgs struct {
+	Title string `json:"title" form:"title"`
+}
+
 // ==========================================
 // 2. Resolver Interface
 // ==========================================
@@ -72,7 +77,7 @@ type ContentTypeDemoResolver[T any] interface {
 	// 请求体为 multipart/form-data（文件上传场景在示例 6 详细展示）
 	//
 	// POST /content/multipart
-	SubmitMultipart(ctx context.Context, title string) (*string, error)
+	SubmitMultipart(ctx context.Context, input *SubmitMultipartArgs) (*string, error)
 
 	// 响应为纯文本，错误时退化为 JSON（默认由 default_wrap 包装）
 	//
@@ -206,7 +211,7 @@ func (e *ContentTypeDemoExecutor[T, C]) register(info MethodInfo, handler Handle
 func (e *ContentTypeDemoExecutor[T, C]) handleSubmitJson(request C, info MethodInfo) {
 	native := request.Native()
 	var input JsonInput
-	if err := e.bindSubmitJson(request, &input); err != nil {
+	if err := e.bindSubmitJson(request, info, &input); err != nil {
 		request.RenderJson(e.r.ErrorToStatus(native, err), e.r.BindResData(native, nil, err))
 		return
 	}
@@ -223,7 +228,7 @@ func (e *ContentTypeDemoExecutor[T, C]) handleSubmitJson(request C, info MethodI
 }
 
 // bindSubmitJson 自动生成的参数提取与转换实现
-func (e *ContentTypeDemoExecutor[T, C]) bindSubmitJson(request C, input *JsonInput) error {
+func (e *ContentTypeDemoExecutor[T, C]) bindSubmitJson(request C, info MethodInfo, input *JsonInput) error {
 	if err := request.Payload(SourceJSON, input); err != nil {
 		return err
 	}
@@ -246,7 +251,7 @@ func (e *ContentTypeDemoExecutor[T, C]) validateSubmitJson(ctx T, input *JsonInp
 func (e *ContentTypeDemoExecutor[T, C]) handleSubmitForm(request C, info MethodInfo) {
 	native := request.Native()
 	var input FormInput
-	if err := e.bindSubmitForm(request, &input); err != nil {
+	if err := e.bindSubmitForm(request, info, &input); err != nil {
 		request.RenderJson(e.r.ErrorToStatus(native, err), e.r.BindResData(native, nil, err))
 		return
 	}
@@ -263,7 +268,7 @@ func (e *ContentTypeDemoExecutor[T, C]) handleSubmitForm(request C, info MethodI
 }
 
 // bindSubmitForm 自动生成的参数提取与转换实现
-func (e *ContentTypeDemoExecutor[T, C]) bindSubmitForm(request C, input *FormInput) error {
+func (e *ContentTypeDemoExecutor[T, C]) bindSubmitForm(request C, info MethodInfo, input *FormInput) error {
 	if err := request.Payload(SourceForm, input); err != nil {
 		return err
 	}
@@ -286,7 +291,7 @@ func (e *ContentTypeDemoExecutor[T, C]) validateSubmitForm(ctx T, input *FormInp
 func (e *ContentTypeDemoExecutor[T, C]) handleSubmitNestedForm(request C, info MethodInfo) {
 	native := request.Native()
 	var input NestedFormInput
-	if err := e.bindSubmitNestedForm(request, &input); err != nil {
+	if err := e.bindSubmitNestedForm(request, info, &input); err != nil {
 		request.RenderJson(e.r.ErrorToStatus(native, err), e.r.BindResData(native, nil, err))
 		return
 	}
@@ -303,7 +308,7 @@ func (e *ContentTypeDemoExecutor[T, C]) handleSubmitNestedForm(request C, info M
 }
 
 // bindSubmitNestedForm 自动生成的参数提取与转换实现
-func (e *ContentTypeDemoExecutor[T, C]) bindSubmitNestedForm(request C, input *NestedFormInput) error {
+func (e *ContentTypeDemoExecutor[T, C]) bindSubmitNestedForm(request C, info MethodInfo, input *NestedFormInput) error {
 	if err := request.Payload(SourceForm, input); err != nil {
 		return err
 	}
@@ -334,17 +339,38 @@ func (e *ContentTypeDemoExecutor[T, C]) validateSubmitNestedForm(ctx T, input *N
 // handleSubmitMultipart 封装了端点的自动化执行流
 func (e *ContentTypeDemoExecutor[T, C]) handleSubmitMultipart(request C, info MethodInfo) {
 	native := request.Native()
-	var TitleVal string
-
-	if val := request.GetQuery("title"); val != "" {
-		TitleVal = val
+	var input SubmitMultipartArgs
+	if err := e.bindSubmitMultipart(request, info, &input); err != nil {
+		request.RenderJson(e.r.ErrorToStatus(native, err), e.r.BindResData(native, nil, err))
+		return
 	}
-	result, err := e.biz.SubmitMultipart(request.Context(), TitleVal)
+	if err := e.validateSubmitMultipart(native, &input); err != nil {
+		request.RenderJson(e.r.ErrorToStatus(native, err), e.r.BindResData(native, nil, err))
+		return
+	}
+	result, err := e.biz.SubmitMultipart(request.Context(), &input)
 	if err != nil {
 		request.RenderJson(e.r.ErrorToStatus(native, err), e.r.BindResData(native, nil, err))
 		return
 	}
 	request.RenderJson(200, e.r.BindResData(native, result, nil))
+}
+
+// bindSubmitMultipart 自动生成的参数提取与转换实现
+func (e *ContentTypeDemoExecutor[T, C]) bindSubmitMultipart(request C, info MethodInfo, input *SubmitMultipartArgs) error {
+	if err := request.Payload(SourceMultipart, input); err != nil {
+		return err
+	}
+	return nil
+}
+
+// validateSubmitMultipart 参数验证逻辑
+func (e *ContentTypeDemoExecutor[T, C]) validateSubmitMultipart(ctx T, input *SubmitMultipartArgs) error {
+	if err := e.v.Required(ctx, "title", input.Title); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // handleExportText 封装了端点的自动化执行流

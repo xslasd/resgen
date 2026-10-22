@@ -95,8 +95,154 @@
     </main>
 
     <script>
+        function normalizeApiData(raw) {
+            if (!raw) return raw;
+            if (raw.modules && raw.modules.length > 0) return raw;
+
+            const data = {
+                info: raw.info || {},
+                version: raw['x-resgen-version'] || raw.version || '',
+                package: raw['x-resgen-package'] || raw.package || '',
+                validators: raw['x-resgen-validators'] || raw.validators || [],
+                scalars: raw['x-resgen-scalars'] || raw.scalars || {},
+                modules: [],
+                models: [],
+                enums: [],
+                unions: []
+            };
+
+            if (raw.components && raw.components.schemas) {
+                Object.keys(raw.components.schemas).forEach(schemaName => {
+                    const schema = raw.components.schemas[schemaName];
+                    if (schema['x-res-enum-cases'] || schema.enum) {
+                        data.enums.push({
+                            name: schemaName,
+                            baseType: schema.type === 'integer' ? 'Int' : 'String',
+                            doc: schema.description || '',
+                            sourceFile: schema['x-res-file'] || '',
+                            cases: schema['x-res-enum-cases'] || (schema.enum || []).map(v => ({ name: String(v), value: v, isString: schema.type !== 'integer' }))
+                        });
+                    } else if (schema.type === 'object' || schema.properties) {
+                        const fields = [];
+                        if (schema.properties) {
+                            Object.keys(schema.properties).forEach(propName => {
+                                const prop = schema.properties[propName];
+                                const isReq = schema.required && schema.required.includes(propName);
+                                const validators = [];
+                                if (isReq) validators.push({ name: 'Required' });
+
+                                let propType = 'String';
+                                if (prop['$ref']) {
+                                    propType = prop['$ref'].replace('#/components/schemas/', '');
+                                } else if (prop.type === 'array' && prop.items) {
+                                    const itemType = prop.items['$ref'] ? prop.items['$ref'].replace('#/components/schemas/', '') : (prop.items.type || 'Any');
+                                    propType = `[]${itemType}`;
+                                } else if (prop.type) {
+                                    propType = prop.type === 'integer' ? 'Int' : (prop.type.charAt(0).toUpperCase() + prop.type.slice(1));
+                                }
+
+                                fields.push({
+                                    name: propName,
+                                    jsonName: propName,
+                                    type: propType,
+                                    doc: prop.description || '',
+                                    validators: validators,
+                                    isPayload: !!prop['x-res-payload'],
+                                    payloadArg: prop['x-res-payload'] || ''
+                                });
+                            });
+                        }
+                        data.models.push({
+                            name: schemaName,
+                            doc: schema.description || '',
+                            sourceFile: schema['x-res-file'] || '',
+                            fields: fields
+                        });
+                    }
+                });
+            }
+
+            const moduleMap = {};
+            if (raw.paths) {
+                Object.keys(raw.paths).forEach(pathKey => {
+                    const methods = raw.paths[pathKey];
+                    Object.keys(methods).forEach(methodKey => {
+                        const op = methods[methodKey];
+                        const modName = op['x-res-module'] || (op.tags && op.tags[0]) || 'Default';
+                        const grpName = op['x-res-group'] || '/';
+
+                        if (!moduleMap[modName]) {
+                            moduleMap[modName] = { name: modName, doc: '', groupsMap: {} };
+                        }
+                        const modObj = moduleMap[modName];
+
+                        if (!modObj.groupsMap[grpName]) {
+                            modObj.groupsMap[grpName] = { name: grpName, path: grpName, endpoints: [] };
+                        }
+                        const grpObj = modObj.groupsMap[grpName];
+
+                        const dslPath = pathKey.replace(/\{([^}]+)\}/g, ':$1');
+
+                        const args = [];
+                        if (op.parameters) {
+                            op.parameters.forEach(p => {
+                                let argType = 'String';
+                                if (p.schema) {
+                                    if (p.schema['$ref']) argType = p.schema['$ref'].replace('#/components/schemas/', '');
+                                    else if (p.schema.type) argType = p.schema.type === 'integer' ? 'Int' : (p.schema.type.charAt(0).toUpperCase() + p.schema.type.slice(1));
+                                }
+                                const validators = [];
+                                if (p.required) validators.push({ name: 'Required' });
+                                args.push({
+                                    name: p.name,
+                                    source: p.in ? (p.in.charAt(0).toUpperCase() + p.in.slice(1)) : 'Query',
+                                    type: argType,
+                                    doc: p.description || '',
+                                    validators: validators
+                                });
+                            });
+                        }
+
+                        const sealInfo = op['x-res-seal'] || {};
+
+                        grpObj.endpoints.push({
+                            name: op.summary || op.operationId,
+                            method: methodKey.toUpperCase(),
+                            fullPath: dslPath,
+                            doc: op.description || '',
+                            permission: op['x-res-permission'] || '',
+                            sourceFile: op['x-res-file'] || '',
+                            contentType: 'json',
+                            args: args,
+                            inputName: op['x-res-input-name'] || '',
+                            inSealChain: sealInfo.inSealChain || [],
+                            inSealGoType: sealInfo.inSealGoType || '',
+                            innerInputName: sealInfo.innerInputName || '',
+                            outSealChain: sealInfo.outSealChain || [],
+                            outSealGoType: sealInfo.outSealGoType || '',
+                            outPayloadDSL: sealInfo.outPayloadDSL || '',
+                            returnTypeDSL: op['x-res-return-type-dsl'] || op['x-res-return-type'] || '',
+                            returnTypeBase: op['x-res-return-type'] || ''
+                        });
+                    });
+                });
+            }
+
+            Object.keys(moduleMap).forEach(mName => {
+                const m = moduleMap[mName];
+                const groups = Object.keys(m.groupsMap).map(gName => m.groupsMap[gName]);
+                data.modules.push({
+                    name: m.name,
+                    doc: m.doc,
+                    groups: groups
+                });
+            });
+
+            return data;
+        }
+
         // Data injected by Go
-        const apiData = {{.ApiJson}};
+        const apiData = normalizeApiData({{.ApiJson}});
 
         function init() {
             renderSidebar();
@@ -521,7 +667,35 @@
             let rows = '';
 
             const reqCT = ep.contentType || 'json';
-            if (!ep.isArgsWrapped && ep.inputName) {
+            if (ep.inSealChain && ep.inSealChain.length > 0) {
+                const sealName = ep.inSealChain[0];
+                const model = apiData.models && apiData.models.find(m => m.name === sealName);
+                if (ep.args) {
+                    ep.args.forEach(arg => {
+                        if (arg.source && arg.source.toLowerCase() !== 'body') {
+                            rows += renderRow(arg, 0, false, '', null, null, new Set(), reqCT);
+                        }
+                    });
+                }
+                if (model) {
+                    let discMap = {};
+                    try { discMap = getDiscriminatorMap(model); } catch(e) {}
+                    model.fields.forEach(f => {
+                        let doc = f.doc || '';
+                        rows += renderRow({
+                            name: getFieldName(f, reqCT),
+                            type: f.type,
+                            source: 'Body',
+                            validators: f.validators,
+                            doc: doc,
+                            isUnion: f.isUnion,
+                            unionParamExp: f.unionParamExp,
+                            isPayload: f.isPayload,
+                            payloadArg: f.payloadArg
+                        }, 0, false, '', discMap ? discMap[f.name] : null, discMap ? discMap['__field_' + f.name] : null, new Set(), reqCT, { payloadPlainType: ep.innerInputName });
+                    });
+                }
+            } else if (!ep.isArgsWrapped && ep.inputName) {
                 const model = apiData.models && apiData.models.find(m => m.name === ep.inputName);
                 if (model) {
                     const defaultSource = (ep.args && ep.args[0]) ? ep.args[0].source : 'Body';
@@ -618,7 +792,11 @@
                         <div id="resp-success-content">
                             <table class="w-full text-left text-xs">
                                 <tbody class="divide-y divide-white/5">
-                                    ${renderTypeStructure(typeInfo.base, typeInfo, ep.responseContentType || 'application/json')}
+                                    ${(() => {
+                                        const respBaseType = (ep.outSealChain && ep.outSealChain.length > 0) ? ep.outSealChain[0] : typeInfo.base;
+                                        const respPayloadPlain = (ep.outSealChain && ep.outSealChain.length > 0) ? (ep.outPayloadDSL || ep.innerReturnType || '') : '';
+                                        return renderTypeStructure(respBaseType, typeInfo, ep.responseContentType || 'application/json', respPayloadPlain);
+                                    })()}
                                 </tbody>
                             </table>
                         </div>
@@ -643,7 +821,7 @@
             return rawType.replace(/^\*/, '').replace(/\*\[\]/g, '[]').replace(/\[\*([a-zA-Z0-9_]+)\]/g, '[$1]');
         }
 
-        function renderTypeStructure(baseType, typeInfo, ctype = '') {
+        function renderTypeStructure(baseType, typeInfo, ctype = '', payloadPlainType = '') {
             const cleanBase = baseType ? baseType.replace(/[*[\]!]/g, '') : '';
             const model = apiData.models && apiData.models.find(m => m.name === cleanBase);
             const union = apiData.unions && apiData.unions.find(u => u.name === cleanBase);
@@ -663,11 +841,13 @@
                         });
                     }
 
+                    let doc = f.doc || '';
                     rows += renderRow({
                         ...f,
+                        doc: doc,
                         name: getFieldName(f, ctype),
                         type: displayType,
-                    }, 0, true, '', discMap ? discMap[f.name] : null, discMap ? discMap['__field_' + f.name] : null, visited, ctype);
+                    }, 0, true, '', discMap ? discMap[f.name] : null, discMap ? discMap['__field_' + f.name] : null, visited, ctype, { payloadPlainType: payloadPlainType });
                 });
                 return rows;
             } else if (union) {
@@ -723,53 +903,206 @@
             return discriminatorMap;
         }
 
-        function getQueryParams(ep) {
-            const params = [];
+        function generateMockValue(typeStr, fieldName = '') {
+            if (!typeStr) return "example";
+            const cleanType = typeStr.replace(/[*[\]!]/g, '');
+            const lowerName = (fieldName || '').toLowerCase();
+            
+            const enm = apiData.enums && apiData.enums.find(e => e.name === cleanType);
+            if (enm && enm.cases && enm.cases.length > 0) {
+                const firstVal = enm.cases[0].value;
+                return firstVal !== undefined ? firstVal : enm.cases[0].name;
+            }
+
+            const model = apiData.models && apiData.models.find(m => m.name === cleanType);
+            if (model) {
+                const obj = {};
+                model.fields.forEach(f => {
+                    const reqCT = 'json';
+                    const fName = getFieldName(f, reqCT) || f.name;
+                    if (f.isPayload) {
+                        const payloadModelName = f.payloadArg && f.payloadArg !== 'T' ? f.payloadArg : '';
+                        const pModel = payloadModelName ? apiData.models.find(m => m.name === payloadModelName) : null;
+                        if (pModel) {
+                            obj[fName] = JSON.stringify(generateMockValue(payloadModelName, fName));
+                        } else {
+                            obj[fName] = "payload_data";
+                        }
+                    } else {
+                        obj[fName] = generateMockValue(f.type, fName);
+                    }
+                });
+                return obj;
+            }
+
+            if (typeStr.includes('[]')) {
+                const itemType = typeStr.replace('[]', '');
+                return [generateMockValue(itemType, fieldName)];
+            }
+
+            const t = cleanType.toLowerCase();
+            if (t === 'int' || t === 'integer' || t === 'int64' || t === 'number' || t === 'float') {
+                if (lowerName.includes('age')) return 25;
+                if (lowerName.includes('amount') || lowerName.includes('price')) return 100;
+                if (lowerName.includes('status')) return 1;
+                if (lowerName.includes('expire')) return 3600;
+                return 1;
+            }
+            if (t === 'bool' || t === 'boolean') {
+                return true;
+            }
+            if (t === 'string') {
+                if (lowerName.includes('id')) return "1001";
+                if (lowerName.includes('name')) return "example_name";
+                if (lowerName.includes('login') || lowerName.includes('user')) return "admin";
+                if (lowerName.includes('pass')) return "secret123";
+                if (lowerName.includes('token')) return "token_xyz123";
+                if (lowerName.includes('email')) return "user@example.com";
+                if (lowerName.includes('phone') || lowerName.includes('mobile')) return "13800138000";
+                if (lowerName.includes('url') || lowerName.includes('avatar')) return "https://example.com/avatar.png";
+                if (lowerName.includes('kid')) return "v1";
+                if (lowerName.includes('ver')) return "1.0";
+                return "example";
+            }
+            return "example";
+        }
+
+        function buildSampleUrl(ep) {
+            const baseUrl = (apiData.servers && apiData.servers[0] ? apiData.servers[0].url : (apiData.info && apiData.info.baseUrl || 'http://localhost:8080'));
+            let fullPath = ep.fullPath || '';
+            
+            const pathArgs = (ep.args || []).filter(a => a.source && a.source.toLowerCase() === 'path');
+            fullPath = fullPath.replace(/[:\{]([a-zA-Z0-9_]+)[\}]?/g, (match, paramName) => {
+                const arg = pathArgs.find(a => a.name === paramName);
+                const val = generateMockValue(arg ? arg.type : 'String', paramName);
+                return String(val);
+            });
+
+            const queryParams = [];
             const reqCT = ep.contentType || 'json';
             if (!ep.isArgsWrapped && ep.inputName) {
                 const model = apiData.models && apiData.models.find(m => m.name === ep.inputName);
                 if (model) {
                     const source = (ep.args && ep.args[0]) ? ep.args[0].source : 'Body';
                     if (source === 'Query') {
-                        model.fields.forEach(f => params.push(`${getFieldName(f, reqCT)}=...`));
+                        model.fields.forEach(f => {
+                            const fn = getFieldName(f, reqCT);
+                            const val = generateMockValue(f.type, fn);
+                            queryParams.push(`${fn}=${encodeURIComponent(val)}`);
+                        });
                     }
                 }
             } else if (ep.args) {
                 ep.args.forEach(arg => {
-                    if (arg.source === 'Query') params.push(`${arg.name}=...`);
+                    if (arg.source && arg.source.toLowerCase() === 'query') {
+                        const val = generateMockValue(arg.type, arg.name);
+                        queryParams.push(`${arg.name}=${encodeURIComponent(val)}`);
+                    }
                 });
             }
-            return params.length > 0 ? '?' + params.join('&') : '';
+
+            const qStr = queryParams.length > 0 ? '?' + queryParams.join('&') : '';
+            return `${baseUrl}${fullPath}${qStr}`;
+        }
+
+        function buildSampleBody(ep) {
+            const reqCT = ep.contentType || 'json';
+            if (ep.inSealChain && ep.inSealChain.length > 0) {
+                const sealName = ep.inSealChain[0];
+                const sealModel = apiData.models && apiData.models.find(m => m.name === sealName);
+                if (sealModel) {
+                    return generateMockValue(sealName, '');
+                }
+            }
+
+            if (ep.inputName) {
+                const inputModel = apiData.models && apiData.models.find(m => m.name === ep.inputName);
+                if (inputModel) {
+                    return generateMockValue(ep.inputName, '');
+                }
+            }
+
+            if (ep.args) {
+                const bodyArgs = ep.args.filter(a => !a.source || a.source.toLowerCase() === 'body');
+                if (bodyArgs.length > 0) {
+                    const obj = {};
+                    bodyArgs.forEach(a => {
+                        obj[a.name] = generateMockValue(a.type, a.name);
+                    });
+                    return obj;
+                }
+            }
+
+            return null;
+        }
+
+        function buildSampleHeaders(ep) {
+            const headers = [];
+            headers.push({ name: 'Content-Type', value: ep.contentType || 'application/json' });
+            if (ep.permission) {
+                headers.push({ name: 'Authorization', value: 'Bearer <your_access_token>' });
+            }
+            if (ep.args) {
+                ep.args.forEach(a => {
+                    if (a.source && a.source.toLowerCase() === 'header') {
+                        const val = generateMockValue(a.type, a.name);
+                        headers.push({ name: a.name, value: String(val) });
+                    }
+                });
+            }
+            return headers;
         }
 
         function generateCurl(ep) {
-            const baseUrl = apiData.info.baseUrl || 'http://localhost:8080';
-            const url = `${baseUrl}${ep.fullPath}${getQueryParams(ep)}`;
+            const url = buildSampleUrl(ep);
             let curl = `curl -X ${ep.method} "${url}"`;
-            if (ep.method !== 'GET') {
-                curl += ` \\\n  -H "Content-Type: ${ep.contentType}"`;
-                if (ep.args && ep.args.some(a => a.source === 'Body')) {
-                    curl += ` \\\n  -d '{ ... }'`;
+            
+            const headers = buildSampleHeaders(ep);
+            if (ep.method === 'GET') {
+                const getHeaders = headers.filter(h => h.name !== 'Content-Type');
+                getHeaders.forEach(h => {
+                    curl += ` \\\n  -H "${h.name}: ${h.value}"`;
+                });
+            } else {
+                headers.forEach(h => {
+                    curl += ` \\\n  -H "${h.name}: ${h.value}"`;
+                });
+                const body = buildSampleBody(ep);
+                if (body) {
+                    const jsonStr = JSON.stringify(body, null, 2);
+                    curl += ` \\\n  -d '${jsonStr}'`;
                 }
             }
             return curl;
         }
 
         function generateJS(ep) {
-            const baseUrl = apiData.info.baseUrl || 'http://localhost:8080';
-            const url = `${baseUrl}${ep.fullPath}${getQueryParams(ep)}`;
+            const url = buildSampleUrl(ep);
+            const headers = buildSampleHeaders(ep);
+            const body = ep.method !== 'GET' ? buildSampleBody(ep) : null;
+            
             let js = `fetch("${url}", {\n  method: "${ep.method}",\n`;
-            if (ep.method !== 'GET') {
-                js += `  headers: {\n    "Content-Type": "${ep.contentType}"\n  },\n`;
-                if (ep.args && ep.args.some(a => a.source === 'Body')) {
-                    js += `  body: JSON.stringify({ ... })\n`;
-                }
+            
+            const headerObj = {};
+            if (ep.method === 'GET') {
+                headers.filter(h => h.name !== 'Content-Type').forEach(h => { headerObj[h.name] = h.value; });
+            } else {
+                headers.forEach(h => { headerObj[h.name] = h.value; });
             }
-            js += `}).then(res => res.json());`;
+            
+            if (Object.keys(headerObj).length > 0) {
+                js += `  headers: ${JSON.stringify(headerObj, null, 4).replace(/\n/g, '\n  ')},\n`;
+            }
+            
+            if (body) {
+                js += `  body: JSON.stringify(${JSON.stringify(body, null, 4).replace(/\n/g, '\n  ')})\n`;
+            }
+            
+            js += `}).then(res => res.json())\n  .then(data => console.log(data));`;
             return js;
         }
 
-        function renderRow(arg, depth = 0, hideSource = false, extraClass = '', discInfo = null, unionFieldInfo = null, visitedModels = new Set(), ctype = '') {
+        function renderRow(arg, depth = 0, hideSource = false, extraClass = '', discInfo = null, unionFieldInfo = null, visitedModels = new Set(), ctype = '', contextInfo = {}) {
             const padding = depth * 16;
             const isRequired = arg.validators && arg.validators.some(v => v.name === 'Required');
             const displayValidators = arg.validators ? arg.validators.filter(v => v.name !== 'Required') : [];
@@ -830,6 +1163,49 @@
                 typeCellContent = `<span class="flex items-center gap-1.5 flex-wrap"><span>${displayType}</span><span class="text-[9px] font-mono font-semibold text-cyan-400/90 bg-cyan-500/10 border border-cyan-500/20 px-1.5 py-0.5 rounded tracking-wide">Self-ref Tree Node</span></span>`;
             }
 
+            let docHtml = arg.doc || '';
+            const targetPlain = (arg.payloadArg && arg.payloadArg !== 'T') ? arg.payloadArg : (contextInfo ? contextInfo.payloadPlainType : '');
+            const cleanTargetPlain = targetPlain ? targetPlain.replace(/[*[\]!]/g, '') : '';
+            const payloadModel = (arg.isPayload && cleanTargetPlain) ? (apiData.models && apiData.models.find(m => m.name === cleanTargetPlain)) : null;
+
+            if (arg.isPayload && cleanTargetPlain) {
+                let payloadCard = '';
+                if (payloadModel) {
+                    payloadCard = `
+                        <div class="mt-2.5 p-3 rounded-xl bg-slate-900/90 border border-indigo-500/30 text-xs font-sans shadow-lg">
+                            <div class="flex items-center gap-2 mb-2 pb-1.5 border-b border-white/5">
+                                <span class="px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 font-mono font-bold text-[10px] border border-indigo-500/30">@payload(${cleanTargetPlain})</span>
+                                <span class="text-slate-200 font-bold text-[11px]">解封载荷数据结构</span>
+                            </div>
+                            <div class="space-y-1 font-mono text-[11px]">
+                                ${payloadModel.fields.map(pf => `
+                                    <div class="flex items-center justify-between bg-slate-800/60 px-2.5 py-1 rounded border border-white/5">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-slate-200 font-semibold">${pf.name}</span>
+                                            ${pf.doc ? `<span class="text-slate-400 italic text-[10px] truncate max-w-[160px]">${pf.doc}</span>` : ''}
+                                        </div>
+                                        <span class="text-indigo-400 font-bold ml-2">${pf.type}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                            <div class="mt-2 text-[10px] text-slate-400 leading-normal">
+                                💡 <b>提示：</b>本字段类型为 <code class="text-amber-300 font-mono">${formattedType}</code>，前端需将 <code class="text-indigo-300 font-mono">${cleanTargetPlain}</code> 结构转换成 <code class="text-amber-300 font-mono">${formattedType}</code> 给本字段（转换/加密方式按业务约定）。
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    payloadCard = `
+                        <div class="mt-2 p-2.5 rounded-lg bg-slate-900/90 border border-indigo-500/30 text-xs font-sans">
+                            <div class="flex items-center gap-2">
+                                <span class="px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 font-mono font-bold text-[10px] border border-indigo-500/30">@payload(${cleanTargetPlain})</span>
+                                <span class="text-slate-300 text-[11px]">解封载荷数据类型: <code class="text-indigo-300 font-mono">${cleanTargetPlain}</code></span>
+                            </div>
+                        </div>
+                    `;
+                }
+                docHtml = docHtml ? `${docHtml}<br>${payloadCard}` : payloadCard;
+            }
+
             let row = `
                 <tr class="${extraClass} ${depth > 0 ? 'bg-white/[0.01]' : ''} group/row transition-colors hover:bg-white/[0.02]">
                     ${hideSource ? '' : `<td class="p-4 font-mono text-[9px] font-black uppercase text-slate-600">${arg.source || 'Body'}</td>`}
@@ -843,7 +1219,7 @@
                         ${typeCellContent}
                     </td>
                     ${hideSource ? '' : `<td class="p-4 whitespace-nowrap">${renderValidators(displayValidators)}</td>`}
-                    <td class="p-4 text-xs text-slate-500 leading-relaxed max-w-xs">${arg.doc || '-'}</td>
+                    <td class="p-4 text-xs text-slate-500 leading-relaxed max-w-xs">${docHtml || '-'}</td>
                 </tr>
             `;
 
@@ -875,7 +1251,7 @@
                                 doc: f.doc,
                                 isUnion: f.isUnion,
                                 unionParamExp: f.unionParamExp
-                            }, depth + 1, hideSource, cls, cDiscInfo, cUnionFieldInfo, nextVisited, ctype);
+                            }, depth + 1, hideSource, cls, cDiscInfo, cUnionFieldInfo, nextVisited, ctype, contextInfo);
                         });
                     }
                 });
@@ -892,7 +1268,7 @@
                         doc: f.doc,
                         isUnion: f.isUnion,
                         unionParamExp: f.unionParamExp
-                    }, depth + 1, hideSource, extraClass, subDiscInfo, subUnionFieldInfo, nextVisited, ctype);
+                    }, depth + 1, hideSource, extraClass, subDiscInfo, subUnionFieldInfo, nextVisited, ctype, contextInfo);
                 });
             }
             return row;

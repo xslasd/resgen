@@ -276,7 +276,7 @@ func (h *ContentTypeDemoHandler) SubmitNestedForm(ctx context.Context, input *re
 	s := fmt.Sprintf("nested form submitted: name=%s, age=%d, city=%s, street=%s", input.Name, input.Age, input.Address.City, input.Address.Street)
 	return &s, nil
 }
-func (h *ContentTypeDemoHandler) SubmitMultipart(ctx context.Context, title string) (*string, error) {
+func (h *ContentTypeDemoHandler) SubmitMultipart(ctx context.Context, input *resolver.SubmitMultipartArgs) (*string, error) {
 	s := "multipart submitted"
 	return &s, nil
 }
@@ -299,7 +299,7 @@ func (h *StatusDemoHandler) GetProduct(ctx context.Context, id *int) (*resolver.
 func (h *StatusDemoHandler) CreateProduct(ctx context.Context, input *resolver.CreateProductInput) (*resolver.Product, error) {
 	return &resolver.Product{ID: 2, Name: input.Name, Price: input.Price}, nil
 }
-func (h *StatusDemoHandler) BatchUpdate(ctx context.Context, ids []int) (*string, error) {
+func (h *StatusDemoHandler) BatchUpdate(ctx context.Context, input *resolver.BatchUpdateArgs) (*string, error) {
 	s := "updated"
 	return &s, nil
 }

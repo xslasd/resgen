@@ -20,8 +20,12 @@ func (b *mockStatusDemoBiz) CreateProduct(ctx context.Context, input *resolver.C
 	return &resolver.Product{ID: 101, Name: input.Name, Price: input.Price}, nil
 }
 
-func (b *mockStatusDemoBiz) BatchUpdate(ctx context.Context, ids []int) (*string, error) {
-	msg := fmt.Sprintf("已成功提交 %d 个商品的异步更新任务", len(ids))
+func (b *mockStatusDemoBiz) BatchUpdate(ctx context.Context, input *resolver.BatchUpdateArgs) (*string, error) {
+	count := 0
+	if input != nil {
+		count = len(input.Ids)
+	}
+	msg := fmt.Sprintf("已成功提交 %d 个商品的异步更新任务", count)
 	return &msg, nil
 }
 
@@ -85,7 +89,7 @@ func TestStatusDemo_StatusCodesAndWrapOverrides(t *testing.T) {
 
 	t.Run("2. POST /products/batch-update 返回 HTTP 202 Accepted", func(t *testing.T) {
 		h := handlers["POST /products/batch-update"]
-		reqBody := `[1, 2, 3]`
+		reqBody := `{"ids": [1, 2, 3]}`
 		ctx := NewTestContext(httptest.NewRequest("POST", "/products/batch-update", bytes.NewBufferString(reqBody)))
 
 		h(ctx, resolver.MethodInfo{Name: "BatchUpdate"})

@@ -283,6 +283,7 @@ func findImmediateComment(line int, comments map[int]string, codeLines map[int]b
 // Validate 执行全局唯一性校验：模型重名、路由冲突、以及引用完整性校验
 func (s *Schema) Validate() error {
 	models := make(map[string]bool)
+	modelDecls := make(map[string]*ModelDecl)
 	modules := make(map[string]bool)
 	decorators := make(map[string]bool)
 	routes := make(map[string]string)
@@ -304,6 +305,7 @@ func (s *Schema) Validate() error {
 				return fmt.Errorf("%s: duplicate model defined: %s", decl.Model.Pos, decl.Model.Name)
 			}
 			models[decl.Model.Name] = true
+			modelDecls[decl.Model.Name] = decl.Model
 		}
 		if decl.Decorator != nil {
 			if decorators[decl.Decorator.Name] {
@@ -329,6 +331,39 @@ func (s *Schema) Validate() error {
 			}
 			models[decl.Enum.Name] = true
 		}
+	}
+
+	validateSealMeta := func(metaList []MetaEntry) error {
+		for _, meta := range metaList {
+			if meta.Key == "seal" {
+				envName := ""
+				var typeArgs []TypeRef
+				if meta.Value.Generic != nil {
+					envName = meta.Value.Generic.Name
+					typeArgs = meta.Value.Generic.Args
+				} else if meta.Value.Str != nil {
+					envName = *meta.Value.Str
+				}
+				if envName == "" {
+					return fmt.Errorf("%s: seal 元数据值为空", meta.Pos)
+				}
+				envDecl, ok := modelDecls[envName]
+				if !ok {
+					return fmt.Errorf("%s: seal 指向了未定义的模型 '%s'", meta.Pos, envName)
+				}
+				if len(typeArgs) > 0 {
+					if len(typeArgs) != len(envDecl.TypeParams) {
+						return fmt.Errorf("%s: 信封 '%s' 声明了 %d 个类型参数，但 seal 提供了 %d 个实参", meta.Pos, envName, len(envDecl.TypeParams), len(typeArgs))
+					}
+					for _, targ := range typeArgs {
+						if err := validateTypeRef(targ, models, baseTypes, nil); err != nil {
+							return fmt.Errorf("%s: seal 信封 '%s' 的泛型实参校验失败: %v", meta.Pos, envName, err)
+						}
+					}
+				}
+			}
+		}
+		return nil
 	}
 
 	// 第二遍：验证引用完整性
@@ -375,6 +410,13 @@ func (s *Schema) Validate() error {
 					if err := validateTypeRef(arg.Type, models, baseTypes, nil); err != nil {
 						return fmt.Errorf("%s: endpoint %s: arg %s %v", arg.Pos, ep.Name, arg.Name, err)
 					}
+				}
+
+				if err := validateSealMeta(ep.RequestMeta); err != nil {
+					return err
+				}
+				if err := validateSealMeta(ep.ResponseMeta); err != nil {
+					return err
 				}
 			}
 		}

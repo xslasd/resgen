@@ -447,7 +447,7 @@ GET /download/:id => DownloadFile(id: Int @path): File [ctype=stream, etype=json
 - `@customBind`: **逻辑接管绑定**。跳过自动生成代码的绑定逻辑，在 Resolver 中生成 `BindXXX` 方法供手动实现（适用于 Multipart 复杂处理或自定义解析）。
 - 默认逻辑：
   - `GET` 方法：参数默认绑定到 `Query`。
-  - `POST/PUT/PATCH` 方法：Body 字段的序列化格式由接口的 `ctype` 统一决定（`json`/`form`/`multipart`），**无需在字段上逐个标注**。
+  - `POST/PUT/PATCH/DELETE` 方法：参数默认绑定到 `Body`（序列化格式由接口的 `ctype` 统一决定，**无需在字段上逐个标注**）。平铺参数（无论单个标量如 `task_id: Int!` 还是多个平铺字段）均会自动合成 `XxxArgs` 输入包装模型并通过请求体反序列化绑定；若期望使用 URL 查询参数，请显式标注 `@query`，若期望路径参数请标注 `@path`。
 
 > [!NOTE]
 > `@alias` 既支持 **`input` 输入模型**、**`type` 输出响应模型**，也支持接口的**顶层平铺参数**：
@@ -862,3 +862,145 @@ func (it *IntTime) UnmarshalJSON(data []byte) error {
 | **序列化库约束** | 框架内置，使用 `ToValue/FromValue` | 完全自由，用户自定义 |
 | **必须实现的方法** | `FromParam` + `FromValue` + `ToValue` | `FromParam`（+ 自定义序列化逻辑） |
 | **适用场景** | 需要 ctx 注入（多租户、时区转换等） | 纯格式转换，追求极简代码 |
+
+---
+
+## 8. Seal 自动加包与解包外壳 (Seal Wrapping & Unwrapping)
+
+Resgen 提供了强类型的 `seal` 自动化外壳绑定机制。其核心作用是在**网络传输层物理数据结构**与**后端业务处理层 (Handler/Resolver) 参数**之间添加一层自动的**解包 (Peel/Unwrap)** 与 **加包 (Wrap)** 转换逻辑，实现传输协议/加解密外壳与后端业务逻辑的无缝解耦。
+
+### 8.1 核心机制
+
+1. **外壳模型声明**：
+   加包/解包的外壳模型本身是一个普通的 `type` 或 `input` 结构体，用于定义网络传输层实际接收或发送的物理数据字段（如 `cipher_text: String!`、`sign: String!`、`timestamp: Int!` 等）。
+
+2. **端点 `[seal=...]` 声明与代码生成流转**：
+   在端点的方法元数据槽位中通过 `[seal=...]` 配置加包/解包外壳：
+   - **请求自动解包 / 拆壳 (`RequestMeta` 槽位)**：
+     ```graphql
+     POST /login [seal=CipherWrap<LoginReq>] => Login(input: LoginReq): Token
+     ```
+     - **网络传输层**：客户端发送物理外壳结构 `CipherWrap`；
+     - **生成器代码逻辑**：客户端发送物理外壳结构 `CipherWrap`，Resgen 框架自动生成将 `CipherWrap` 绑定解析并转换为 `LoginReq` 业务入参的处理方法，随后调用后端 Resolver；
+     - **后端 Handler 签名**：业务 Handler 无需关注任何传输外壳，直接接收干净纯粹的业务入参 `(ctx, *LoginReq)`。
+
+   - **响应自动加包 / 封壳 (`ResponseMeta` 槽位)**：
+     ```graphql
+     POST /login => Login(input: LoginReq): Token [seal=CipherWrap<Token>]
+     ```
+     - **后端 Handler 签名**：业务 Handler 只需专注于核心逻辑，返回干净纯粹的业务响应 `(*Token, error)`；
+     - **生成器代码逻辑**：Resgen 框架自动生成捕获业务响应 `Token` 并将其加包转换为 `CipherWrap` 物理外壳响应体的处理方法输出给客户端；
+     - **网络传输层**：客户端收到的是封装后的物理外壳响应 `CipherWrap`。
+
+3. **Go 侧 `Sealer` 逻辑器**：
+   针对不同的加包/解包外壳模型，业务层实现对应的 `Sealer` 转换逻辑器并在引擎构建时注册，框架将全自动托管传输层物理数据与后端业务数据之间的双向流转。
+
+---
+
+## 9. `@payload` 明文辅助契约 (Payload Directive)
+
+`@payload` 是 Resgen 提供的一个高级辅助契约指令。它在不改变传输层物理字段类型（如 `String!` 密文字符串）的前提下，向前端和 API 文档表达该字段在解封/解密后所代表的内部明文数据结构。
+
+### 9.1 核心场景
+
+`@payload` **不仅可以配合 `seal` 信封使用，也可以在任何普通的 `input` 或 `type` 字段上独立使用**。
+
+#### 场景 1：信封结构中的模板参数关联
+在泛型信封结构中，配合类型参数 `T` 标注密文载体字段：
+```graphql
+type CipherWrap<T> {
+    cipher_text: String! @payload(T) # 声明 cipher_text 存储的是解封后的明文模型 T
+    nonce:       String!
+}
+```
+
+#### 场景 2：独立明文辅助说明（无 seal 场景）
+对于非框架托管拆封的第三方加密字段、自定义签名载荷或内部 JSON 字符串字段，直接在属性上标注具体明文模型：
+```graphql
+input RawPayloadReq {
+    # 物理字段为字符串，业务层自行处理解密，DSL 中辅助说明内部结构为 EnvLoginReq
+    raw_data: String! @payload(EnvLoginReq)
+}
+```
+
+### 9.2 代码生成与文档表现
+
+1. **Go 结构体代码生成**：
+   `@payload` 不会改变 Go 物理结构体中的字段类型（如 `RawData string`），保持编译期的类型纯洁性与高性能。
+
+2. **API 文档与 OpenAPI 3.0.3 视图 (`api.html` / `api.json`)**：
+   - 在 OpenAPI 3.0.3 导出 JSON 中，标注了 `@payload(M)` 的字段会在 `x-res-payload` 扩展元数据中记录明文模型名；
+   - 在 `api.html` 交互式预览文档中，对应字段描述单元格内会渲染精致的 **Payload 明文卡片**，展开展示 `EnvLoginReq` 的内嵌字段、数据类型与注释说明。
+
+### 9.3 完整示例
+
+```graphql
+# 1. 物理信封声明
+type CipherWrap<T> {
+    cipher_text: String! @payload(T)
+    nonce:       String!
+}
+
+# 2. 业务明文模型
+input EnvLoginReq {
+    username: String!
+    password: String!
+}
+
+type EnvToken {
+    access_token: String!
+}
+
+# 3. 接口路由编排
+group /env_auth {
+    # ① 双向加解封
+    POST /login [seal=CipherWrap<EnvLoginReq>] => EnvLogin(input: EnvLoginReq): EnvToken [seal=CipherWrap<EnvToken>]
+
+    # ② 独立使用 @payload 辅助说明明文结构
+    POST /raw_payload => SubmitRawPayload(input: RawPayloadReq): EnvToken
+}
+
+input RawPayloadReq {
+    raw_data: String! @payload(EnvLoginReq)
+}
+```
+
+## 10. 编辑器支持与原生 LSP (Language Server Protocol)
+
+为了提供极佳的开发者体验，Resgen 内置了原生的 **LSP (Language Server Protocol)** 语言服务器，并为 **VSCode** 与 **JetBrains IDE（GoLand, IntelliJ IDEA 等）** 提供了官方插件支持。
+
+### 10.1 启动语言服务器
+通过 CLI 命令即可启动基于标准 Stdio 通信的 LSP 语言服务：
+```bash
+resgen lsp
+```
+
+### 10.2 核心特性全景
+
+1. **实时悬停提示 (Hover Hints)**：
+   - **HTTP 方法语义与绑定规则指导**：将鼠标悬停在 `GET`、`POST`、`PUT`、`DELETE`、`PATCH` 等 HTTP 动词上时，LSP 会即时呈现该请求方法的参数绑定规则（例如：GET 默认平铺参数绑定至 Query；POST/PUT/PATCH/DELETE 默认平铺形参统一绑定至请求体 Body 并自动合成 `XxxArgs` 包装模型，需从 URL Query 提取时须显式标注 `@query` 等）。
+   - **内置指令规范**：悬停在 `@query`、`@alias`、`@path`、`@header`、`@required`、`@customBind`、`@payload`、`[seal=...]` 等指令与元属性上时，提供规范定义、应用场景与代码示例。
+
+2. **语义诊断与实时语法纠错 (Diagnostics)**：
+   - 自动检测并提示标量继承规范（如禁止继承自 `File` 标量）；
+   - 检查联合类型判别器必须指向有效的 `enum` 枚举模型；
+   - 检查 `File` 字段的使用边界（如禁止在非 input 模型中包含 File 属性、禁止出参声明为文件流数组 `[File]` 等）；
+   - 校验顶级匿名 Payload 在参数列表中的唯一性约束。
+
+3. **符号跳转与定义追踪 (Go-to-Definition)**：
+   - 在接口入参模型名、出参模型名、泛型参数或引用字段上使用 `F12` / `Ctrl+Click`，可瞬间精准跳转至当前工作区对应的 `type` / `input` / `enum` / `union` 声明源码行。
+
+4. **上下文感知智能补全 (Completions)**：
+   - **指令补全**：键入 `@` 符号自动联想 `@path`、`@query`、`@header`、`@alias`、`@payload` 等内置指令；
+   - **类型补全**：在属性类型或接口出参冒号后，智能补全内置标量类型与工作区已定义的全部业务模型；
+   - **路由模版 Snippets**：键入 `GET`、`POST`、`PUT`、`DELETE`、`group` 等关键字自动展开标准路由模版，包含规范的参数与占位符引导。
+
+5. **统一代码格式化 (Document Formatting)**：
+   - 支持通过 IDE 的格式化快捷键（如 `Shift+Alt+F`）对 `.res` 文件一键执行结构对齐与规范排版。
+
+### 10.3 官方 IDE 插件安装与配置
+
+- **VSCode 插件**：位于仓库的 [`editors/vscode`](../editors/vscode) 目录，支持语法高亮、代码片段以及基于 `resgen lsp` 的完整高级功能。
+- **JetBrains 插件**：位于仓库的 [`editors/jetbrains`](../editors/jetbrains) 目录，支持在 GoLand、IntelliJ IDEA Ultimate 等 IDE 中通过原生 LSP 接入享受代码提示与跳转。
+
+

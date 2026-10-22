@@ -5,7 +5,7 @@ package resolver
 
 import (
 	"context"
-	"fmt"
+	"strconv"
 )
 
 // ==========================================
@@ -27,6 +27,11 @@ type Product struct {
 type CreateProductInput struct {
 	Name  string  `json:"name"`
 	Price float64 `json:"price"`
+}
+
+// BatchUpdateArgs 输入模型
+type BatchUpdateArgs struct {
+	Ids []int `json:"ids"`
 }
 
 // ListProductsArgs 输入模型
@@ -55,7 +60,7 @@ type StatusDemoResolver[T any] interface {
 	// 批量更新：成功状态码改为 202 Accepted（异步处理）
 	//
 	// POST /products/batch-update
-	BatchUpdate(ctx context.Context, ids []int) (*string, error)
+	BatchUpdate(ctx context.Context, input *BatchUpdateArgs) (*string, error)
 
 	// 无内容删除：成功状态码改为 204 No Content，直接返回空响应（wrap=none）
 	//
@@ -216,7 +221,7 @@ func (e *StatusDemoExecutor[T, C]) handleGetProduct(request C, info MethodInfo) 
 func (e *StatusDemoExecutor[T, C]) handleCreateProduct(request C, info MethodInfo) {
 	native := request.Native()
 	var input CreateProductInput
-	if err := e.bindCreateProduct(request, &input); err != nil {
+	if err := e.bindCreateProduct(request, info, &input); err != nil {
 		request.RenderJson(e.r.ErrorToStatus(native, err), e.r.BindResData(native, nil, err))
 		return
 	}
@@ -233,7 +238,7 @@ func (e *StatusDemoExecutor[T, C]) handleCreateProduct(request C, info MethodInf
 }
 
 // bindCreateProduct 自动生成的参数提取与转换实现
-func (e *StatusDemoExecutor[T, C]) bindCreateProduct(request C, input *CreateProductInput) error {
+func (e *StatusDemoExecutor[T, C]) bindCreateProduct(request C, info MethodInfo, input *CreateProductInput) error {
 	if err := request.Payload(SourceJSON, input); err != nil {
 		return err
 	}
@@ -255,19 +260,43 @@ func (e *StatusDemoExecutor[T, C]) validateCreateProduct(ctx T, input *CreatePro
 // handleBatchUpdate 封装了端点的自动化执行流
 func (e *StatusDemoExecutor[T, C]) handleBatchUpdate(request C, info MethodInfo) {
 	native := request.Native()
-	var IdsVal []int
-
-	if val := request.GetQuery("ids"); val != "" {
-		// 不支持的基础数据类型: []int
-		request.RenderJson(e.r.ErrorToStatus(native, fmt.Errorf("未支持的参数物理类型: %s", "[]int")), e.r.BindResData(native, nil, fmt.Errorf("未支持的参数物理类型: %s", "[]int")))
+	var input BatchUpdateArgs
+	if err := e.bindBatchUpdate(request, info, &input); err != nil {
+		request.RenderJson(e.r.ErrorToStatus(native, err), e.r.BindResData(native, nil, err))
 		return
 	}
-	result, err := e.biz.BatchUpdate(request.Context(), IdsVal)
+	if err := e.validateBatchUpdate(native, &input); err != nil {
+		request.RenderJson(e.r.ErrorToStatus(native, err), e.r.BindResData(native, nil, err))
+		return
+	}
+	result, err := e.biz.BatchUpdate(request.Context(), &input)
 	if err != nil {
 		request.RenderJson(e.r.ErrorToStatus(native, err), e.r.BindResData(native, nil, err))
 		return
 	}
 	request.RenderJson(202, e.r.BindResData(native, result, nil))
+}
+
+// bindBatchUpdate 自动生成的参数提取与转换实现
+func (e *StatusDemoExecutor[T, C]) bindBatchUpdate(request C, info MethodInfo, input *BatchUpdateArgs) error {
+	if err := request.Payload(SourceJSON, input); err != nil {
+		return err
+	}
+	return nil
+}
+
+// validateBatchUpdate 参数验证逻辑
+func (e *StatusDemoExecutor[T, C]) validateBatchUpdate(ctx T, input *BatchUpdateArgs) error {
+	if err := e.v.Required(ctx, "ids", input.Ids); err != nil {
+		return err
+	}
+	for i, item := range input.Ids {
+		if err := e.v.Required(ctx, "ids"+"["+strconv.Itoa(i)+"]", item); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // handleDeleteProduct 封装了端点的自动化执行流
@@ -296,7 +325,7 @@ func (e *StatusDemoExecutor[T, C]) handleDeleteProduct(request C, info MethodInf
 func (e *StatusDemoExecutor[T, C]) handleListProducts(request C, info MethodInfo) {
 	native := request.Native()
 	var input ListProductsArgs
-	if err := e.bindListProducts(request, &input); err != nil {
+	if err := e.bindListProducts(request, info, &input); err != nil {
 		request.RenderJson(e.r.ErrorToStatus(native, err), err.Error())
 		return
 	}
@@ -309,7 +338,7 @@ func (e *StatusDemoExecutor[T, C]) handleListProducts(request C, info MethodInfo
 }
 
 // bindListProducts 自动生成的参数提取与转换实现
-func (e *StatusDemoExecutor[T, C]) bindListProducts(request C, input *ListProductsArgs) error {
+func (e *StatusDemoExecutor[T, C]) bindListProducts(request C, info MethodInfo, input *ListProductsArgs) error {
 	if val := request.GetQuery("page"); val != "" {
 		if v, err := IntFromParam(val); err == nil {
 			v2 := v

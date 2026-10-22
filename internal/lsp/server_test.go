@@ -1,9 +1,11 @@
 package lsp
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/xslasd/resgen/internal/parser"
+	protocol "github.com/tliron/glsp/protocol_3_16"
 )
 
 func TestDefinitionAndFormatting(t *testing.T) {
@@ -115,5 +117,165 @@ func TestCompletion(t *testing.T) {
 	}
 	if !foundDelete {
 		t.Errorf("Expected 'DELETE' in keyword completions")
+	}
+}
+
+func TestHttpMethodAndDirectiveHover(t *testing.T) {
+	content := `group /tasks {
+    GET /list => ListTasks(): [String]
+    POST /cancel => CancelTask(task_id: Int!): Boolean
+    DELETE /item => DeleteItem(id: String! @query): Boolean
+    PUT /update => UpdateTask(id: Int!): Boolean
+    PATCH /status => PatchStatus(status: Int!): Boolean
+}
+`
+	schema, err := parser.ParseFileContent("tasks_hover.res", content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	// 1. GET 标识符查找 (第 2 行 "GET")
+	identGet := findIdentifierAt(schema, 2, 6, content)
+	if strings.ToUpper(identGet) != "GET" {
+		t.Errorf("Expected ident 'GET', got '%s'", identGet)
+	}
+
+	// 2. POST 标识符查找 (第 3 行 "POST")
+	identPost := findIdentifierAt(schema, 3, 6, content)
+	if strings.ToUpper(identPost) != "POST" {
+		t.Errorf("Expected ident 'POST', got '%s'", identPost)
+	}
+
+	// 3. DELETE 标识符查找 (第 4 行 "DELETE")
+	identDelete := findIdentifierAt(schema, 4, 7, content)
+	if strings.ToUpper(identDelete) != "DELETE" {
+		t.Errorf("Expected ident 'DELETE', got '%s'", identDelete)
+	}
+
+	// 4. PUT 标识符查找 (第 5 行 "PUT")
+	identPut := findIdentifierAt(schema, 5, 6, content)
+	if strings.ToUpper(identPut) != "PUT" {
+		t.Errorf("Expected ident 'PUT', got '%s'", identPut)
+	}
+
+	// 5. PATCH 标识符查找 (第 6 行 "PATCH")
+	identPatch := findIdentifierAt(schema, 6, 7, content)
+	if strings.ToUpper(identPatch) != "PATCH" {
+		t.Errorf("Expected ident 'PATCH', got '%s'", identPatch)
+	}
+
+	// 6. @query 标识符查找 (第 4 行 "@query")
+	identQuery := findIdentifierAt(schema, 4, 45, content)
+	if strings.ToLower(identQuery) != "query" {
+		t.Errorf("Expected ident 'query', got '%s'", identQuery)
+	}
+
+	// 7. 校验补全提示中包含自动合成 XxxArgs 包装模型的描述
+	items := buildCompletions("tasks_hover.res", content, 0, 0)
+	var foundPostCompletion, foundQueryDirective bool
+	getDoc := func(doc any) string {
+		if doc == nil {
+			return ""
+		}
+		if s, ok := doc.(string); ok {
+			return s
+		}
+		if mc, ok := doc.(protocol.MarkupContent); ok {
+			return mc.Value
+		}
+		if mc, ok := doc.(*protocol.MarkupContent); ok && mc != nil {
+			return mc.Value
+		}
+		return ""
+	}
+	for _, item := range items {
+		docText := getDoc(item.Documentation)
+		if item.Label == "POST" && strings.Contains(docText, "XxxArgs") {
+			foundPostCompletion = true
+		}
+		if item.Label == "@query" && strings.Contains(docText, "XxxArgs") {
+			foundQueryDirective = true
+		}
+	}
+	if !foundPostCompletion {
+		t.Errorf("Expected POST completion documentation to mention 'XxxArgs'")
+	}
+	if !foundQueryDirective {
+		t.Errorf("Expected @query directive completion documentation to mention 'XxxArgs'")
+	}
+
+	// 8. 测试真实 LSP Hover 请求
+	handler := NewHandler("1.0.0")
+	hoverURI := "file:///d:/test_workspace/tasks_hover.res"
+	filesMu.Lock()
+	files[hoverURI] = content
+	filesMu.Unlock()
+
+	getHoverMarkdown := func(h *protocol.Hover) string {
+		if h == nil {
+			return ""
+		}
+		switch c := h.Contents.(type) {
+		case protocol.MarkupContent:
+			return c.Value
+		case *protocol.MarkupContent:
+			if c != nil {
+				return c.Value
+			}
+		case string:
+			return c
+		}
+		return ""
+	}
+
+	// 8.1 悬停在 POST 上 (Line: 2, Character: 5，即 0-based 第 2 行第 5 字符)
+	hoverPost, err := handler.TextDocumentHover(nil, &protocol.HoverParams{
+		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
+			TextDocument: protocol.TextDocumentIdentifier{URI: hoverURI},
+			Position:     protocol.Position{Line: 2, Character: 5},
+		},
+	})
+	if err != nil {
+		t.Fatalf("TextDocumentHover failed: %v", err)
+	}
+	postMd := getHoverMarkdown(hoverPost)
+	if !strings.Contains(postMd, "HTTP Method: `POST`") {
+		t.Fatalf("Expected POST hover markdown, got: %s", postMd)
+	}
+	if !strings.Contains(postMd, "XxxArgs") {
+		t.Errorf("Expected POST hover to explain XxxArgs wrapping")
+	}
+
+	// 8.2 悬停在 DELETE 上 (Line: 3, Character: 5)
+	hoverDelete, err := handler.TextDocumentHover(nil, &protocol.HoverParams{
+		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
+			TextDocument: protocol.TextDocumentIdentifier{URI: hoverURI},
+			Position:     protocol.Position{Line: 3, Character: 5},
+		},
+	})
+	if err != nil {
+		t.Fatalf("TextDocumentHover failed: %v", err)
+	}
+	deleteMd := getHoverMarkdown(hoverDelete)
+	if !strings.Contains(deleteMd, "HTTP Method: `DELETE`") {
+		t.Fatalf("Expected DELETE hover markdown, got: %s", deleteMd)
+	}
+
+	// 8.3 悬停在 @query 上 (Line: 3, Character: 44)
+	hoverQuery, err := handler.TextDocumentHover(nil, &protocol.HoverParams{
+		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
+			TextDocument: protocol.TextDocumentIdentifier{URI: hoverURI},
+			Position:     protocol.Position{Line: 3, Character: 44},
+		},
+	})
+	if err != nil {
+		t.Fatalf("TextDocumentHover failed: %v", err)
+	}
+	queryMd := getHoverMarkdown(hoverQuery)
+	if !strings.Contains(queryMd, "Built-in Directive: `@query`") {
+		t.Fatalf("Expected @query hover markdown, got: %s", queryMd)
+	}
+	if !strings.Contains(queryMd, "XxxArgs") {
+		t.Errorf("Expected @query hover to explain non-GET XxxArgs wrapping")
 	}
 }

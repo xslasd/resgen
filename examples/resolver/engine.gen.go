@@ -77,12 +77,14 @@ type EngineRegister[C ServerContextBase] func(e *Engine[C], info MethodInfo, han
 
 // MethodInfo 接口元数据
 type MethodInfo struct {
-	Module     string
-	Group      string
-	Method     string
-	Name       string
-	Path       string
-	HandlerPos string // 新增：可一键在控制台点击跳转的物理处理器路径
+	Module       string
+	Group        string
+	Method       string
+	Name         string
+	Path         string
+	HandlerPos   string // 新增：可一键在控制台点击跳转的物理处理器路径
+	InSealChain  []string
+	OutSealChain []string
 }
 
 // PermDefine 权限标识定义
@@ -104,19 +106,54 @@ var SystemPerms = []PermDefine{
 type Engine[C ServerContextBase] struct {
 	onRegister EngineRegister[C]
 
-	decorator any
-	validator any
-	responder any
+	decorator   any
+	validator   any
+	responder   any
+	unmarshaler PayloadUnmarshaler
+	marshaler   PayloadMarshaler
+
+	cipherWrapSealer CipherWrapSealer
+
+	cipherWrapOutSealer CipherWrapOutSealer
+
+	sm4WrapSealer Sm4WrapSealer
 }
 
 // NewEngine 创建引擎
 func NewEngine[C ServerContextBase]() *Engine[C] {
-	return &Engine[C]{}
+	return &Engine[C]{
+		unmarshaler: json.Unmarshal,
+		marshaler:   json.Marshal,
+	}
 }
 
 func (e *Engine[C]) BindDecorator(d any) *Engine[C] { e.decorator = d; return e }
 func (e *Engine[C]) BindValidator(v any) *Engine[C] { e.validator = v; return e }
 func (e *Engine[C]) BindResponder(r any) *Engine[C] { e.responder = r; return e }
+func (e *Engine[C]) BindPayloadUnmarshaler(u PayloadUnmarshaler) *Engine[C] {
+	if u != nil {
+		e.unmarshaler = u
+	}
+	return e
+}
+func (e *Engine[C]) BindPayloadMarshaler(m PayloadMarshaler) *Engine[C] {
+	if m != nil {
+		e.marshaler = m
+	}
+	return e
+}
+
+func (e *Engine[C]) BindCipherWrapSealer(s CipherWrapSealer) *Engine[C] {
+	e.cipherWrapSealer = s
+	return e
+}
+
+func (e *Engine[C]) BindCipherWrapOutSealer(s CipherWrapOutSealer) *Engine[C] {
+	e.cipherWrapOutSealer = s
+	return e
+}
+
+func (e *Engine[C]) BindSm4WrapSealer(s Sm4WrapSealer) *Engine[C] { e.sm4WrapSealer = s; return e }
 
 // BindRegister 挂载路由注册钩子
 func (e *Engine[C]) BindRegister(register EngineRegister[C]) *Engine[C] {
@@ -131,6 +168,64 @@ func (e *Engine[C]) BindRegister(register EngineRegister[C]) *Engine[C] {
 func (e *Engine[C]) Decorator() any { return e.decorator }
 func (e *Engine[C]) Validator() any { return e.validator }
 func (e *Engine[C]) Responder() any { return e.responder }
+func (e *Engine[C]) UnmarshalPayload(data []byte, dest any) error {
+	if e.unmarshaler != nil {
+		return e.unmarshaler(data, dest)
+	}
+	return json.Unmarshal(data, dest)
+}
+func (e *Engine[C]) MarshalPayload(v any) ([]byte, error) {
+	if e.marshaler != nil {
+		return e.marshaler(v)
+	}
+	return json.Marshal(v)
+}
+
+func (e *Engine[C]) CipherWrapSealer() CipherWrapSealer { return e.cipherWrapSealer }
+
+func (e *Engine[C]) CipherWrapOutSealer() CipherWrapOutSealer { return e.cipherWrapOutSealer }
+
+func (e *Engine[C]) Sm4WrapSealer() Sm4WrapSealer { return e.sm4WrapSealer }
+
+func (e *Engine[C]) CheckSealers(methods []MethodInfo) error {
+	for _, m := range methods {
+
+		for _, env := range m.InSealChain {
+			if env == "CipherWrap" && e.CipherWrapSealer() == nil {
+				return fmt.Errorf("未注册信封 '%s' 的 Sealer (端点: %s %s)", env, m.Method, m.Path)
+			}
+		}
+		for _, env := range m.OutSealChain {
+			if env == "CipherWrap" && e.CipherWrapSealer() == nil {
+				return fmt.Errorf("未注册信封 '%s' 的 Sealer (端点: %s %s)", env, m.Method, m.Path)
+			}
+		}
+
+		for _, env := range m.InSealChain {
+			if env == "CipherWrapOut" && e.CipherWrapOutSealer() == nil {
+				return fmt.Errorf("未注册信封 '%s' 的 Sealer (端点: %s %s)", env, m.Method, m.Path)
+			}
+		}
+		for _, env := range m.OutSealChain {
+			if env == "CipherWrapOut" && e.CipherWrapOutSealer() == nil {
+				return fmt.Errorf("未注册信封 '%s' 的 Sealer (端点: %s %s)", env, m.Method, m.Path)
+			}
+		}
+
+		for _, env := range m.InSealChain {
+			if env == "Sm4Wrap" && e.Sm4WrapSealer() == nil {
+				return fmt.Errorf("未注册信封 '%s' 的 Sealer (端点: %s %s)", env, m.Method, m.Path)
+			}
+		}
+		for _, env := range m.OutSealChain {
+			if env == "Sm4Wrap" && e.Sm4WrapSealer() == nil {
+				return fmt.Errorf("未注册信封 '%s' 的 Sealer (端点: %s %s)", env, m.Method, m.Path)
+			}
+		}
+
+	}
+	return nil
+}
 
 // Register 注册路由
 func (e *Engine[C]) Register(info MethodInfo, handler HandlerFunc[C]) {
@@ -305,6 +400,49 @@ type Validator[T any] interface {
 
 	// EnumError 处理枚举校验失败的翻译与包装回调
 	EnumError(ctx T, fieldName string, enumType string, value any) error
+}
+
+// CipherWrapSealer 定义了 CipherWrap 外壳的解包 (Peel) 与加包 (Wrap) 切面接口
+type CipherWrapSealer interface {
+	Peel(ctx context.Context, info MethodInfo, env *CipherWrap) ([]byte, error)
+	Wrap(ctx context.Context, info MethodInfo, env *CipherWrap, plain []byte) error
+}
+
+// CipherWrapOutSealer 定义了 CipherWrapOut 外壳的解包 (Peel) 与加包 (Wrap) 切面接口
+type CipherWrapOutSealer interface {
+	Peel(ctx context.Context, info MethodInfo, env *CipherWrapOut) ([]byte, error)
+	Wrap(ctx context.Context, info MethodInfo, env *CipherWrapOut, plain []byte) error
+}
+
+// Sm4WrapSealer 定义了 Sm4Wrap 外壳的解包 (Peel) 与加包 (Wrap) 切面接口
+type Sm4WrapSealer interface {
+	Peel(ctx context.Context, info MethodInfo, env *Sm4Wrap) ([]byte, error)
+	Wrap(ctx context.Context, info MethodInfo, env *Sm4Wrap, plain []byte) error
+}
+
+// PayloadUnmarshaler 定义了全局荷载反序列化切面函数，默认使用 json.Unmarshal
+type PayloadUnmarshaler func(data []byte, dest any) error
+
+// PayloadMarshaler 定义了全局荷载序列化切面函数，默认使用 json.Marshal
+type PayloadMarshaler func(v any) ([]byte, error)
+
+// EnvelopeError 信封处理过程中的统一错误包装
+type EnvelopeError struct {
+	Envelope string
+	Stage    string
+	Code     string
+	Err      error
+}
+
+func (e *EnvelopeError) Error() string {
+	if e.Err != nil {
+		return fmt.Sprintf("信封 %s 在 %s 阶段失败 (%s): %v", e.Envelope, e.Stage, e.Code, e.Err)
+	}
+	return fmt.Sprintf("信封 %s 在 %s 阶段失败 (%s)", e.Envelope, e.Stage, e.Code)
+}
+
+func (e *EnvelopeError) Unwrap() error {
+	return e.Err
 }
 
 // Responder [T any] 定义了响应包装与错误映射契约

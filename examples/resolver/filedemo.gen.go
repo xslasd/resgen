@@ -169,7 +169,7 @@ func (e *FileDemoExecutor[T, C]) register(info MethodInfo, handler HandlerFunc[C
 func (e *FileDemoExecutor[T, C]) handleUploadAvatar(request C, info MethodInfo) {
 	native := request.Native()
 	var input UploadAvatarInput
-	if err := e.bindUploadAvatar(request, &input); err != nil {
+	if err := e.bindUploadAvatar(request, info, &input); err != nil {
 		request.RenderJson(e.r.ErrorToStatus(native, err), e.r.BindResData(native, nil, err))
 		return
 	}
@@ -186,7 +186,7 @@ func (e *FileDemoExecutor[T, C]) handleUploadAvatar(request C, info MethodInfo) 
 }
 
 // bindUploadAvatar 自动生成的参数提取与转换实现
-func (e *FileDemoExecutor[T, C]) bindUploadAvatar(request C, input *UploadAvatarInput) error {
+func (e *FileDemoExecutor[T, C]) bindUploadAvatar(request C, info MethodInfo, input *UploadAvatarInput) error {
 	if err := request.Payload(SourceMultipart, input); err != nil {
 		return err
 	}
@@ -214,7 +214,7 @@ func (e *FileDemoExecutor[T, C]) validateUploadAvatar(ctx T, input *UploadAvatar
 func (e *FileDemoExecutor[T, C]) handleUploadDocument(request C, info MethodInfo) {
 	native := request.Native()
 	var input UploadDocumentInput
-	if err := e.bindUploadDocument(request, &input); err != nil {
+	if err := e.bindUploadDocument(request, info, &input); err != nil {
 		request.RenderJson(e.r.ErrorToStatus(native, err), e.r.BindResData(native, nil, err))
 		return
 	}
@@ -231,7 +231,7 @@ func (e *FileDemoExecutor[T, C]) handleUploadDocument(request C, info MethodInfo
 }
 
 // bindUploadDocument 自动生成的参数提取与转换实现
-func (e *FileDemoExecutor[T, C]) bindUploadDocument(request C, input *UploadDocumentInput) error {
+func (e *FileDemoExecutor[T, C]) bindUploadDocument(request C, info MethodInfo, input *UploadDocumentInput) error {
 	if err := request.Payload(SourceMultipart, input); err != nil {
 		return err
 	}

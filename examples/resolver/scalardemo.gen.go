@@ -173,7 +173,7 @@ func (e *ScalarDemoExecutor[T, C]) handleListEvents(request C, info MethodInfo) 
 		return
 	}
 	var input QueryEventsInput
-	if err := e.bindListEvents(request, &input); err != nil {
+	if err := e.bindListEvents(request, info, &input); err != nil {
 		request.RenderJson(e.r.ErrorToStatus(native, err), e.r.BindResData(native, nil, err))
 		return
 	}
@@ -186,7 +186,7 @@ func (e *ScalarDemoExecutor[T, C]) handleListEvents(request C, info MethodInfo) 
 }
 
 // bindListEvents 自动生成的参数提取与转换实现
-func (e *ScalarDemoExecutor[T, C]) bindListEvents(request C, input *QueryEventsInput) error {
+func (e *ScalarDemoExecutor[T, C]) bindListEvents(request C, info MethodInfo, input *QueryEventsInput) error {
 	if val := request.GetQuery("from_tm"); val != "" {
 		var tmp scalars.IntTime
 		if err := tmp.FromParam(request.Native(), val); err != nil {
@@ -226,7 +226,7 @@ func (e *ScalarDemoExecutor[T, C]) bindListEvents(request C, input *QueryEventsI
 func (e *ScalarDemoExecutor[T, C]) handleCreateEvent(request C, info MethodInfo) {
 	native := request.Native()
 	var input CreateEventInput
-	if err := e.bindCreateEvent(request, &input); err != nil {
+	if err := e.bindCreateEvent(request, info, &input); err != nil {
 		request.RenderJson(e.r.ErrorToStatus(native, err), e.r.BindResData(native, nil, err))
 		return
 	}
@@ -243,7 +243,7 @@ func (e *ScalarDemoExecutor[T, C]) handleCreateEvent(request C, info MethodInfo)
 }
 
 // bindCreateEvent 自动生成的参数提取与转换实现
-func (e *ScalarDemoExecutor[T, C]) bindCreateEvent(request C, input *CreateEventInput) error {
+func (e *ScalarDemoExecutor[T, C]) bindCreateEvent(request C, info MethodInfo, input *CreateEventInput) error {
 	if err := request.Payload(SourceJSON, input); err != nil {
 		return err
 	}

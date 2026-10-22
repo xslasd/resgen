@@ -228,7 +228,7 @@ func (e *EnumDemoExecutor[T, C]) register(info MethodInfo, handler HandlerFunc[C
 func (e *EnumDemoExecutor[T, C]) handleCreateUser(request C, info MethodInfo) {
 	native := request.Native()
 	var input CreateUserInput
-	if err := e.bindCreateUser(request, &input); err != nil {
+	if err := e.bindCreateUser(request, info, &input); err != nil {
 		request.RenderJson(e.r.ErrorToStatus(native, err), e.r.BindResData(native, nil, err))
 		return
 	}
@@ -245,7 +245,7 @@ func (e *EnumDemoExecutor[T, C]) handleCreateUser(request C, info MethodInfo) {
 }
 
 // bindCreateUser 自动生成的参数提取与转换实现
-func (e *EnumDemoExecutor[T, C]) bindCreateUser(request C, input *CreateUserInput) error {
+func (e *EnumDemoExecutor[T, C]) bindCreateUser(request C, info MethodInfo, input *CreateUserInput) error {
 	if err := request.Payload(SourceJSON, input); err != nil {
 		return err
 	}
@@ -279,7 +279,7 @@ func (e *EnumDemoExecutor[T, C]) validateCreateUser(ctx T, input *CreateUserInpu
 func (e *EnumDemoExecutor[T, C]) handleQueryByRole(request C, info MethodInfo) {
 	native := request.Native()
 	var input QueryByRoleArgs
-	if err := e.bindQueryByRole(request, &input); err != nil {
+	if err := e.bindQueryByRole(request, info, &input); err != nil {
 		request.RenderJson(e.r.ErrorToStatus(native, err), e.r.BindResData(native, nil, err))
 		return
 	}
@@ -296,7 +296,7 @@ func (e *EnumDemoExecutor[T, C]) handleQueryByRole(request C, info MethodInfo) {
 }
 
 // bindQueryByRole 自动生成的参数提取与转换实现
-func (e *EnumDemoExecutor[T, C]) bindQueryByRole(request C, input *QueryByRoleArgs) error {
+func (e *EnumDemoExecutor[T, C]) bindQueryByRole(request C, info MethodInfo, input *QueryByRoleArgs) error {
 	if val := request.GetQuery("role"); val != "" {
 		var tmp UserRole
 		if err := tmp.FromParam(request.Native(), val); err != nil {

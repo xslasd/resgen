@@ -352,7 +352,7 @@ func (h *ContentTypeDemoHandler) SubmitNestedForm(ctx context.Context, input *re
 	return &s, nil
 }
 
-func (h *ContentTypeDemoHandler) SubmitMultipart(ctx context.Context, title string) (*string, error) {
+func (h *ContentTypeDemoHandler) SubmitMultipart(ctx context.Context, input *resolver.SubmitMultipartArgs) (*string, error) {
 	s := "multipart submitted"
 	return &s, nil
 }
@@ -381,7 +381,7 @@ func (h *StatusDemoHandler) CreateProduct(ctx context.Context, input *resolver.C
 	return &resolver.Product{ID: 2, Name: input.Name, Price: input.Price}, nil
 }
 
-func (h *StatusDemoHandler) BatchUpdate(ctx context.Context, ids []int) (*string, error) {
+func (h *StatusDemoHandler) BatchUpdate(ctx context.Context, input *resolver.BatchUpdateArgs) (*string, error) {
 	s := "updated"
 	return &s, nil
 }
@@ -503,6 +503,73 @@ func (h *EnumDemoHandler) QueryByRole(ctx context.Context, input *resolver.Query
 	return &resolver.UserWithRole{}, nil
 }
 
+// EnvAuthHandler 信封 V4 示例 Handler 实现
+type EnvAuthHandler struct{}
+
+func (h *EnvAuthHandler) EnvLogin(ctx context.Context, input *resolver.EnvLoginReq) (*resolver.EnvToken, error) {
+	fmt.Printf(">>> [EnvAuth] Login: User=%s\n", input.LoginID)
+	return &resolver.EnvToken{AccessToken: "token_encrypted_demo_123", ExpiresIn: 3600}, nil
+}
+
+func (h *EnvAuthHandler) EnvLoginBare(ctx context.Context, input *resolver.EnvLoginReq) (*resolver.EnvToken, error) {
+	return &resolver.EnvToken{AccessToken: "token_bare_123", ExpiresIn: 3600}, nil
+}
+
+func (h *EnvAuthHandler) EnvLoginV2(ctx context.Context, input *resolver.EnvLoginV2Args) (*resolver.EnvToken, error) {
+	return &resolver.EnvToken{AccessToken: "token_v2_123", ExpiresIn: 3600}, nil
+}
+
+func (h *EnvAuthHandler) EnvLoginV3(ctx context.Context, input *resolver.EnvLoginReq) (*resolver.EnvToken, error) {
+	return &resolver.EnvToken{AccessToken: "token_sm4_123", ExpiresIn: 3600}, nil
+}
+
+func (h *EnvAuthHandler) EnvLegacyLogin(ctx context.Context, input *resolver.EnvLoginReq) (*resolver.EnvToken, error) {
+	return &resolver.EnvToken{AccessToken: "token_legacy_123", ExpiresIn: 3600}, nil
+}
+
+func (h *EnvAuthHandler) SubmitRawPayload(ctx context.Context, input *resolver.RawPayloadReq) (*resolver.EnvPayResult, error) {
+	return &resolver.EnvPayResult{Ok: true}, nil
+}
+
+// 示例解封/加封切面 Sealer 实现
+type CipherWrapSealerImpl struct{}
+
+func (s *CipherWrapSealerImpl) Peel(ctx context.Context, info resolver.MethodInfo, env *resolver.CipherWrap) ([]byte, error) {
+	if env != nil && env.Body != "" {
+		return []byte(env.Body), nil
+	}
+	return []byte(`{"login_id":"alice","password":"123"}`), nil
+}
+
+func (s *CipherWrapSealerImpl) Wrap(ctx context.Context, info resolver.MethodInfo, env *resolver.CipherWrap, plain []byte) error {
+	return nil
+}
+
+type CipherWrapOutSealerImpl struct{}
+
+func (s *CipherWrapOutSealerImpl) Peel(ctx context.Context, info resolver.MethodInfo, env *resolver.CipherWrapOut) ([]byte, error) {
+	return nil, nil
+}
+
+func (s *CipherWrapOutSealerImpl) Wrap(ctx context.Context, info resolver.MethodInfo, env *resolver.CipherWrapOut, plain []byte) error {
+	if env != nil {
+		env.Cipher = "encrypted_base64_" + string(plain)
+	}
+	return nil
+}
+
+type Sm4WrapSealerImpl struct{}
+
+func (s *Sm4WrapSealerImpl) Peel(ctx context.Context, info resolver.MethodInfo, env *resolver.Sm4Wrap) ([]byte, error) {
+	return []byte(`{"login_id":"alice","password":"123"}`), nil
+}
+
+func (s *Sm4WrapSealerImpl) Wrap(ctx context.Context, info resolver.MethodInfo, env *resolver.Sm4Wrap, plain []byte) error {
+	return nil
+}
+
+
+
 // 装饰器与验证器实现
 type MyDecorator struct{}
 
@@ -605,7 +672,10 @@ func main() {
 			})
 		}).
 		BindDecorator(&MyDecorator{}).
-		BindValidator(&MyValidator{})
+		BindValidator(&MyValidator{}).
+		BindCipherWrapSealer(&CipherWrapSealerImpl{}).
+		BindSm4WrapSealer(&Sm4WrapSealerImpl{}).
+		BindCipherWrapOutSealer(&CipherWrapOutSealerImpl{})
 
 	// 挂载业务模块
 	resolver.MountAuthDemo(en, &AuthDemoHandler{})
@@ -615,7 +685,8 @@ func main() {
 	resolver.MountStatusDemo(en, &StatusDemoHandler{})
 	resolver.MountFileDemo[*gin.Context, *GinContext](en, &FileDemoHandler{})
 	resolver.MountEnumDemo[*gin.Context, *GinContext](en, &EnumDemoHandler{})
+	resolver.MountEnvAuth[*gin.Context, *GinContext](en, &EnvAuthHandler{})
 
-	fmt.Println("Resgen Gin Example running on :8080")
-	r.Run(":8080")
+	fmt.Println("Resgen Gin Example running on :8088")
+	r.Run(":8088")
 }

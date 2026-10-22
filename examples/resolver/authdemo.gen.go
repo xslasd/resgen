@@ -209,7 +209,7 @@ func (e *AuthDemoExecutor[T, C]) register(info MethodInfo, handler HandlerFunc[C
 func (e *AuthDemoExecutor[T, C]) handleRegister(request C, info MethodInfo) {
 	native := request.Native()
 	var input RegisterInput
-	if err := e.bindRegister(request, &input); err != nil {
+	if err := e.bindRegister(request, info, &input); err != nil {
 		request.RenderJson(e.r.ErrorToStatus(native, err), e.r.BindResData(native, nil, err))
 		return
 	}
@@ -226,7 +226,7 @@ func (e *AuthDemoExecutor[T, C]) handleRegister(request C, info MethodInfo) {
 }
 
 // bindRegister 自动生成的参数提取与转换实现
-func (e *AuthDemoExecutor[T, C]) bindRegister(request C, input *RegisterInput) error {
+func (e *AuthDemoExecutor[T, C]) bindRegister(request C, info MethodInfo, input *RegisterInput) error {
 	if err := request.Payload(SourceForm, input); err != nil {
 		return err
 	}
@@ -270,7 +270,7 @@ func (e *AuthDemoExecutor[T, C]) validateRegister(ctx T, input *RegisterInput) e
 func (e *AuthDemoExecutor[T, C]) handleSetPeriod(request C, info MethodInfo) {
 	native := request.Native()
 	var input TaskPeriodInput
-	if err := e.bindSetPeriod(request, &input); err != nil {
+	if err := e.bindSetPeriod(request, info, &input); err != nil {
 		request.RenderJson(e.r.ErrorToStatus(native, err), e.r.BindResData(native, nil, err))
 		return
 	}
@@ -287,7 +287,7 @@ func (e *AuthDemoExecutor[T, C]) handleSetPeriod(request C, info MethodInfo) {
 }
 
 // bindSetPeriod 自动生成的参数提取与转换实现
-func (e *AuthDemoExecutor[T, C]) bindSetPeriod(request C, input *TaskPeriodInput) error {
+func (e *AuthDemoExecutor[T, C]) bindSetPeriod(request C, info MethodInfo, input *TaskPeriodInput) error {
 	if err := request.Payload(SourceJSON, input); err != nil {
 		return err
 	}
@@ -352,7 +352,7 @@ func (e *AuthDemoExecutor[T, C]) handleUpdateUser(request C, info MethodInfo) {
 		return
 	}
 	var input UpdateInput
-	if err := e.bindUpdateUser(request, &input); err != nil {
+	if err := e.bindUpdateUser(request, info, &input); err != nil {
 		request.RenderJson(e.r.ErrorToStatus(native, err), e.r.BindResData(native, nil, err))
 		return
 	}
@@ -380,7 +380,7 @@ func (e *AuthDemoExecutor[T, C]) handleUpdateUser(request C, info MethodInfo) {
 }
 
 // bindUpdateUser 自动生成的参数提取与转换实现
-func (e *AuthDemoExecutor[T, C]) bindUpdateUser(request C, input *UpdateInput) error {
+func (e *AuthDemoExecutor[T, C]) bindUpdateUser(request C, info MethodInfo, input *UpdateInput) error {
 	if err := request.Payload(SourceJSON, input); err != nil {
 		return err
 	}

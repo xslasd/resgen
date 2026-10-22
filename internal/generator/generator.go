@@ -19,7 +19,7 @@ import (
 	"golang.org/x/tools/imports"
 )
 
-const Version = "v0.7.4"
+const Version = "v0.7.5"
 
 //go:embed templates/engine.tmpl
 var engineTmpl string
@@ -231,6 +231,23 @@ func metaGet(entries []parser.MetaEntry, key string) (string, bool) {
 	return "", false
 }
 
+// metaGetSeal 从 MetaEntry 列表中提取 seal 元数据（支持裸名或带泛型实参，如 CipherWrap<LoginReq>）
+func metaGetSeal(entries []parser.MetaEntry) (envName string, typeArgs []parser.TypeRef, found bool) {
+	for _, e := range entries {
+		if strings.EqualFold(e.Key, "seal") {
+			found = true
+			if e.Value.Generic != nil {
+				envName = e.Value.Generic.Name
+				typeArgs = e.Value.Generic.Args
+			} else if e.Value.Str != nil {
+				envName = *e.Value.Str
+			}
+			return
+		}
+	}
+	return "", nil, false
+}
+
 // extractAliasDirective 从指令列表中提取 @alias("别名") 的自定义字段/参数别名
 func extractAliasDirective(directives []parser.DirectiveUsage) string {
 	for _, d := range directives {
@@ -420,6 +437,9 @@ type ModelField struct {
 	UnionModel            *UnionInfo        `json:"-"`
 	UnionParamExp         string            `json:"unionParamExp,omitempty"`
 	UnionParamGoName      string            `json:"-"`
+	IsPayload             bool              `json:"isPayload,omitempty"`
+	PayloadArg            string            `json:"payloadArg,omitempty"`
+	PayloadCodec          string            `json:"payloadCodec,omitempty"`
 }
 
 type ScalarInfo struct {
@@ -467,10 +487,26 @@ type ModelInfo struct {
 	SourceFile string       `json:"sourceFile,omitempty"`
 	IsInput    bool         `json:"isInput"`
 	IsWrapper  bool         `json:"isWrapper"`
+	IsEnvelope bool         `json:"isEnvelope,omitempty"`
+	Readable   bool         `json:"readable,omitempty"`
 	HasScalar  bool         `json:"-"`
 	HasUnion   bool         `json:"-"`
 	TypeParams []string     `json:"typeParams,omitempty"`
 	Fields     []ModelField `json:"fields"`
+}
+
+func (m *ModelInfo) SealerGoType() string {
+	if len(m.TypeParams) > 0 {
+		return "*" + m.Name + "[any]"
+	}
+	return "*" + m.Name
+}
+
+func (m *ModelInfo) UnexportName() string {
+	if len(m.Name) == 0 {
+		return ""
+	}
+	return strings.ToLower(m.Name[:1]) + m.Name[1:]
 }
 
 type ModuleInfo struct {
@@ -538,26 +574,37 @@ type MethodInfo struct {
 	HasInput            bool           `json:"-"`
 	HasUnion            bool           `json:"-"`
 	CustomBind          bool           `json:"-"`
+	InSealChain         []string       `json:"inSealChain,omitempty"`
+	InSealGoType        string         `json:"-"`
+	InnerInputName      string         `json:"innerInputName,omitempty"`
+	InSealCodecs        []string       `json:"inSealCodecs,omitempty"`
+	OutSealChain        []string       `json:"outSealChain,omitempty"`
+	OutSealGoType       string         `json:"-"`
+	OutPayloadDSL       string         `json:"outPayloadDSL,omitempty"`
+	OutSealCodecs       []string       `json:"outSealCodecs,omitempty"`
+	InEnvelopeModel     *ModelInfo     `json:"-"`
+	OutEnvelopeModel    *ModelInfo     `json:"-"`
+	IsReturnSealed      bool           `json:"isReturnSealed"`
 	CustomValidate      bool           `json:"-"`
 	ValidationCode      string         `json:"-"`
 }
 
 type ArgumentInfo struct {
-	Name        string     `json:"name"`
-	Alias       string     `json:"alias,omitempty"`
-	Doc         string     `json:"doc,omitempty"`
-	Type        string     `json:"type"`
-	GoType      string     `json:"-"`
-	Tag         string     `json:"-"`
-	IsScalar    bool       `json:"isScalar"`
-	IsEnum      bool       `json:"isEnum"`
-	ScalarModel string     `json:"-"`
-	BaseGoType  string     `json:"-"`
-	GoName      string     `json:"-"`
-	Source      string     `json:"source"`
+	Name           string     `json:"name"`
+	Alias          string     `json:"alias,omitempty"`
+	Doc            string     `json:"doc,omitempty"`
+	Type           string     `json:"type"`
+	GoType         string     `json:"-"`
+	Tag            string     `json:"-"`
+	IsScalar       bool       `json:"isScalar"`
+	IsEnum         bool       `json:"isEnum"`
+	ScalarModel    string     `json:"-"`
+	BaseGoType     string     `json:"-"`
+	GoName         string     `json:"-"`
+	Source         string     `json:"source"`
 	Validators     []MetaInfo `json:"validators,omitempty"`
 	ItemValidators []MetaInfo `json:"itemValidators,omitempty"`
-	RefModel    *ModelInfo `json:"-"`
+	RefModel       *ModelInfo `json:"-"`
 }
 
 type MetaInfo struct {
@@ -606,6 +653,7 @@ type DataContext struct {
 	RenderFuncs                 []RenderFuncInfo       `json:"-"` // 收集用到的所有渲染函数
 	ModuleSpecializedDecorators map[string][]MetaInfo  `json:"-"` // 按模块收集特化装饰器
 	SystemPerms                 []PermDefine           `json:"-"` // 全系统注册的权限标识字典
+	SealModels                  []*ModelInfo           `json:"-"` // 系统中用到的 Seal 外壳模型列表
 }
 
 type ApiInfo struct {
@@ -1241,6 +1289,26 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 		}
 	}
 
+	// 剔除仅仅在注解（如 @payload(T)）中使用、而在 Go 结构体字段中未被真实作为 Go 类型的 TypeParams
+	for _, m := range ctx.Models {
+		if len(m.TypeParams) > 0 {
+			var realParams []string
+			for _, tp := range m.TypeParams {
+				used := false
+				for _, f := range m.Fields {
+					if f.Type == tp || strings.HasPrefix(f.Type, tp) || strings.HasSuffix(f.Type, tp) || strings.Contains(f.Type, tp) {
+						used = true
+						break
+					}
+				}
+				if used {
+					realParams = append(realParams, tp)
+				}
+			}
+			m.TypeParams = realParams
+		}
+	}
+
 	// 强制校验：所有联合类型（Union）的判别器必须且只能是枚举类型（Enum）
 	for _, u := range ctx.Unions {
 		if ctx.Enums[u.ParamName] == nil {
@@ -1356,6 +1424,23 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 						}
 						if !hasReq {
 							m.Fields[i].Validators = append(m.Fields[i].Validators, requiredInfo)
+						}
+						continue
+					case "payload":
+						m.Fields[i].IsPayload = true
+						if len(d.Args) > 0 {
+							if d.Args[0].Value.Ident != nil {
+								m.Fields[i].PayloadArg = *d.Args[0].Value.Ident
+							} else if d.Args[0].Value.String != nil {
+								m.Fields[i].PayloadArg = *d.Args[0].Value.String
+							}
+						}
+						if len(d.Args) > 1 {
+							if d.Args[1].Value.Ident != nil {
+								m.Fields[i].PayloadCodec = *d.Args[1].Value.Ident
+							} else if d.Args[1].Value.String != nil {
+								m.Fields[i].PayloadCodec = *d.Args[1].Value.String
+							}
 						}
 						continue
 					}
@@ -1757,6 +1842,10 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 					}
 				}
 
+				isSingleBodyArg := len(args) == 1 && args[0].Name != "" && args[0].RefModel == nil &&
+					(args[0].Source == "Body" || args[0].Source == "Form") &&
+					method.Method != "GET"
+
 				if len(args) == 1 && args[0].Name == "" {
 					if args[0].RefModel != nil {
 						method.InputName = args[0].RefModel.Name
@@ -1773,7 +1862,7 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 					method.IsInputPointer = strings.HasPrefix(args[0].GoType, "*")
 					method.IsArgsWrapped = false
 					method.Args = args
-				} else if len(args) > 1 {
+				} else if len(args) > 1 || isSingleBodyArg {
 					inputModelName := ep.Name + "Args"
 					inputModel := &ModelInfo{Name: inputModelName, IsInput: true, Module: modName}
 					for _, arg := range args {
@@ -1842,6 +1931,53 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 						if returnModel, ok := ctx.ModelMap[ep.ReturnType.TypeArgs[0].Name]; ok {
 							method.ReturnModel = returnModel
 						}
+					}
+				}
+
+				// 提取 [seal=...] 元数据（物理传输入参加解封信封）
+				if inEnvName, typeArgs, found := metaGetSeal(ep.RequestMeta); found {
+					method.InSealChain = []string{inEnvName}
+					method.InSealGoType = inEnvName
+					if envModel, ok := ctx.ModelMap[inEnvName]; ok {
+						method.InEnvelopeModel = envModel
+						if len(envModel.TypeParams) > 0 {
+							method.InSealGoType = inEnvName + "[any]"
+						}
+					}
+					if len(typeArgs) > 0 {
+						var argStrs []string
+						for _, targ := range typeArgs {
+							argStrs = append(argStrs, formatTypeRef(targ))
+						}
+						method.InnerInputName = strings.Join(argStrs, ", ")
+					} else {
+						if method.InputName != "" {
+							method.InnerInputName = method.InputName
+						} else if len(args) == 1 && args[0].RefModel != nil {
+							method.InnerInputName = args[0].RefModel.Name
+						}
+					}
+				}
+
+				// 提取 [seal=...] 元数据（物理传输出参加解封信封）
+				if outEnvName, typeArgs, found := metaGetSeal(ep.ResponseMeta); found {
+					method.OutSealChain = []string{outEnvName}
+					method.OutSealGoType = outEnvName
+					if envModel, ok := ctx.ModelMap[outEnvName]; ok {
+						method.OutEnvelopeModel = envModel
+						if len(envModel.TypeParams) > 0 {
+							method.OutSealGoType = outEnvName + "[any]"
+						}
+					}
+					method.IsReturnSealed = true
+					if len(typeArgs) > 0 {
+						var argStrs []string
+						for _, targ := range typeArgs {
+							argStrs = append(argStrs, formatTypeRef(targ))
+						}
+						method.OutPayloadDSL = strings.Join(argStrs, ", ")
+					} else {
+						method.OutPayloadDSL = method.ReturnTypeDSL
 					}
 				}
 
@@ -2240,8 +2376,46 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 
 	// 智能推导并应用各模型的结构体 Tag（根据 API 入参和出参实际使用的 ctype / etype）
 	inferAndApplyModelTags(ctx)
+	collectSealModels(ctx)
 
 	return renderAll(ctx, targetDir)
+}
+
+func collectSealModels(ctx *DataContext) {
+	sealMap := make(map[string]*ModelInfo)
+	for _, mod := range ctx.Modules {
+		for _, grp := range mod.Groups {
+			for _, ep := range grp.Endpoints {
+				for _, envName := range ep.InSealChain {
+					if m, ok := ctx.ModelMap[envName]; ok {
+						sealMap[envName] = m
+					} else {
+						sealMap[envName] = &ModelInfo{Name: envName}
+					}
+				}
+				for _, envName := range ep.OutSealChain {
+					if m, ok := ctx.ModelMap[envName]; ok {
+						sealMap[envName] = m
+					} else {
+						sealMap[envName] = &ModelInfo{Name: envName}
+					}
+				}
+			}
+		}
+	}
+	for _, m := range ctx.Models {
+		if m.IsEnvelope {
+			sealMap[m.Name] = m
+		}
+	}
+	var names []string
+	for k := range sealMap {
+		names = append(names, k)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		ctx.SealModels = append(ctx.SealModels, sealMap[name])
+	}
 }
 
 // extractTitle 从注释中提取简洁的 Title（首行/首句 + 最大长度限制）

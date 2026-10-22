@@ -63,6 +63,7 @@ func (e *{{.Name}}) FromParam(ctx any, s string) error {
 // 2. Models
 // ==========================================
 {{range .Module.Models}}
+
 {{- if .Doc}}
 {{FormatComment .Doc ""}}
 {{- else}}
@@ -429,6 +430,16 @@ func (e *{{.Module.Name}}Executor[T, C]) mount() {
 		Method: "{{.Method}}",
 		Name:   "{{.Name}}",
 		Path:   "{{.FullPath}}",
+		{{- if .InSealChain}}
+		InSealChain: []string{
+			{{- range .InSealChain}}"{{.}}",{{end}}
+		},
+		{{- end}}
+		{{- if .OutSealChain}}
+		OutSealChain: []string{
+			{{- range .OutSealChain}}"{{.}}",{{end}}
+		},
+		{{- end}}
 	}
 	e.register(info{{$epName}}, e.handle{{$epName}})
 	{{- end}}
@@ -475,7 +486,7 @@ func (e *{{$.Module.Name}}Executor[T, C]) handle{{.Name}}(request C, info Method
 	{{- if .CustomBind}}
 	if err := e.biz.Bind{{.Name}}(request, &input); err != nil {
 	{{- else}}
-	if err := e.bind{{.Name}}(request, &input); err != nil {
+	if err := e.bind{{.Name}}(request, info, &input); err != nil {
 	{{- end}}
 		{{- if .IsReturnWrapped}}
 		request.Render{{.ErrorRenderFunc}}(e.r.ErrorToStatus(native, err), e.r.Bind{{.ReturnTypeBase}}(native, nil, err))
@@ -684,7 +695,32 @@ func (e *{{$.Module.Name}}Executor[T, C]) handle{{.Name}}(request C, info Method
 	{{- end}}
 	{{- end}}
 	{{- else}}
+	{{- if .OutSealChain}}
+	plain, err := e.en.MarshalPayload(result)
+	if err != nil {
+		request.RenderJson(e.r.ErrorToStatus(native, err), e.r.Bind{{$.Config.Generator.DefaultWrap}}(native, nil, err))
+		return
+	}
+	var env {{.OutSealGoType}}
+	sealer := e.en.{{index .OutSealChain 0}}Sealer()
+	if sealer == nil {
+		envErr := &EnvelopeError{Envelope: "{{index .OutSealChain 0}}", Stage: "wrap", Code: "NO_SEALER"}
+		request.RenderJson(e.r.ErrorToStatus(native, envErr), e.r.Bind{{$.Config.Generator.DefaultWrap}}(native, nil, envErr))
+		return
+	}
+	if err := sealer.Wrap(request.Context(), info, &env, plain); err != nil {
+		envErr := &EnvelopeError{Envelope: "{{index .OutSealChain 0}}", Stage: "wrap", Code: "WRAP_FAILED", Err: err}
+		request.RenderJson(e.r.ErrorToStatus(native, envErr), e.r.Bind{{$.Config.Generator.DefaultWrap}}(native, nil, envErr))
+		return
+	}
 	{{- if .IsReturnWrapped}}
+	request.RenderJson({{.SuccessStatus}}, e.r.Bind{{.ReturnTypeBase}}(native, &env, nil))
+	{{- else if and $.Config.Generator.DefaultWrap (not .IsNoWrap)}}
+	request.RenderJson({{.SuccessStatus}}, e.r.Bind{{$.Config.Generator.DefaultWrap}}(native, &env, nil))
+	{{- else}}
+	request.RenderJson({{.SuccessStatus}}, &env)
+	{{- end}}
+	{{- else if .IsReturnWrapped}}
 	request.Render{{.ResponseRenderFunc}}({{.SuccessStatus}}, e.r.Bind{{.ReturnTypeBase}}(native, result, nil))
 	{{- else if .IsSuccessNoWrap}}
 	{{- if eq .ResponseRenderFunc "Stream"}}
@@ -720,7 +756,34 @@ func (e *{{$.Module.Name}}Executor[T, C]) handle{{.Name}}(request C, info Method
 
 {{if and .HasInput (not .CustomBind)}}
 // bind{{.Name}} 自动生成的参数提取与转换实现
-func (e *{{$.Module.Name}}Executor[T, C]) bind{{.Name}}(request C, input *{{.InputName}}) error {
+func (e *{{$.Module.Name}}Executor[T, C]) bind{{.Name}}(request C, info MethodInfo, input *{{.InputName}}) error {
+	{{- if .InSealChain}}
+	var env {{.InSealGoType}}
+	if err := request.Payload({{.ContentType}}, &env); err != nil {
+		return err
+	}
+	sealer := e.en.{{index .InSealChain 0}}Sealer()
+	if sealer == nil {
+		return &EnvelopeError{Envelope: "{{index .InSealChain 0}}", Stage: "peel", Code: "NO_SEALER"}
+	}
+	plain, err := sealer.Peel(request.Context(), info, &env)
+	if err != nil {
+		return &EnvelopeError{Envelope: "{{index .InSealChain 0}}", Stage: "peel", Code: "PEEL_FAILED", Err: err}
+	}
+	{{- if and .InputModel .InputModel.HasScalar (ne $.Config.Generator.ScalarStyle "direct")}}
+	var dto {{.InputName}}DTO
+	if err := e.en.UnmarshalPayload(plain, &dto); err != nil {
+		return &EnvelopeError{Envelope: "{{index .InSealChain 0}}", Stage: "peel", Code: "BAD_PAYLOAD", Err: err}
+	}
+	if err := input.FromDTO(request.Native(), &dto); err != nil {
+		return err
+	}
+	{{- else}}
+	if err := e.en.UnmarshalPayload(plain, input); err != nil {
+		return &EnvelopeError{Envelope: "{{index .InSealChain 0}}", Stage: "peel", Code: "BAD_PAYLOAD", Err: err}
+	}
+	{{- end}}
+	{{- else}}
 	{{- if or (eq .Method "POST") (eq .Method "PUT") (eq .Method "PATCH") (eq .Method "DELETE")}}
 	{{- if and .InputModel .InputModel.HasScalar (ne $.Config.Generator.ScalarStyle "direct")}}
 	var dto {{.InputName}}DTO
@@ -734,6 +797,7 @@ func (e *{{$.Module.Name}}Executor[T, C]) bind{{.Name}}(request C, input *{{.Inp
 	if err := request.Payload({{.ContentType}}, input); err != nil {
 		return err
 	}
+	{{- end}}
 	{{- end}}
 	{{- end}}
 

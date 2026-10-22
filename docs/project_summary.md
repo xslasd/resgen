@@ -51,11 +51,25 @@
 ### 4. 多层结构 Form 表单提交支持 (Nested Form Input)
 - **深层嵌套与点语法绑定**：`[ctype=form]` 支持复杂嵌套子模型，框架适配层与测试套件支持 `address.city=Shenzhen` 等点分层级键名与递归绑定。
 
-### 5. LSP 语言服务器与诊断检查增强
-- **全语法元素索引**：支持 `type`、`input`、`wrap`、`enum`、`union`、`scalar`、`decorator`、`validator` 的跨文件代码跳转与定义查找。
-- **深层语义诊断**：自动校验 `Field` 类型的非法滥用、`File` 类型的合法使用场景、匿名参数唯一性校验、以及入参含文件时强制要求 `multipart` 传输等规则。
+### 6. Seal 自动加包与解包机制 (Seal Wrapping & Unwrapping) & OpenAPI 3.0.3 规范化升级
+- **传输层与业务层解耦**：在网络传输物理数据与后端 Handler 入参/出参之间提供自动化加包（Wrap）与解包（Unwrap/Peel）逻辑，后端业务代码专注于干净的业务 Model，零协议/密文外壳污染；
+- **外壳模型通用化**：任意 `input` 或 `type` 模型均可作为加包/解包的外壳结构（通过 `[seal=...]` 声明）；
+- **`@payload` 载体标注增强**：支持在外壳模型及普通 API 模型中独立使用 `@payload(ModelName)` 标注密文字段解包后的明文契约，API 交互式文档以卡片形式优雅呈现；
+- **OpenAPI 3.0.3 极简标准化导出**：全面消除 JSON 根层级非标冗余键（`modules`、`models`、`enums`），所有框架拓展元数据统一前缀为 `x-resgen-` 和 `x-res-`，完全兼容第三方 OpenAPI 校验器与前端渲染工具；
+- **真实 Mock 交互与代码示例**：API 文档智能解析参数与 Schema，自动生成符合格式的精美 `curl` 与 `JavaScript/Fetch` 可运行示例。
+
+### 7. 请求参数绑定统一与自动包装合成 (Request Argument Binding Consistency)
+- **非 GET 方法平铺参数严格统一**：消除 `POST`、`PUT`、`PATCH`、`DELETE` 方法下单个标量与多参数的绑定歧义；所有非 GET 接口中未标注的平铺参数统一反序列化自请求体 (Body)；
+- **自动合成包装结构体**：针对平铺入参，编译器自动生成强类型的 `XxxArgs` 输入模型，并在 OpenAPI 文档与接口注册逻辑中同步生成 `requestBody` 契约；
+- **显式定向提取支持**：在非 GET 接口中，若确实需要从 URL 查询参数或路径提取，仅需显式声明 `@query` 或 `@path`，语义清晰严谨。
+
+### 8. 原生 LSP 语言服务器与编辑器生态增强 (Native LSP & Tooling Enhancements)
+- **HTTP 动词与核心指令 Hover 实时提示**：重构 `internal/lsp` 词法定位机制，支持在 `GET`、`POST`、`PUT`、`DELETE`、`PATCH` 及 `@query`、`@alias` 等位置悬停时展示详尽的 Markdown 规范与参数提取规则指导；
+- **上下文感知智能补全**：更新 `builtinDirectives` 和 `builtinKeywords` 补全说明，在编码阶段即时向开发者同步各方法的参数绑定规则与模版引导；
+- **完备的协议级自动化测试**：补充针对 LSP 词法提取、定义定位、补全推荐与实时 Hover 的全套端到端单元测试，为 VSCode 及 JetBrains 系列 IDE 提供稳定可靠的原生服务。
 
 ## 📂 项目文档清单
+
 
 我们已在 `docs/` 目录下整理了以下指南：
 - [DSL 语法指南](file:///d:/项目/resgen/docs/dsl_guide.md)：涵盖模型、包装器、参数绑定、多协议与标量等。
