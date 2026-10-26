@@ -19,7 +19,7 @@ import (
 	"golang.org/x/tools/imports"
 )
 
-const Version = "v0.7.5"
+const Version = "v0.7.6"
 
 //go:embed templates/engine.tmpl
 var engineTmpl string
@@ -487,7 +487,6 @@ type ModelInfo struct {
 	SourceFile string       `json:"sourceFile,omitempty"`
 	IsInput    bool         `json:"isInput"`
 	IsWrapper  bool         `json:"isWrapper"`
-	IsEnvelope bool         `json:"isEnvelope,omitempty"`
 	Readable   bool         `json:"readable,omitempty"`
 	HasScalar  bool         `json:"-"`
 	HasUnion   bool         `json:"-"`
@@ -2401,11 +2400,6 @@ func collectSealModels(ctx *DataContext) {
 					}
 				}
 			}
-		}
-	}
-	for _, m := range ctx.Models {
-		if m.IsEnvelope {
-			sealMap[m.Name] = m
 		}
 	}
 	var names []string

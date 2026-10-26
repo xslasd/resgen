@@ -111,13 +111,24 @@ group /api/v1 {
 }
 ```
 
-## 📚 项目文档
+## 📚 项目文档中心
 
-为了帮助你更好地深入了解 Resgen，我们准备了以下详尽文档：
+为了帮助你更好地深入了解 Resgen，我们在 [`docs/`](./docs/README.md) 准备了体系化的技术指南：
 
-- [**DSL 语法全指南**](./docs/dsl_guide.md)：探索如何定义模型、包装器与复杂的接口网络。
-- [**响应处理机制**](./docs/response_handling.md)：深入理解错误映射、状态码控制与统一响应契约。
-- [**项目阶段总结**](./docs/project_summary.md)：了解 Resgen 的最新特性与架构演进。
+- 🗺️ [**文档中心与功能导航全景**](./docs/README.md)：全局架构、功能领域分类矩阵与学习路线。
+- 📖 [**DSL 语法全景指南**](./docs/dsl_guide.md)：探索如何定义模型、包装器与复杂的接口网络。
+- 📦 [**01. 数据类型系统与建模规范**](./docs/01_types_and_models.md)：基础标量、数组修饰符全景对比、模型、枚举与联合类型。
+- 🚦 [**02. 接口编排与参数提取机制**](./docs/02_endpoints_and_routing.md)：四维参数提取、非 GET 请求平铺参数自动合成规范。
+- 🛡️ [**03. 切面装饰器与校验系统**](./docs/03_decorators_and_validators.md)：请求/执行/响应装饰器、权限码提取与文档挂锁高亮。
+- 📂 [**04. 文件流与上传下载实战**](./docs/04_file_and_stream.md)：`File` 类型、`LocalFileDownload` 强类型载体与 `RenderStream`。
+- 🌐 [**05. 多协议传输与 Content-Type**](./docs/05_content_types_and_protocols.md)：协议规格表、精准 Tag 推导与嵌套 Form 点分绑定。
+- 🧩 [**06. 自定义标量系统 (Scalar)**](./docs/06_scalars.md)：`isolation`（DTO 隔离流）与 `direct`（标量直通流）深度对比。
+- 🔒 [**07. 信封机制与安全加解密 (Seal)**](./docs/07_envelopes_and_security.md)：自动拆封与加壳、`@payload` 辅助契约与多语言结构化错误。
+- 🎯 [**08. 统一响应控制与错误处理**](./docs/08_response_handling.md)：响应包装器、`wrap=none` 三大场景、单态化展开与 Responder。
+- ⚙️ [**09. 配置规格全景指南 (resgen.yaml)**](./docs/09_configuration.md)：配置文件完整参数详解与生产级模板。
+- 💻 [**10. 原生 LSP 与开发工具生态**](./docs/10_lsp_and_tooling.md)：原生语言服务器、Hover 实时指导、VSCode 与 GoLand 插件。
+- 🚀 [**11. Web 框架适配实战指南**](./docs/11_framework_adaptation.md)：Gin 框架与原生 `net/http` 完整适配器实战代码。
+- 📝 [**项目阶段演进总结**](./docs/project_summary.md)：了解 Resgen 的最新特性与架构演进。
 
 ## ⚡ 快速开始
 

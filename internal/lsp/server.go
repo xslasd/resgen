@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/alecthomas/participle/v2/lexer"
 	"github.com/tliron/glsp"
@@ -18,19 +19,34 @@ import (
 	"github.com/xslasd/resgen/internal/parser"
 )
 
+type SymbolInfo struct {
+	Name     string
+	Kind     string // "Model", "Scalar", "Decorator", "Enum", "Union"
+	Filename string
+	Line     int
+	Column   int
+	Doc      string // 文档注释
+	Detail   string // 完整定义代码预览
+}
+
+type fileCacheEntry struct {
+	modTime time.Time
+	symbols map[string]SymbolInfo
+}
+
 var (
 	// files 存储在内存中的虚拟文件缓存
 	filesMu sync.RWMutex
 	files   = make(map[string]string)
-)
 
-type SymbolInfo struct {
-	Name     string
-	Kind     string
-	Filename string
-	Line     int
-	Column   int
-}
+	// symbolCache 磁盘文件符号缓存（基于文件修改时间 ModTime）
+	cacheMu     sync.RWMutex
+	symbolCache = make(map[string]fileCacheEntry)
+
+	// 诊断发布防抖计时器
+	diagMu     sync.Mutex
+	diagTimers = make(map[string]*time.Timer)
+)
 
 func initLog() {}
 
@@ -55,7 +71,7 @@ func NewHandler(version string) protocol.Handler {
 		capabilities.DefinitionProvider = true
 		capabilities.HoverProvider = true
 		capabilities.CompletionProvider = &protocol.CompletionOptions{
-			TriggerCharacters: []string{"@", ":"},
+			TriggerCharacters: []string{"@", ":", "[", "="},
 		}
 		capabilities.TextDocumentSync = protocol.TextDocumentSyncKindFull
 
@@ -120,6 +136,44 @@ func NewHandler(version string) protocol.Handler {
 			hoverText = "### HTTP Method: `PATCH`\n\n声明一个 HTTP PATCH 请求路由。\n\n**参数绑定规则**:\n- **与 POST 一致**：未显式标注的平铺形参默认绑定至 **请求体 (Body)** 并自动合成 `XxxArgs` 包装模型。\n- **单一输入模型**：传入自定义 `input` 模型直接映射为请求体 (Body) 增量更新载荷。\n- **强制 Query 参数**：显式标注 `@query` 从 URL 查询参数提取。\n- **路径变量**：标注 `@path` 从 URL 路径提取。"
 		case "delete":
 			hoverText = "### HTTP Method: `DELETE`\n\n声明一个 HTTP DELETE 请求路由。\n\n**参数绑定规则**:\n- **与 POST/PUT/PATCH 完全一致**：未显式标注的平铺形参默认绑定至 **请求体 (Body)** 并自动合成 `XxxArgs` 包装模型。\n- **特别提示**：若期望通过 URL 查询参数传递删除筛选条件，**必须显式声明 `@query`**（例如 `id: String! @query`）。\n- **路径变量**：标注 `@path` 从 URL 路径提取（例如 `DELETE /items/:id => DeleteItem(id: Int! @path): Boolean`）。"
+		case "ctype":
+			hoverText = "### Meta Attribute: `ctype`\n\n指定接口请求或响应的传输编码格式 (Content-Type)。\n\n**可选参数**:\n- `[ctype=stream]`：二进制数据流下载 (如文件导出)\n- `[ctype=zip]`：ZIP 压缩包文件下载流\n- `[ctype=multipart]`：文件上传表单 (`multipart/form-data`)\n- `[ctype=json]`：默认 JSON 格式\n- `[ctype=form]`：URL 编码表单 (`application/x-www-form-urlencoded`)"
+		case "ws":
+			hoverText = "### Meta Attribute: `ws=true`\n\n声明该端点为 WebSocket 全双工长连接端点，框架会自动生成协议升级（Upgrader）与双工通信连接处理器。"
+		case "prefix":
+			hoverText = "### Meta Attribute: `prefix=\"/api\"`\n\n为路由分组 (group) 或端点声明自定义统一路径前缀。"
+		case "string":
+			hoverText = "### 内置标量类型: `String`\n\n字符串标量类型。\n- `String!` 映射为 Go `string`（必填非空校验）；\n- `String` 映射为 Go `*string`（可选指针）。"
+		case "int":
+			hoverText = "### 内置标量类型: `Int`\n\n64 位整数标量类型。\n- `Int!` 映射为 Go `int64`；\n- `Int` 映射为 Go `*int64`。"
+		case "float":
+			hoverText = "### 内置标量类型: `Float`\n\n64 位浮点数标量类型。\n- `Float!` 映射为 Go `float64`；\n- `Float` 映射为 Go `*float64`。"
+		case "boolean":
+			hoverText = "### 内置标量类型: `Boolean`\n\n布尔标量类型。\n- `Boolean!` 映射为 Go `bool`；\n- `Boolean` 映射为 Go `*bool`。"
+		case "time":
+			hoverText = "### 内置标量类型: `Time`\n\n日期时间标量类型，映射为 Go `time.Time` / `*time.Time`。"
+		case "file":
+			hoverText = "### 内置标量类型: `File`\n\n文件数据传输标量：\n- **作为入参字段**：用于文件上传，映射为 `*multipart.FileHeader`，所属接口必须使用 `[ctype=multipart]`；\n- **作为出参返回值**：用于文件下载，映射为 `*LocalFileDownload` 强类型下载流载体；\n- **约束**：禁止在普通输出模型中嵌套包含 File 字段，禁止声明为文件数组 `[File]`。"
+		case "any":
+			hoverText = "### 内置动态标量: `Any`\n\n逃生舱类型，映射为 Go `any` (`interface{}`)。可承载任意形式的动态散列或未知结构数据。"
+		case "field":
+			hoverText = "### 校验器元类型: `Field`\n\n**专用于校验器 (Validator) 的字段引用参数**。代码生成时会自动升格为被引用的 Go 字段变量表达式（用于跨字段对比校验）。⚠️ 严禁作为普通业务模型的属性类型！"
+		}
+
+		if hoverText == "" {
+			symbols := buildSymbolTable(filename)
+			if sym, found := symbols[ident]; found {
+				var sb strings.Builder
+				sb.WriteString(fmt.Sprintf("### %s: `%s`\n\n", sym.Kind, sym.Name))
+				if sym.Doc != "" {
+					sb.WriteString(sym.Doc + "\n\n")
+				}
+				if sym.Detail != "" {
+					sb.WriteString("```res\n" + sym.Detail + "\n```\n\n")
+				}
+				sb.WriteString(fmt.Sprintf("*定义于: `%s:%d`*", filepath.Base(sym.Filename), sym.Line))
+				hoverText = sb.String()
+			}
 		}
 
 		if hoverText != "" {
@@ -164,15 +218,22 @@ func NewHandler(version string) protocol.Handler {
 		filesMu.Unlock()
 		
 		if text != "" {
-			go publishDiagnostics(context, params.TextDocument.URI, text)
+			debouncePublishDiagnostics(context, params.TextDocument.URI, text)
 		}
 		return nil
 	}
 
 	handler.TextDocumentDidClose = func(context *glsp.Context, params *protocol.DidCloseTextDocumentParams) error {
 		filesMu.Lock()
-		defer filesMu.Unlock()
 		delete(files, params.TextDocument.URI)
+		filesMu.Unlock()
+
+		diagMu.Lock()
+		if t, ok := diagTimers[params.TextDocument.URI]; ok {
+			t.Stop()
+			delete(diagTimers, params.TextDocument.URI)
+		}
+		diagMu.Unlock()
 		return nil
 	}
 
@@ -198,15 +259,6 @@ func NewHandler(version string) protocol.Handler {
 				tabSize = int(f)
 			} else if i, ok := val.(int); ok {
 				tabSize = i
-			}
-		}
-
-		for i := range schema.Declarations {
-			decl := &schema.Declarations[i]
-			if decl.Model != nil && (decl.Model.Keyword == "type" || decl.Model.Keyword == "input" || decl.Model.Keyword == "wrap") {
-				for j := range decl.Model.Properties {
-					decl.Model.Properties[j].Name = camelToSnake(decl.Model.Properties[j].Name)
-				}
 			}
 		}
 
@@ -319,6 +371,19 @@ func camelToSnake(s string) string {
 	return string(result)
 }
 
+func debouncePublishDiagnostics(context *glsp.Context, uri, content string) {
+	diagMu.Lock()
+	defer diagMu.Unlock()
+
+	if t, ok := diagTimers[uri]; ok {
+		t.Stop()
+	}
+
+	diagTimers[uri] = time.AfterFunc(150*time.Millisecond, func() {
+		publishDiagnostics(context, uri, content)
+	})
+}
+
 func uriToPath(uri string) string {
 	u, err := url.Parse(uri)
 	if err != nil {
@@ -328,6 +393,9 @@ func uriToPath(uri string) string {
 		return uri
 	}
 	path := u.Path
+	if unescaped, err := url.PathUnescape(path); err == nil {
+		path = unescaped
+	}
 	if len(path) > 0 && path[0] == '/' {
 		if len(path) > 2 && path[2] == ':' {
 			path = path[1:]
@@ -345,7 +413,43 @@ func pathToURI(path string) string {
 	if !strings.HasPrefix(path, "/") {
 		path = "/" + path
 	}
-	return "file://" + path
+	u := url.URL{
+		Scheme: "file",
+		Path:   path,
+	}
+	return u.String()
+}
+
+var fallbackDeclRegex = regexp.MustCompile(`(?m)^\s*(type|input|wrap|enum|scalar|union)\s+([A-Za-z0-9_]+)`)
+
+func extractFallbackSymbols(content, filePath string, symbols map[string]SymbolInfo) {
+	lines := strings.Split(content, "\n")
+	for lineIdx, line := range lines {
+		matches := fallbackDeclRegex.FindStringSubmatch(line)
+		if len(matches) == 3 {
+			kw := strings.ToLower(matches[1])
+			name := matches[2]
+			kind := "Model"
+			switch kw {
+			case "enum":
+				kind = "Enum"
+			case "scalar":
+				kind = "Scalar"
+			case "union":
+				kind = "Union"
+			}
+			if _, exists := symbols[name]; !exists {
+				symbols[name] = SymbolInfo{
+					Name:     name,
+					Kind:     kind,
+					Filename: filePath,
+					Line:     lineIdx + 1,
+					Column:   strings.Index(line, name) + 1,
+					Detail:   strings.TrimSpace(line),
+				}
+			}
+		}
+	}
 }
 
 func buildSymbolTable(currentFile string) map[string]SymbolInfo {
@@ -360,12 +464,14 @@ func buildSymbolTable(currentFile string) map[string]SymbolInfo {
 			schema, err := parser.ParseFileContent(filePath, cachedContent)
 			if err == nil {
 				addSymbols(schema, filePath, symbols)
+			} else {
+				extractFallbackSymbols(cachedContent, filePath, symbols)
 			}
 		}
 	}
 	filesMu.RUnlock()
 
-	// 2. 扫描磁盘上的文件（排除内存中已有的，避免重复解析）
+	// 2. 扫描磁盘上的文件（排除内存中已有的，带 ModTime 缓存）
 	entries, err := os.ReadDir(dir)
 	if err == nil {
 		for _, entry := range entries {
@@ -389,9 +495,38 @@ func buildSymbolTable(currentFile string) map[string]SymbolInfo {
 				continue
 			}
 
+			fi, err := entry.Info()
+			if err != nil {
+				continue
+			}
+			modTime := fi.ModTime()
+
+			cacheMu.RLock()
+			cached, hit := symbolCache[filePath]
+			cacheMu.RUnlock()
+
+			if hit && cached.modTime.Equal(modTime) {
+				for k, v := range cached.symbols {
+					symbols[k] = v
+				}
+				continue
+			}
+
 			schema, err := parser.ParseFile(filePath)
 			if err == nil {
-				addSymbols(schema, filePath, symbols)
+				fileSymbols := make(map[string]SymbolInfo)
+				addSymbols(schema, filePath, fileSymbols)
+
+				cacheMu.Lock()
+				symbolCache[filePath] = fileCacheEntry{
+					modTime: modTime,
+					symbols: fileSymbols,
+				}
+				cacheMu.Unlock()
+
+				for k, v := range fileSymbols {
+					symbols[k] = v
+				}
 			}
 		}
 	}
@@ -399,51 +534,121 @@ func buildSymbolTable(currentFile string) map[string]SymbolInfo {
 	return symbols
 }
 
+func formatTypeRefStr(t parser.TypeRef) string {
+	res := t.Name
+	if len(t.TypeArgs) > 0 {
+		var args []string
+		for _, a := range t.TypeArgs {
+			args = append(args, formatTypeRefStr(a))
+		}
+		res += "<" + strings.Join(args, ", ") + ">"
+	}
+	if t.ItemNotNull {
+		res += "!"
+	}
+	if t.IsArray {
+		res = "[" + res + "]"
+		if t.ArrNotNull {
+			res += "!"
+		}
+	}
+	return res
+}
+
 func addSymbols(schema *parser.Schema, filePath string, symbols map[string]SymbolInfo) {
 	for _, decl := range schema.Declarations {
 		if decl.Model != nil {
+			var sb strings.Builder
+			tpStr := ""
+			if len(decl.Model.TypeParams) > 0 {
+				tpStr = "<" + strings.Join(decl.Model.TypeParams, ", ") + ">"
+			}
+			sb.WriteString(fmt.Sprintf("%s %s%s {\n", decl.Model.Keyword, decl.Model.Name, tpStr))
+			for _, p := range decl.Model.Properties {
+				var dirs []string
+				for _, d := range p.Directives {
+					dirs = append(dirs, "@"+d.Name)
+				}
+				dirStr := ""
+				if len(dirs) > 0 {
+					dirStr = " " + strings.Join(dirs, " ")
+				}
+				sb.WriteString(fmt.Sprintf("    %s: %s%s\n", p.Name, formatTypeRefStr(p.Type), dirStr))
+			}
+			sb.WriteString("}")
+
 			symbols[decl.Model.Name] = SymbolInfo{
 				Name:     decl.Model.Name,
 				Kind:     "Model",
 				Filename: filePath,
 				Line:     decl.Model.Pos.Line,
 				Column:   decl.Model.Pos.Column,
+				Doc:      decl.Model.Doc,
+				Detail:   sb.String(),
 			}
 		}
 		if decl.Scalar != nil {
+			detail := fmt.Sprintf("scalar %s: %s", decl.Scalar.Name, decl.Scalar.Base)
 			symbols[decl.Scalar.Name] = SymbolInfo{
 				Name:     decl.Scalar.Name,
 				Kind:     "Scalar",
 				Filename: filePath,
 				Line:     decl.Scalar.Pos.Line,
 				Column:   decl.Scalar.Pos.Column,
+				Doc:      decl.Scalar.Doc,
+				Detail:   detail,
 			}
 		}
 		if decl.Decorator != nil {
+			kw := "decorator"
+			if decl.Decorator.IsDec {
+				kw = "validator"
+			}
+			detail := fmt.Sprintf("%s %s(...)", kw, decl.Decorator.Name)
 			symbols[decl.Decorator.Name] = SymbolInfo{
 				Name:     decl.Decorator.Name,
 				Kind:     "Decorator",
 				Filename: filePath,
 				Line:     decl.Decorator.Pos.Line,
 				Column:   decl.Decorator.Pos.Column,
+				Doc:      decl.Decorator.Doc,
+				Detail:   detail,
 			}
 		}
 		if decl.Enum != nil {
+			var sb strings.Builder
+			sb.WriteString(fmt.Sprintf("enum %s {\n", decl.Enum.Name))
+			for _, c := range decl.Enum.Cases {
+				sb.WriteString(fmt.Sprintf("    %s\n", c.Name))
+			}
+			sb.WriteString("}")
+
 			symbols[decl.Enum.Name] = SymbolInfo{
 				Name:     decl.Enum.Name,
 				Kind:     "Enum",
 				Filename: filePath,
 				Line:     decl.Enum.Pos.Line,
 				Column:   decl.Enum.Pos.Column,
+				Doc:      decl.Enum.Doc,
+				Detail:   sb.String(),
 			}
 		}
 		if decl.Union != nil {
+			var sb strings.Builder
+			sb.WriteString(fmt.Sprintf("union %s(%s) {\n", decl.Union.Name, decl.Union.ParamName))
+			for _, c := range decl.Union.Cases {
+				sb.WriteString(fmt.Sprintf("    %s: %s\n", c.Key, c.Type))
+			}
+			sb.WriteString("}")
+
 			symbols[decl.Union.Name] = SymbolInfo{
 				Name:     decl.Union.Name,
 				Kind:     "Union",
 				Filename: filePath,
 				Line:     decl.Union.Pos.Line,
 				Column:   decl.Union.Pos.Column,
+				Doc:      decl.Union.Doc,
+				Detail:   sb.String(),
 			}
 		}
 	}
@@ -462,7 +667,8 @@ func findIdentifierAt(schema *parser.Schema, line, col int, content ...string) s
 		switch wLower {
 		case "get", "post", "put", "delete", "patch",
 			"alias", "path", "query", "header", "required",
-			"custombind", "customvalidate", "payload", "seal":
+			"custombind", "customvalidate", "payload", "seal",
+			"ctype", "ws", "prefix":
 			return word
 		}
 	}
@@ -666,10 +872,51 @@ func publishDiagnostics(context *glsp.Context, uri, content string) {
 		source := "resgen"
 		
 		modelMap := make(map[string]*parser.ModelDecl)
+		symbols := buildSymbolTable(filename)
+		validTypes := make(map[string]bool)
+		for _, bt := range builtinTypes {
+			validTypes[bt.name] = true
+		}
+		for symName := range symbols {
+			validTypes[symName] = true
+		}
+
 		for _, decl := range schema.Declarations {
 			if decl.Model != nil {
 				modelMap[decl.Model.Name] = decl.Model
+				validTypes[decl.Model.Name] = true
 			}
+			if decl.Scalar != nil {
+				validTypes[decl.Scalar.Name] = true
+			}
+			if decl.Enum != nil {
+				validTypes[decl.Enum.Name] = true
+			}
+			if decl.Union != nil {
+				validTypes[decl.Union.Name] = true
+			}
+		}
+
+		checkTypeExists := func(t parser.TypeRef, localTypeParams map[string]bool) {
+			var checkRef func(ref parser.TypeRef)
+			checkRef = func(ref parser.TypeRef) {
+				name := ref.Name
+				if name != "" && !validTypes[name] && (localTypeParams == nil || !localTypeParams[name]) {
+					diagnostics = append(diagnostics, protocol.Diagnostic{
+						Range: protocol.Range{
+							Start: protocol.Position{Line: uint32(ref.Pos.Line - 1), Character: uint32(ref.Pos.Column - 1)},
+							End:   protocol.Position{Line: uint32(ref.Pos.Line - 1), Character: uint32(ref.Pos.Column - 1 + len(name))},
+						},
+						Severity: &severity,
+						Source:   &source,
+						Message:  fmt.Sprintf("未定义的类型: '%s'。请检查拼写或确保已声明对应的 Model/Scalar/Enum/Union", name),
+					})
+				}
+				for _, arg := range ref.TypeArgs {
+					checkRef(arg)
+				}
+			}
+			checkRef(t)
 		}
 
 		var checkHasFile func(t parser.TypeRef) bool
@@ -738,14 +985,34 @@ func publishDiagnostics(context *glsp.Context, uri, content string) {
 
 		for _, decl := range schema.Declarations {
 			if decl.Model != nil {
+				localTP := make(map[string]bool)
+				for _, tp := range decl.Model.TypeParams {
+					localTP[tp] = true
+				}
 				for _, prop := range decl.Model.Properties {
 					checkDirectives(prop.Directives)
-				}
-			}
-			if decl.Group != nil {
-				for _, ep := range decl.Group.Endpoints {
-					for _, arg := range ep.Args {
-						checkDirectives(arg.Directives)
+					checkTypeExists(prop.Type, localTP)
+					if prop.Type.Name == "Field" {
+						diagnostics = append(diagnostics, protocol.Diagnostic{
+							Range: protocol.Range{
+								Start: protocol.Position{Line: uint32(prop.Pos.Line - 1), Character: uint32(prop.Pos.Column - 1)},
+								End:   protocol.Position{Line: uint32(prop.Pos.Line - 1), Character: uint32(prop.Pos.Column + len(prop.Name))},
+							},
+							Severity: &severity,
+							Source:   &source,
+							Message:  fmt.Sprintf("语义错误：模型属性 '%s.%s' 不能使用 'Field' 类型。'Field' 是专属于校验器形参的字段引用元类型，绝对不能作为普通属性类型！若需表达动态或任意结构数据，请选用 'Any' 类型", decl.Model.Name, prop.Name),
+						})
+					}
+					if decl.Model.Keyword != "input" && prop.Type.Name == "File" {
+						diagnostics = append(diagnostics, protocol.Diagnostic{
+							Range: protocol.Range{
+								Start: protocol.Position{Line: uint32(prop.Pos.Line - 1), Character: uint32(prop.Pos.Column - 1)},
+								End:   protocol.Position{Line: uint32(prop.Pos.Line - 1), Character: uint32(prop.Pos.Column + len(prop.Name))},
+							},
+							Severity: &severity,
+							Source:   &source,
+							Message:  fmt.Sprintf("语义错误：输出模型 '%s.%s' 不能包含 'File' 属性字段。文件流无法在 JSON/XML 结构体内部嵌套序列化返回；若接口需返回/下载文件，请将接口的返回值直接声明为 'File' (例如 => Download(): File [ctype=stream])", decl.Model.Name, prop.Name),
+						})
 					}
 				}
 			}
@@ -791,34 +1058,48 @@ func publishDiagnostics(context *glsp.Context, uri, content string) {
 				}
 			}
 
-			if decl.Model != nil {
-				for _, prop := range decl.Model.Properties {
-					if prop.Type.Name == "Field" {
-						diagnostics = append(diagnostics, protocol.Diagnostic{
-							Range: protocol.Range{
-								Start: protocol.Position{Line: uint32(prop.Pos.Line - 1), Character: uint32(prop.Pos.Column - 1)},
-								End:   protocol.Position{Line: uint32(prop.Pos.Line - 1), Character: uint32(prop.Pos.Column + len(prop.Name))},
-							},
-							Severity: &severity,
-							Source:   &source,
-							Message:  fmt.Sprintf("语义错误：模型属性 '%s.%s' 不能使用 'Field' 类型。'Field' 是专属于校验器形参的字段引用元类型，绝对不能作为普通属性类型！若需表达动态或任意结构数据，请选用 'Any' 类型", decl.Model.Name, prop.Name),
-						})
-					}
-					if decl.Model.Keyword != "input" && prop.Type.Name == "File" {
-						diagnostics = append(diagnostics, protocol.Diagnostic{
-							Range: protocol.Range{
-								Start: protocol.Position{Line: uint32(prop.Pos.Line - 1), Character: uint32(prop.Pos.Column - 1)},
-								End:   protocol.Position{Line: uint32(prop.Pos.Line - 1), Character: uint32(prop.Pos.Column + len(prop.Name))},
-							},
-							Severity: &severity,
-							Source:   &source,
-							Message:  fmt.Sprintf("语义错误：输出模型 '%s.%s' 不能包含 'File' 属性字段。文件流无法在 JSON/XML 结构体内部嵌套序列化返回；若接口需返回/下载文件，请将接口的返回值直接声明为 'File' (例如 => Download(): File [ctype=stream])", decl.Model.Name, prop.Name),
-						})
-					}
-				}
-			}
 			if decl.Group != nil {
 				for _, ep := range decl.Group.Endpoints {
+					for _, arg := range ep.Args {
+						checkDirectives(arg.Directives)
+						if arg.Type.Name != "" {
+							checkTypeExists(arg.Type, nil)
+						}
+					}
+					if ep.ReturnType != nil && ep.ReturnType.Name != "" {
+						checkTypeExists(*ep.ReturnType, nil)
+					}
+
+					// 检查 [seal=...] 信封模型声明有效性
+					checkSeal := func(metas []parser.MetaEntry) {
+						for _, meta := range metas {
+							if strings.ToLower(meta.Key) == "seal" {
+								sealName := ""
+								if meta.Value.Generic != nil {
+									sealName = meta.Value.Generic.Name
+									for _, targ := range meta.Value.Generic.Args {
+										checkTypeExists(targ, nil)
+									}
+								} else if meta.Value.Str != nil {
+									sealName = *meta.Value.Str
+								}
+								if sealName != "" && !validTypes[sealName] {
+									diagnostics = append(diagnostics, protocol.Diagnostic{
+										Range: protocol.Range{
+											Start: protocol.Position{Line: uint32(meta.Pos.Line - 1), Character: uint32(meta.Pos.Column - 1)},
+											End:   protocol.Position{Line: uint32(meta.Pos.Line - 1), Character: uint32(meta.Pos.Column - 1 + len(meta.Key) + 1 + len(sealName))},
+										},
+										Severity: &severity,
+										Source:   &source,
+										Message:  fmt.Sprintf("未定义的信封模型: '%s'。加解密信封必须是一个已定义的模型", sealName),
+									})
+								}
+							}
+						}
+					}
+					checkSeal(ep.RequestMeta)
+					checkSeal(ep.ResponseMeta)
+
 					if len(ep.Args) > 1 {
 						for _, arg := range ep.Args {
 							if arg.Name == "" {
@@ -994,6 +1275,85 @@ func buildCompletions(filename, content string, line, col int) []protocol.Comple
 		}
 	}
 
+	// 0. 判断是否正在输入元属性（在 [ ... ] 中）
+	bracketIdx := strings.LastIndex(prefix, "[")
+	closeBracketIdx := strings.LastIndex(prefix, "]")
+	if bracketIdx != -1 && bracketIdx > closeBracketIdx {
+		afterBracket := strings.TrimSpace(prefix[bracketIdx+1:])
+		snipFormat := protocol.InsertTextFormatSnippet
+		propKind := protocol.CompletionItemKindProperty
+		enumKind := protocol.CompletionItemKindEnumMember
+
+		// 如果在 seal= 后面
+		if strings.HasSuffix(afterBracket, "seal=") || strings.HasSuffix(afterBracket, "seal =") {
+			symbols := buildSymbolTable(filename)
+			extractFallbackSymbols(content, filename, symbols)
+			classKind := protocol.CompletionItemKindClass
+			for _, sym := range symbols {
+				if sym.Kind == "Model" {
+					name := sym.Name
+					detail := fmt.Sprintf("%s (信封模型)", name)
+					doc := fmt.Sprintf("定义于: %s:%d", filepath.Base(sym.Filename), sym.Line)
+					items = append(items, protocol.CompletionItem{
+						Label:         name,
+						Kind:          &classKind,
+						Detail:        &detail,
+						Documentation: protocol.MarkupContent{Kind: protocol.MarkupKindMarkdown, Value: doc},
+						InsertText:    &name,
+					})
+				}
+			}
+			return items
+		}
+
+		// 如果在 ctype= 后面
+		if strings.HasSuffix(afterBracket, "ctype=") || strings.HasSuffix(afterBracket, "ctype =") {
+			ctypes := []struct{ val, doc string }{
+				{"stream", "二进制原始数据流下载 (如文件导出)"},
+				{"zip", "ZIP 压缩流下载"},
+				{"multipart", "multipart/form-data 文件上传"},
+				{"json", "application/json 默认格式"},
+				{"form", "application/x-www-form-urlencoded 表单"},
+			}
+			for _, ct := range ctypes {
+				v := ct.val
+				d := ct.doc
+				items = append(items, protocol.CompletionItem{
+					Label:      v,
+					Kind:       &enumKind,
+					Detail:     &d,
+					InsertText: &v,
+				})
+			}
+			return items
+		}
+
+		// 在中括号内部提供可用元属性补全
+		metaEntries := []struct {
+			label, insertText, detail, doc string
+		}{
+			{"seal", "seal=${1:SealModel}", "seal=WrapModel - 声明加解封信封", "在 RequestMeta 或 ResponseMeta 中声明该接口在物理传输层使用的加解封信封。"},
+			{"ctype", "ctype=${1|stream,zip,multipart,json,form|}", "ctype=... - 指定传输格式", "指定请求或响应传输层的 Content-Type 编码格式。"},
+			{"ws", "ws=true", "ws=true - 升级为 WebSocket 端点", "将该接口声明为双工 WebSocket 全双工长连接端点。"},
+			{"prefix", "prefix=\"${1:/api}\"", "prefix=\"...\" - 路由前缀", "为路由分组或端点指定自定义路径前缀。"},
+		}
+		for _, m := range metaEntries {
+			label := m.label
+			it := m.insertText
+			dt := m.detail
+			doc := m.doc
+			items = append(items, protocol.CompletionItem{
+				Label:            label,
+				Kind:             &propKind,
+				Detail:           &dt,
+				Documentation:    protocol.MarkupContent{Kind: protocol.MarkupKindMarkdown, Value: doc},
+				InsertText:       &it,
+				InsertTextFormat: &snipFormat,
+			})
+		}
+		return items
+	}
+
 	// 1. 判断是否正在输入指令/装饰器（光标紧随 @ 或正在输入 @xxx）
 	isDirective := false
 	atIdx := strings.LastIndex(prefix, "@")
@@ -1074,6 +1434,7 @@ func buildCompletions(filename, content string, line, col int) []protocol.Comple
 
 	// 自定义模型/类型符号
 	symbols := buildSymbolTable(filename)
+	extractFallbackSymbols(content, filename, symbols)
 	for _, sym := range symbols {
 		var k protocol.CompletionItemKind
 		switch sym.Kind {

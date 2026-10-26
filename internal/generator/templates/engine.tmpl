@@ -174,23 +174,25 @@ func (e *Engine[C]) MarshalPayload(v any) ([]byte, error) {
 func (e *Engine[C]) {{.Name}}Sealer() {{.Name}}Sealer { return e.{{.UnexportName}}Sealer }
 {{end}}
 
+{{if .SealModels}}
 func (e *Engine[C]) CheckSealers(methods []MethodInfo) error {
 	for _, m := range methods {
 		{{range .SealModels}}
 		for _, env := range m.InSealChain {
 			if env == "{{.Name}}" && e.{{.Name}}Sealer() == nil {
-				return fmt.Errorf("未注册信封 '%s' 的 Sealer (端点: %s %s)", env, m.Method, m.Path)
+				return &MissingSealerError{Envelope: env, Method: m.Method, Path: m.Path}
 			}
 		}
 		for _, env := range m.OutSealChain {
 			if env == "{{.Name}}" && e.{{.Name}}Sealer() == nil {
-				return fmt.Errorf("未注册信封 '%s' 的 Sealer (端点: %s %s)", env, m.Method, m.Path)
+				return &MissingSealerError{Envelope: env, Method: m.Method, Path: m.Path}
 			}
 		}
 		{{end}}
 	}
 	return nil
 }
+{{end}}
 
 // Register 注册路由
 func (e *Engine[C]) Register(info MethodInfo, handler HandlerFunc[C]) {
@@ -379,7 +381,19 @@ type PayloadUnmarshaler func(data []byte, dest any) error
 // PayloadMarshaler 定义了全局荷载序列化切面函数，默认使用 json.Marshal
 type PayloadMarshaler func(v any) ([]byte, error)
 
-// EnvelopeError 信封处理过程中的统一错误包装
+{{if .SealModels}}
+// MissingSealerError 定义未注册信封 Sealer 的结构化错误，携带元数据以友好支持多语言(i18n)及错误定位
+type MissingSealerError struct {
+	Envelope string
+	Method   string
+	Path     string
+}
+
+func (e *MissingSealerError) Error() string {
+	return fmt.Sprintf("missing sealer for envelope '%s' (endpoint: %s %s)", e.Envelope, e.Method, e.Path)
+}
+
+// EnvelopeError 定义信封处理过程中的统一结构化错误包装，携带元数据以友好支持多语言(i18n)及统一错误映射
 type EnvelopeError struct {
 	Envelope string
 	Stage    string
@@ -389,14 +403,15 @@ type EnvelopeError struct {
 
 func (e *EnvelopeError) Error() string {
 	if e.Err != nil {
-		return fmt.Sprintf("信封 %s 在 %s 阶段失败 (%s): %v", e.Envelope, e.Stage, e.Code, e.Err)
+		return fmt.Sprintf("envelope '%s' failed at %s stage (%s): %v", e.Envelope, e.Stage, e.Code, e.Err)
 	}
-	return fmt.Sprintf("信封 %s 在 %s 阶段失败 (%s)", e.Envelope, e.Stage, e.Code)
+	return fmt.Sprintf("envelope '%s' failed at %s stage (%s)", e.Envelope, e.Stage, e.Code)
 }
 
 func (e *EnvelopeError) Unwrap() error {
 	return e.Err
 }
+{{end}}
 
 // Responder [T any] 定义了响应包装与错误映射契约
 type Responder[T any] interface {
@@ -404,7 +419,7 @@ type Responder[T any] interface {
 	ErrorToStatus(ctx T, err error) int
 
 	{{- range .Models}}
-	{{- if or .IsWrapper .IsEnvelope}}
+	{{- if .IsWrapper}}
 	// Bind{{.Name}} 将数据和错误绑定到 {{.Name}} 包装器中
 	Bind{{.Name}}(ctx T, data any, err error) {{.Name}}
 	{{- end}}
@@ -416,7 +431,7 @@ type Any any
 
 
 {{range .Models}}
-{{- if or .IsWrapper .IsEnvelope}}
+{{- if .IsWrapper}}
 {{- if .Doc}}
 {{FormatComment .Doc ""}}
 {{- else}}

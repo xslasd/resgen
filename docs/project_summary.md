@@ -69,9 +69,18 @@
 - **完备的协议级自动化测试**：补充针对 LSP 词法提取、定义定位、补全推荐与实时 Hover 的全套端到端单元测试，为 VSCode 及 JetBrains 系列 IDE 提供稳定可靠的原生服务。
 
 ## 📂 项目文档清单
-
-
-我们已在 `docs/` 目录下整理了以下指南：
-- [DSL 语法指南](file:///d:/项目/resgen/docs/dsl_guide.md)：涵盖模型、包装器、参数绑定、多协议与标量等。
-- [响应处理机制](file:///d:/项目/resgen/docs/response_handling.md)：详细说明了错误映射、状态码与包装器契约。
-- [项目演进总结](file:///d:/项目/resgen/docs/project_summary.md)：了解 Resgen 的最新特性与架构演进。
+我们在 `docs/` 目录下按功能领域构建了完备的专题指南：
+- [**文档中心与功能导航全景**](./README.md)：全局架构、功能领域分类矩阵与直达导航。
+- [**DSL 语法全景指南**](./dsl_guide.md)：涵盖模型、包装器、参数绑定、多协议与标量等语法全景。
+- [**01. 数据类型系统与建模规范**](./01_types_and_models.md)
+- [**02. 接口编排与参数提取机制**](./02_endpoints_and_routing.md)
+- [**03. 切面装饰器与校验系统**](./03_decorators_and_validators.md)
+- [**04. 文件流与上传下载实战**](./04_file_and_stream.md)
+- [**05. 多协议传输与 Content-Type**](./05_content_types_and_protocols.md)
+- [**06. 自定义标量系统 (Scalar)**](./06_scalars.md)
+- [**07. 信封机制与安全加解密 (Seal)**](./07_envelopes_and_security.md)
+- [**08. 统一响应控制与错误处理**](./08_response_handling.md)
+- [**09. 配置规格全景指南 (resgen.yaml)**](./09_configuration.md)
+- [**10. 原生 LSP 与开发工具生态**](./10_lsp_and_tooling.md)
+- [**11. Web 框架适配实战指南**](./11_framework_adaptation.md)
+- [**项目演进总结**](./project_summary.md)：了解 Resgen 的最新特性与架构演进。

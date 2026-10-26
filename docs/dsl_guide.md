@@ -1,6 +1,21 @@
-# Resgen DSL 语法指南
+# Resgen DSL 语法全景指南
 
-Resgen 采用声明式、强类型的 DSL (Domain Specific Language) 来定义 API 契约。
+> [!TIP]
+> 📖 **按功能分类的专项深度指南已全面上线！**
+> 如果您正在查找特定功能的技术详解与实战代码，推荐直接查阅对应的功能模块文档：
+> - [01. 数据类型系统与建模规范](./01_types_and_models.md)
+> - [02. 接口编排与参数提取机制](./02_endpoints_and_routing.md)
+> - [03. 切面装饰器与校验系统](./03_decorators_and_validators.md)
+> - [04. 文件流与上传下载实战](./04_file_and_stream.md)
+> - [05. 多协议传输与 Content-Type](./05_content_types_and_protocols.md)
+> - [06. 自定义标量系统 (Scalar)](./06_scalars.md)
+> - [07. 信封机制与安全加解密 (Seal)](./07_envelopes_and_security.md)
+> - [08. 统一响应控制与错误处理](./08_response_handling.md)
+> - [09. 配置规格全景指南 (resgen.yaml)](./09_configuration.md)
+> - [10. 原生 LSP 与开发工具生态](./10_lsp_and_tooling.md)
+> - [11. Web 框架适配实战指南](./11_framework_adaptation.md)
+
+---
 
 ## 0. 数据类型系统 (Type System)
 
@@ -608,7 +623,11 @@ POST /upload [ctype=multipart] => Upload(file: File!): String [state=201, wrap=R
 > [!NOTE]
 > **优先级规则**：接口级 Meta > 组级 Meta > `resgen.yaml` 全局配置。
 
-## 5. 框架适配要求
+## 6. 框架适配要求
+
+> [!TIP]
+> 框架适配的完整生产级代码（Gin 完整适配器与原生 net/http 适配器）详见专项指南：
+> 👉 [**11. Web 框架适配实战指南**](./11_framework_adaptation.md)
 Resgen 不直接依赖特定 Web 框架。为了让生成的代码正常工作，适配层需要实现生成的 `resolver.Context[T]` 接口。
 
 ### 类型化渲染接口
@@ -626,7 +645,11 @@ type Context[T any] interface {
 
 开发者在实现适配器（如 `GinContext`）时，**必须**提供这些 `Render{Type}` 方法的实现。
 
-## 6. 全局配置 (resgen.yaml)
+## 7. 全局配置 (resgen.yaml)
+
+> [!TIP]
+> 每一个配置项的默认值、可选值与最佳实践详见专项指南：
+> 👉 [**09. 配置规格全景指南 (resgen.yaml)**](./09_configuration.md)
 
 DSL 的生成行为可以通过项目根目录下的 `resgen.yaml` 进行深度定制。
 
@@ -636,7 +659,7 @@ DSL 的生成行为可以通过项目根目录下的 `resgen.yaml` 进行深度�
 - **`go_initialisms`**: 自定义首字母缩略词白名单数组（例如 `["TRD", "SKU"]`），用于在转大驼峰时将这些单词片段全部大写（例如将 `out_trd_no` 转换为 `OutTRDNo`）。
 - **`default_content_type`**: 接口未定义时的默认请求/响应类型别名（如 `json`）。
 - **`content_types`**: 统一协议规格表，合并定义 MIME 类型、结构体 Tag 名称、专属命名风格（`case`）以及多态延迟编解码类型（`raw_type`, `import_pkg`, `unmarshal_fn`）。
-- **`scalar_style`**: 自定义标量的代码生成风格，可选 `isolation`（默认）或 `direct`，详见下方 [自定义标量](#7-自定义标量-scalar) 章节。
+- **`scalar_style`**: 自定义标量的代码生成风格，可选 `isolation`（默认）或 `direct`，详见下方 [自定义标量](#8-自定义标量-scalar) 章节。
 
 ### API 文档配置
 - **`base_url`**: 文档中显示的 API 基准请求地址。
@@ -655,7 +678,11 @@ DSL 的生成行为可以通过项目根目录下的 `resgen.yaml` 进行深度�
 
 ---
 
-## 7. 自定义标量 (Scalar)
+## 8. 自定义标量 (Scalar)
+
+> [!TIP]
+> 自定义标量两种生成风格对比、AST 自动类型推导与工程代码示范详见专项指南：
+> 👉 [**06. 自定义标量系统 (Scalar)**](./06_scalars.md)
 
 自定义标量允许你将 DSL 中的一个简单基础类型（如 `Int`）在业务层映射为任意有意义的 Go 类型（如 `time.Time`），并完整控制其在 API 传输层的序列化/反序列化行为。
 
@@ -865,11 +892,15 @@ func (it *IntTime) UnmarshalJSON(data []byte) error {
 
 ---
 
-## 8. Seal 自动加包与解包外壳 (Seal Wrapping & Unwrapping)
+## 9. Seal 自动加包与解包外壳 (Seal Wrapping & Unwrapping)
+
+> [!TIP]
+> 信封加密与安全传输的完整架构、Sealer 接口实现与 i18n 多语言实战详见专项指南：
+> 👉 [**07. 信封机制与安全加解密 (Seal)**](./07_envelopes_and_security.md)
 
 Resgen 提供了强类型的 `seal` 自动化外壳绑定机制。其核心作用是在**网络传输层物理数据结构**与**后端业务处理层 (Handler/Resolver) 参数**之间添加一层自动的**解包 (Peel/Unwrap)** 与 **加包 (Wrap)** 转换逻辑，实现传输协议/加解密外壳与后端业务逻辑的无缝解耦。
 
-### 8.1 核心机制
+### 9.1 核心机制
 
 1. **外壳模型声明**：
    加包/解包的外壳模型本身是一个普通的 `type` 或 `input` 结构体，用于定义网络传输层实际接收或发送的物理数据字段（如 `cipher_text: String!`、`sign: String!`、`timestamp: Int!` 等）。
@@ -895,9 +926,14 @@ Resgen 提供了强类型的 `seal` 自动化外壳绑定机制。其核心作�
 3. **Go 侧 `Sealer` 逻辑器**：
    针对不同的加包/解包外壳模型，业务层实现对应的 `Sealer` 转换逻辑器并在引擎构建时注册，框架将全自动托管传输层物理数据与后端业务数据之间的双向流转。
 
+### 9.2 结构化错误与多语言 (i18n) 支持
+为了规范国际化体系与异常定位，信封机制在底层完全杜绝了硬编码中文，提供了规范的结构化错误：
+- **`MissingSealerError`**：启动期 `CheckSealers` 自检错误，携带 `Envelope`、`Method`、`Path` 结构化元数据；
+- **`EnvelopeError`**：运行期加解密或序列化错误包装，携带 `Envelope`、`Stage`（`peel`/`wrap`）、`Code`（如 `NO_SEALER`, `WRAP_FAILED`, `PEEL_FAILED`）及底层 `Err`，方便在 `Responder` 中进行全局多语言映射。
+
 ---
 
-## 9. `@payload` 明文辅助契约 (Payload Directive)
+## 10. `@payload` 明文辅助契约 (Payload Directive)
 
 `@payload` 是 Resgen 提供的一个高级辅助契约指令。它在不改变传输层物理字段类型（如 `String!` 密文字符串）的前提下，向前端和 API 文档表达该字段在解封/解密后所代表的内部明文数据结构。
 
@@ -965,11 +1001,15 @@ input RawPayloadReq {
 }
 ```
 
-## 10. 编辑器支持与原生 LSP (Language Server Protocol)
+## 11. 编辑器支持与原生 LSP (Language Server Protocol)
+
+> [!TIP]
+> 原生 LSP 语言服务器架构、实时 Hover 指导、VSCode / JetBrains 插件接入配置详见专项指南：
+> 👉 [**10. 原生 LSP 与开发工具生态**](./10_lsp_and_tooling.md)
 
 为了提供极佳的开发者体验，Resgen 内置了原生的 **LSP (Language Server Protocol)** 语言服务器，并为 **VSCode** 与 **JetBrains IDE（GoLand, IntelliJ IDEA 等）** 提供了官方插件支持。
 
-### 10.1 启动语言服务器
+### 11.1 启动语言服务器
 通过 CLI 命令即可启动基于标准 Stdio 通信的 LSP 语言服务：
 ```bash
 resgen lsp

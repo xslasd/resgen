@@ -1135,3 +1135,88 @@ group /tasks {
 	}
 }
 
+func TestCheckSealersGeneration(t *testing.T) {
+	// Case 1: 无 Seal 外壳模型
+	schemaContent1 := `
+module Demo
+group /api {
+	GET /test => Test(): String
+}
+`
+	schema1, err := parser.ParseFileContent("demo.res", schemaContent1)
+	if err != nil {
+		t.Fatalf("ParseFileContent failed: %v", err)
+	}
+
+	tmpDir1, err := os.MkdirTemp("", "resgen-test-sealers-empty-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir1)
+
+	conf := &config.Config{
+		Generator: config.GeneratorConfig{
+			Package: "demo",
+		},
+	}
+
+	if err := Generate(schema1, tmpDir1, conf); err != nil {
+		t.Fatalf("Generate failed: %v", err)
+	}
+
+	engineBytes, err := os.ReadFile(filepath.Join(tmpDir1, "engine.gen.go"))
+	if err != nil {
+		t.Fatalf("failed to read engine.gen.go: %v", err)
+	}
+	engineCode := string(engineBytes)
+
+	if strings.Contains(engineCode, "CheckSealers") {
+		t.Errorf("CheckSealers should NOT be generated when SealModels is empty, got:\n%s", engineCode)
+	}
+
+	// Case 2: 有 Seal 外壳模型
+	schemaContent2 := `
+module Demo
+type MyEnvelope {
+	data: String!
+}
+group /api {
+	GET /test => Test(): String [seal=MyEnvelope]
+}
+`
+	schema2, err := parser.ParseFileContent("demo.res", schemaContent2)
+	if err != nil {
+		t.Fatalf("ParseFileContent failed: %v", err)
+	}
+
+	tmpDir2, err := os.MkdirTemp("", "resgen-test-sealers-present-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir2)
+
+	if err := Generate(schema2, tmpDir2, conf); err != nil {
+		t.Fatalf("Generate failed: %v", err)
+	}
+
+	engineBytes2, err := os.ReadFile(filepath.Join(tmpDir2, "engine.gen.go"))
+	if err != nil {
+		t.Fatalf("failed to read engine.gen.go: %v", err)
+	}
+	engineCode2 := string(engineBytes2)
+
+	if !strings.Contains(engineCode2, "for _, m := range methods") {
+		t.Errorf("CheckSealers with SealModels should contain 'for _, m := range methods', got:\n%s", engineCode2)
+	}
+	if !strings.Contains(engineCode2, `env == "MyEnvelope" && e.MyEnvelopeSealer() == nil`) {
+		t.Errorf("CheckSealers with SealModels should check MyEnvelopeSealer, got:\n%s", engineCode2)
+	}
+	if !strings.Contains(engineCode2, "MissingSealerError") {
+		t.Errorf("CheckSealers should return MissingSealerError for i18n support, got:\n%s", engineCode2)
+	}
+	if !strings.Contains(engineCode2, `envelope '%s' failed at %s stage (%s)`) {
+		t.Errorf("EnvelopeError should format error message in standard English for i18n support, got:\n%s", engineCode2)
+	}
+}
+
+
