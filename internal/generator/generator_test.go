@@ -1219,4 +1219,68 @@ group /api {
 	}
 }
 
+func TestFileInferenceAndDocsContentType(t *testing.T) {
+	schemaContent := `
+module MaterialModule
+
+type CreateTaskResult {
+	taskId: String!
+}
+
+group /import {
+	# 导入原料信息文件
+	POST /material/file => ImportMaterialFile(file: File!, formula_gid: String, isMappingMode: Boolean!): CreateTaskResult!
+}
+`
+	schema, err := parser.ParseFileContent("material.res", schemaContent)
+	if err != nil {
+		t.Fatalf("ParseFileContent failed: %v", err)
+	}
+
+	conf := &config.Config{
+		Generator: config.GeneratorConfig{
+			Package:       "material",
+			EnableApiDocs: true,
+		},
+	}
+
+	tmpDir, err := os.MkdirTemp("", "resgen-file-inference-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	if err := Generate(schema, tmpDir, conf); err != nil {
+		t.Fatalf("Generate failed: %v", err)
+	}
+
+	// 1. 验证 api.json
+	apiJsonBytes, err := os.ReadFile(filepath.Join(tmpDir, "docs", "api.json"))
+	if err != nil {
+		t.Fatalf("failed to read api.json: %v", err)
+	}
+	apiJson := string(apiJsonBytes)
+
+	if !strings.Contains(apiJson, `"multipart/form-data"`) {
+		t.Errorf("api.json should contain 'multipart/form-data' in requestBody content, got:\n%s", apiJson)
+	}
+	if !strings.Contains(apiJson, `"x-res-content-type": "multipart"`) {
+		t.Errorf("api.json should contain '\"x-res-content-type\": \"multipart\"', got:\n%s", apiJson)
+	}
+	if strings.Contains(apiJson, `"in": "form"`) {
+		t.Errorf("api.json parameters should NOT contain '\"in\": \"form\"', got:\n%s", apiJson)
+	}
+
+	// 2. 验证 api.html
+	apiHtmlBytes, err := os.ReadFile(filepath.Join(tmpDir, "docs", "api.html"))
+	if err != nil {
+		t.Fatalf("failed to read api.html: %v", err)
+	}
+	apiHtml := string(apiHtmlBytes)
+	if !strings.Contains(apiHtml, `reqContentType = op['x-res-content-type']`) {
+		t.Errorf("api.html should resolve reqContentType from x-res-content-type")
+	}
+}
+
+
 

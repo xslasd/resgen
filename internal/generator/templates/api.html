@@ -203,6 +203,46 @@
                             });
                         }
 
+                        let reqContentType = op['x-res-content-type'] || '';
+                        if (!reqContentType && op.requestBody && op.requestBody.content) {
+                            const keys = Object.keys(op.requestBody.content);
+                            if (keys.length > 0) {
+                                const mime = keys[0];
+                                if (mime.includes('multipart')) reqContentType = 'multipart';
+                                else if (mime.includes('x-www-form-urlencoded')) reqContentType = 'form';
+                                else if (mime.includes('json')) reqContentType = 'json';
+                                else if (mime.includes('xml')) reqContentType = 'xml';
+                                else reqContentType = mime;
+                            }
+                        }
+                        if (!reqContentType && methodKey.toUpperCase() !== 'GET') {
+                            reqContentType = 'json';
+                        }
+
+                        let respContentType = op['x-res-response-content-type'] || '';
+                        if (!respContentType && op.responses) {
+                            for (const code of ['200', '201', '204', 'default']) {
+                                if (op.responses[code] && op.responses[code].content) {
+                                    const keys = Object.keys(op.responses[code].content);
+                                    if (keys.length > 0) {
+                                        respContentType = keys[0];
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        if (!respContentType) {
+                            respContentType = 'application/json';
+                        }
+
+                        let errContentType = op['x-res-error-content-type'] || '';
+                        if (!errContentType && op.responses && op.responses['default'] && op.responses['default'].content) {
+                            const keys = Object.keys(op.responses['default'].content);
+                            if (keys.length > 0) {
+                                errContentType = keys[0];
+                            }
+                        }
+
                         const sealInfo = op['x-res-seal'] || {};
 
                         grpObj.endpoints.push({
@@ -212,7 +252,11 @@
                             doc: op.description || '',
                             permission: op['x-res-permission'] || '',
                             sourceFile: op['x-res-file'] || '',
-                            contentType: 'json',
+                            contentType: reqContentType,
+                            responseContentType: respContentType,
+                            errorContentType: errContentType,
+                            isErrorWrapped: op['x-res-error-wrapped'] || false,
+                            errorTypeBase: op['x-res-error-type'] || '',
                             args: args,
                             inputName: op['x-res-input-name'] || '',
                             inSealChain: sealInfo.inSealChain || [],
@@ -1038,7 +1082,13 @@
 
         function buildSampleHeaders(ep) {
             const headers = [];
-            headers.push({ name: 'Content-Type', value: ep.contentType || 'application/json' });
+            if (ep.method !== 'GET') {
+                let ct = ep.contentType || 'application/json';
+                if (ct === 'json') ct = 'application/json';
+                else if (ct === 'form') ct = 'application/x-www-form-urlencoded';
+                else if (ct === 'multipart') ct = 'multipart/form-data';
+                headers.push({ name: 'Content-Type', value: ct });
+            }
             if (ep.permission) {
                 headers.push({ name: 'Authorization', value: 'Bearer <your_access_token>' });
             }

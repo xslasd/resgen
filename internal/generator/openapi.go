@@ -57,14 +57,19 @@ type OpenAPIOperation struct {
 	Responses     map[string]OpenAPIResponse  `json:"responses"`
 	
 	// Resgen extensions
-	ResFile       string                      `json:"x-res-file,omitempty"`
-	ResGroup      string                      `json:"x-res-group,omitempty"`
-	ResModule     string                      `json:"x-res-module,omitempty"`
-	Permission    string                      `json:"x-res-permission,omitempty"`
-	ReturnType    string                      `json:"x-res-return-type,omitempty"`
-	ReturnTypeDSL string                      `json:"x-res-return-type-dsl,omitempty"`
-	ResSeal       *ResSealInfo                `json:"x-res-seal,omitempty"`
-	ResInputName  string                      `json:"x-res-input-name,omitempty"`
+	ResFile             string                      `json:"x-res-file,omitempty"`
+	ResGroup            string                      `json:"x-res-group,omitempty"`
+	ResModule           string                      `json:"x-res-module,omitempty"`
+	Permission          string                      `json:"x-res-permission,omitempty"`
+	ReturnType          string                      `json:"x-res-return-type,omitempty"`
+	ReturnTypeDSL       string                      `json:"x-res-return-type-dsl,omitempty"`
+	ResSeal             *ResSealInfo                `json:"x-res-seal,omitempty"`
+	ResInputName        string                      `json:"x-res-input-name,omitempty"`
+	ContentType         string                      `json:"x-res-content-type,omitempty"`
+	ResponseContentType string                      `json:"x-res-response-content-type,omitempty"`
+	ErrorContentType    string                      `json:"x-res-error-content-type,omitempty"`
+	ErrorType           string                      `json:"x-res-error-type,omitempty"`
+	IsErrorWrapped      bool                        `json:"x-res-error-wrapped,omitempty"`
 }
 
 type OpenAPIParameter struct {
@@ -236,18 +241,23 @@ func ConvertToOpenAPI3(ctx *DataContext) *OpenAPIDocument {
 
 				methodLower := strings.ToLower(ep.Method)
 				op := OpenAPIOperation{
-					Tags:          []string{mod.Name},
-					Summary:       ep.Name,
-					Description:   ep.Doc,
-					OperationID:   ep.Name,
-					ResFile:       ep.SourceFile,
-					ResGroup:      grp.Path,
-					ResModule:     mod.Name,
-					Permission:    ep.Permission,
-					ReturnType:    ep.ReturnType,
-					ReturnTypeDSL: ep.ReturnTypeDSL,
-					ResInputName:  ep.InputName,
-					Responses:     make(map[string]OpenAPIResponse),
+					Tags:                []string{mod.Name},
+					Summary:             ep.Name,
+					Description:         ep.Doc,
+					OperationID:         ep.Name,
+					ResFile:             ep.SourceFile,
+					ResGroup:            grp.Path,
+					ResModule:           mod.Name,
+					Permission:          ep.Permission,
+					ReturnType:          ep.ReturnType,
+					ReturnTypeDSL:       ep.ReturnTypeDSL,
+					ResInputName:        ep.InputName,
+					ContentType:         ep.RequestContentType,
+					ResponseContentType: ep.ResponseMimeType,
+					ErrorContentType:    ep.ErrorMimeType,
+					ErrorType:           ep.ErrorTypeBase,
+					IsErrorWrapped:      ep.IsErrorWrapped,
+					Responses:           make(map[string]OpenAPIResponse),
 				}
 				if len(ep.InSealChain) > 0 || len(ep.OutSealChain) > 0 {
 					op.ResSeal = &ResSealInfo{
@@ -265,7 +275,7 @@ func ConvertToOpenAPI3(ctx *DataContext) *OpenAPIDocument {
 
 				for _, arg := range ep.Args {
 					inType := strings.ToLower(arg.Source)
-					if inType == "body" {
+					if inType == "body" || inType == "form" {
 						continue // Handled in requestBody
 					}
 					// 在信封加封场景下，未显式声明传输位置(如 @header/@path/@query)的参数为 Body 载荷，已被 seal 信封物理接管
@@ -413,11 +423,13 @@ func convertToOpenAPIPath(path string) string {
 
 func buildTypeSchema(t string, scalars map[string]*ScalarInfo, models map[string]*ModelInfo) *OpenAPISchema {
 	clean := strings.TrimPrefix(t, "*")
+	clean = strings.TrimSuffix(clean, "!")
 	isArray := false
 	if strings.HasPrefix(clean, "[]") {
 		isArray = true
 		clean = strings.TrimPrefix(clean, "[]")
 		clean = strings.TrimPrefix(clean, "*")
+		clean = strings.TrimSuffix(clean, "!")
 	}
 
 	var schema *OpenAPISchema

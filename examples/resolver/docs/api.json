@@ -78,7 +78,12 @@
         "x-res-group": "/articles",
         "x-res-module": "WrapperDemo",
         "x-res-return-type": "ResData\u003cTreeResCategoryTreeNode\u003e",
-        "x-res-return-type-dsl": "ResData\u003cTreeResCategoryTreeNode\u003e"
+        "x-res-return-type-dsl": "ResData\u003cTreeResCategoryTreeNode\u003e",
+        "x-res-content-type": "json",
+        "x-res-response-content-type": "application/json",
+        "x-res-error-content-type": "application/json",
+        "x-res-error-type": "ResDataError",
+        "x-res-error-wrapped": true
       }
     },
     "/articles/categories/tree/raw": {
@@ -105,7 +110,10 @@
         "x-res-group": "/articles",
         "x-res-module": "WrapperDemo",
         "x-res-return-type": "TreeResCategoryTreeNode",
-        "x-res-return-type-dsl": "TreeResCategoryTreeNode"
+        "x-res-return-type-dsl": "TreeResCategoryTreeNode",
+        "x-res-content-type": "json",
+        "x-res-response-content-type": "application/json",
+        "x-res-error-content-type": "application/json"
       }
     },
     "/articles/create": {
@@ -153,7 +161,12 @@
         "x-res-module": "WrapperDemo",
         "x-res-return-type": "ResData\u003cArticle\u003e",
         "x-res-return-type-dsl": "ResData\u003cArticle\u003e",
-        "x-res-input-name": "CreateArticleArgs"
+        "x-res-input-name": "CreateArticleArgs",
+        "x-res-content-type": "json",
+        "x-res-response-content-type": "application/json",
+        "x-res-error-content-type": "application/json",
+        "x-res-error-type": "ResDataError",
+        "x-res-error-wrapped": true
       }
     },
     "/articles/list": {
@@ -212,7 +225,12 @@
         "x-res-module": "WrapperDemo",
         "x-res-return-type": "ResData\u003c[Article]\u003e",
         "x-res-return-type-dsl": "ResData\u003c[Article]\u003e",
-        "x-res-input-name": "ListArticlesArgs"
+        "x-res-input-name": "ListArticlesArgs",
+        "x-res-content-type": "json",
+        "x-res-response-content-type": "application/json",
+        "x-res-error-content-type": "application/json",
+        "x-res-error-type": "ResDataError",
+        "x-res-error-wrapped": true
       }
     },
     "/articles/list/v2": {
@@ -268,7 +286,12 @@
         "x-res-module": "WrapperDemo",
         "x-res-return-type": "ResData\u003cListResArticle\u003e",
         "x-res-return-type-dsl": "ResData\u003cListResArticle\u003e",
-        "x-res-input-name": "ListArticlesV2Args"
+        "x-res-input-name": "ListArticlesV2Args",
+        "x-res-content-type": "json",
+        "x-res-response-content-type": "application/json",
+        "x-res-error-content-type": "application/json",
+        "x-res-error-type": "ResDataError",
+        "x-res-error-wrapped": true
       }
     },
     "/articles/logout": {
@@ -303,7 +326,12 @@
         },
         "x-res-file": "01_wrapper.res",
         "x-res-group": "/articles",
-        "x-res-module": "WrapperDemo"
+        "x-res-module": "WrapperDemo",
+        "x-res-content-type": "json",
+        "x-res-response-content-type": "application/json",
+        "x-res-error-content-type": "application/json",
+        "x-res-error-type": "ResDataError",
+        "x-res-error-wrapped": true
       }
     },
     "/articles/raw/{id}": {
@@ -340,7 +368,10 @@
         "x-res-group": "/articles",
         "x-res-module": "WrapperDemo",
         "x-res-return-type": "Article",
-        "x-res-return-type-dsl": "Article"
+        "x-res-return-type-dsl": "Article",
+        "x-res-content-type": "json",
+        "x-res-response-content-type": "application/json",
+        "x-res-error-content-type": "application/json"
       }
     },
     "/articles/{id}": {
@@ -387,7 +418,12 @@
         "x-res-group": "/articles",
         "x-res-module": "WrapperDemo",
         "x-res-return-type": "ResData\u003cArticle\u003e",
-        "x-res-return-type-dsl": "ResData\u003cArticle\u003e"
+        "x-res-return-type-dsl": "ResData\u003cArticle\u003e",
+        "x-res-content-type": "json",
+        "x-res-response-content-type": "application/json",
+        "x-res-error-content-type": "application/json",
+        "x-res-error-type": "ResDataError",
+        "x-res-error-wrapped": true
       }
     },
     "/auth/login": {
@@ -435,7 +471,12 @@
         "x-res-module": "AuthDemo",
         "x-res-return-type": "ResData\u003cToken\u003e",
         "x-res-return-type-dsl": "ResData\u003cToken\u003e",
-        "x-res-input-name": "LoginArgs"
+        "x-res-input-name": "LoginArgs",
+        "x-res-content-type": "json",
+        "x-res-response-content-type": "application/json",
+        "x-res-error-content-type": "application/json",
+        "x-res-error-type": "ResDataError",
+        "x-res-error-wrapped": true
       }
     },
     "/auth/me": {
@@ -472,7 +513,12 @@
         "x-res-group": "/auth",
         "x-res-module": "AuthDemo",
         "x-res-return-type": "ResData\u003cUser\u003e",
-        "x-res-return-type-dsl": "ResData\u003cUser\u003e"
+        "x-res-return-type-dsl": "ResData\u003cUser\u003e",
+        "x-res-content-type": "json",
+        "x-res-response-content-type": "application/json",
+        "x-res-error-content-type": "application/json",
+        "x-res-error-type": "ResDataError",
+        "x-res-error-wrapped": true
       }
     },
     "/auth/period": {
@@ -520,7 +566,12 @@
         "x-res-module": "AuthDemo",
         "x-res-return-type": "ResData\u003cString\u003e",
         "x-res-return-type-dsl": "ResData\u003cString\u003e",
-        "x-res-input-name": "TaskPeriodInput"
+        "x-res-input-name": "TaskPeriodInput",
+        "x-res-content-type": "json",
+        "x-res-response-content-type": "application/json",
+        "x-res-error-content-type": "application/json",
+        "x-res-error-type": "ResDataError",
+        "x-res-error-wrapped": true
       }
     },
     "/auth/register": {
@@ -568,7 +619,12 @@
         "x-res-module": "AuthDemo",
         "x-res-return-type": "ResData\u003cUser\u003e",
         "x-res-return-type-dsl": "ResData\u003cUser\u003e",
-        "x-res-input-name": "RegisterInput"
+        "x-res-input-name": "RegisterInput",
+        "x-res-content-type": "form",
+        "x-res-response-content-type": "application/json",
+        "x-res-error-content-type": "application/json",
+        "x-res-error-type": "ResDataError",
+        "x-res-error-wrapped": true
       }
     },
     "/auth/update": {
@@ -616,7 +672,12 @@
         "x-res-module": "AuthDemo",
         "x-res-return-type": "ResData\u003cUser\u003e",
         "x-res-return-type-dsl": "ResData\u003cUser\u003e",
-        "x-res-input-name": "UpdateInput"
+        "x-res-input-name": "UpdateInput",
+        "x-res-content-type": "json",
+        "x-res-response-content-type": "application/json",
+        "x-res-error-content-type": "application/json",
+        "x-res-error-type": "ResDataError",
+        "x-res-error-wrapped": true
       }
     },
     "/auth/{id}": {
@@ -664,7 +725,12 @@
         "x-res-module": "AuthDemo",
         "x-res-permission": "admin",
         "x-res-return-type": "ResData\u003cString\u003e",
-        "x-res-return-type-dsl": "ResData\u003cString\u003e"
+        "x-res-return-type-dsl": "ResData\u003cString\u003e",
+        "x-res-content-type": "json",
+        "x-res-response-content-type": "application/json",
+        "x-res-error-content-type": "application/json",
+        "x-res-error-type": "ResDataError",
+        "x-res-error-wrapped": true
       }
     },
     "/content/form": {
@@ -712,7 +778,12 @@
         "x-res-module": "ContentTypeDemo",
         "x-res-return-type": "ResData\u003cString\u003e",
         "x-res-return-type-dsl": "ResData\u003cString\u003e",
-        "x-res-input-name": "FormInput"
+        "x-res-input-name": "FormInput",
+        "x-res-content-type": "form",
+        "x-res-response-content-type": "application/json",
+        "x-res-error-content-type": "application/json",
+        "x-res-error-type": "ResDataError",
+        "x-res-error-wrapped": true
       }
     },
     "/content/form/nested": {
@@ -760,7 +831,12 @@
         "x-res-module": "ContentTypeDemo",
         "x-res-return-type": "ResData\u003cString\u003e",
         "x-res-return-type-dsl": "ResData\u003cString\u003e",
-        "x-res-input-name": "NestedFormInput"
+        "x-res-input-name": "NestedFormInput",
+        "x-res-content-type": "form",
+        "x-res-response-content-type": "application/json",
+        "x-res-error-content-type": "application/json",
+        "x-res-error-type": "ResDataError",
+        "x-res-error-wrapped": true
       }
     },
     "/content/json": {
@@ -808,7 +884,12 @@
         "x-res-module": "ContentTypeDemo",
         "x-res-return-type": "ResData\u003cString\u003e",
         "x-res-return-type-dsl": "ResData\u003cString\u003e",
-        "x-res-input-name": "JsonInput"
+        "x-res-input-name": "JsonInput",
+        "x-res-content-type": "json",
+        "x-res-response-content-type": "application/json",
+        "x-res-error-content-type": "application/json",
+        "x-res-error-type": "ResDataError",
+        "x-res-error-wrapped": true
       }
     },
     "/content/multipart": {
@@ -856,7 +937,12 @@
         "x-res-module": "ContentTypeDemo",
         "x-res-return-type": "ResData\u003cString\u003e",
         "x-res-return-type-dsl": "ResData\u003cString\u003e",
-        "x-res-input-name": "SubmitMultipartArgs"
+        "x-res-input-name": "SubmitMultipartArgs",
+        "x-res-content-type": "multipart",
+        "x-res-response-content-type": "application/json",
+        "x-res-error-content-type": "application/json",
+        "x-res-error-type": "ResDataError",
+        "x-res-error-wrapped": true
       }
     },
     "/enum/create": {
@@ -904,7 +990,12 @@
         "x-res-module": "EnumDemo",
         "x-res-return-type": "ResData\u003cUserWithRole\u003e",
         "x-res-return-type-dsl": "ResData\u003cUserWithRole\u003e",
-        "x-res-input-name": "CreateUserInput"
+        "x-res-input-name": "CreateUserInput",
+        "x-res-content-type": "json",
+        "x-res-response-content-type": "application/json",
+        "x-res-error-content-type": "application/json",
+        "x-res-error-type": "ResDataError",
+        "x-res-error-wrapped": true
       }
     },
     "/enum/query": {
@@ -960,7 +1051,12 @@
         "x-res-module": "EnumDemo",
         "x-res-return-type": "ResData\u003cUserWithRole\u003e",
         "x-res-return-type-dsl": "ResData\u003cUserWithRole\u003e",
-        "x-res-input-name": "QueryByRoleArgs"
+        "x-res-input-name": "QueryByRoleArgs",
+        "x-res-content-type": "json",
+        "x-res-response-content-type": "application/json",
+        "x-res-error-content-type": "application/json",
+        "x-res-error-type": "ResDataError",
+        "x-res-error-wrapped": true
       }
     },
     "/env_auth/legacy/login": {
@@ -1015,7 +1111,12 @@
           "outSealGoType": "CipherWrapOut",
           "outPayloadDSL": "ResData\u003cEnvToken\u003e"
         },
-        "x-res-input-name": "EnvLoginReq"
+        "x-res-input-name": "EnvLoginReq",
+        "x-res-content-type": "json",
+        "x-res-response-content-type": "application/json",
+        "x-res-error-content-type": "application/json",
+        "x-res-error-type": "ResDataError",
+        "x-res-error-wrapped": true
       }
     },
     "/env_auth/login": {
@@ -1076,7 +1177,12 @@
           "outSealGoType": "CipherWrapOut",
           "outPayloadDSL": "EnvToken"
         },
-        "x-res-input-name": "EnvLoginReq"
+        "x-res-input-name": "EnvLoginReq",
+        "x-res-content-type": "json",
+        "x-res-response-content-type": "application/json",
+        "x-res-error-content-type": "application/json",
+        "x-res-error-type": "ResDataError",
+        "x-res-error-wrapped": true
       }
     },
     "/env_auth/login/bare": {
@@ -1132,7 +1238,12 @@
           "inSealGoType": "CipherWrap",
           "innerInputName": "EnvLoginReq"
         },
-        "x-res-input-name": "EnvLoginReq"
+        "x-res-input-name": "EnvLoginReq",
+        "x-res-content-type": "json",
+        "x-res-response-content-type": "application/json",
+        "x-res-error-content-type": "application/json",
+        "x-res-error-type": "ResDataError",
+        "x-res-error-wrapped": true
       }
     },
     "/env_auth/login/v2": {
@@ -1198,7 +1309,12 @@
           "inSealGoType": "CipherWrap",
           "innerInputName": "EnvLoginReq"
         },
-        "x-res-input-name": "EnvLoginV2Args"
+        "x-res-input-name": "EnvLoginV2Args",
+        "x-res-content-type": "json",
+        "x-res-response-content-type": "application/json",
+        "x-res-error-content-type": "application/json",
+        "x-res-error-type": "ResDataError",
+        "x-res-error-wrapped": true
       }
     },
     "/env_auth/login/v3": {
@@ -1254,7 +1370,12 @@
           "inSealGoType": "Sm4Wrap",
           "innerInputName": "EnvLoginReq"
         },
-        "x-res-input-name": "EnvLoginReq"
+        "x-res-input-name": "EnvLoginReq",
+        "x-res-content-type": "json",
+        "x-res-response-content-type": "application/json",
+        "x-res-error-content-type": "application/json",
+        "x-res-error-type": "ResDataError",
+        "x-res-error-wrapped": true
       }
     },
     "/env_auth/raw_payload": {
@@ -1302,7 +1423,12 @@
         "x-res-module": "EnvAuth",
         "x-res-return-type": "ResData\u003cEnvPayResult\u003e",
         "x-res-return-type-dsl": "ResData\u003cEnvPayResult\u003e",
-        "x-res-input-name": "RawPayloadReq"
+        "x-res-input-name": "RawPayloadReq",
+        "x-res-content-type": "json",
+        "x-res-response-content-type": "application/json",
+        "x-res-error-content-type": "application/json",
+        "x-res-error-type": "ResDataError",
+        "x-res-error-wrapped": true
       }
     },
     "/events/create": {
@@ -1350,7 +1476,12 @@
         "x-res-module": "ScalarDemo",
         "x-res-return-type": "ResData\u003cEvent\u003e",
         "x-res-return-type-dsl": "ResData\u003cEvent\u003e",
-        "x-res-input-name": "CreateEventInput"
+        "x-res-input-name": "CreateEventInput",
+        "x-res-content-type": "json",
+        "x-res-response-content-type": "application/json",
+        "x-res-error-content-type": "application/json",
+        "x-res-error-type": "ResDataError",
+        "x-res-error-wrapped": true
       }
     },
     "/events/list": {
@@ -1402,7 +1533,12 @@
         "x-res-permission": "events:list",
         "x-res-return-type": "ResData\u003c[Event]\u003e",
         "x-res-return-type-dsl": "ResData\u003c[Event]\u003e",
-        "x-res-input-name": "QueryEventsInput"
+        "x-res-input-name": "QueryEventsInput",
+        "x-res-content-type": "json",
+        "x-res-response-content-type": "application/json",
+        "x-res-error-content-type": "application/json",
+        "x-res-error-type": "ResDataError",
+        "x-res-error-wrapped": true
       }
     },
     "/events/{startTime}": {
@@ -1450,7 +1586,12 @@
         "x-res-module": "ScalarDemo",
         "x-res-permission": "events:get",
         "x-res-return-type": "ResData\u003cEvent\u003e",
-        "x-res-return-type-dsl": "ResData\u003cEvent\u003e"
+        "x-res-return-type-dsl": "ResData\u003cEvent\u003e",
+        "x-res-content-type": "json",
+        "x-res-response-content-type": "application/json",
+        "x-res-error-content-type": "application/json",
+        "x-res-error-type": "ResDataError",
+        "x-res-error-wrapped": true
       }
     },
     "/export/json": {
@@ -1488,7 +1629,12 @@
         "x-res-module": "ContentTypeDemo",
         "x-res-permission": "export:*",
         "x-res-return-type": "ResData\u003cReport\u003e",
-        "x-res-return-type-dsl": "ResData\u003cReport\u003e"
+        "x-res-return-type-dsl": "ResData\u003cReport\u003e",
+        "x-res-content-type": "json",
+        "x-res-response-content-type": "application/json",
+        "x-res-error-content-type": "application/json",
+        "x-res-error-type": "ResDataError",
+        "x-res-error-wrapped": true
       }
     },
     "/export/text": {
@@ -1526,7 +1672,12 @@
         "x-res-module": "ContentTypeDemo",
         "x-res-permission": "export:*",
         "x-res-return-type": "ResData\u003cString\u003e",
-        "x-res-return-type-dsl": "ResData\u003cString\u003e"
+        "x-res-return-type-dsl": "ResData\u003cString\u003e",
+        "x-res-content-type": "json",
+        "x-res-response-content-type": "text/plain",
+        "x-res-error-content-type": "application/json",
+        "x-res-error-type": "ResDataError",
+        "x-res-error-wrapped": true
       }
     },
     "/export/xml": {
@@ -1564,7 +1715,12 @@
         "x-res-module": "ContentTypeDemo",
         "x-res-permission": "export:*",
         "x-res-return-type": "ResData\u003cReport\u003e",
-        "x-res-return-type-dsl": "ResData\u003cReport\u003e"
+        "x-res-return-type-dsl": "ResData\u003cReport\u003e",
+        "x-res-content-type": "json",
+        "x-res-response-content-type": "application/xml",
+        "x-res-error-content-type": "application/json",
+        "x-res-error-type": "ResDataError",
+        "x-res-error-wrapped": true
       }
     },
     "/files/avatar": {
@@ -1612,7 +1768,12 @@
         "x-res-module": "FileDemo",
         "x-res-return-type": "ResData\u003cUploadResult\u003e",
         "x-res-return-type-dsl": "ResData\u003cUploadResult\u003e",
-        "x-res-input-name": "UploadAvatarInput"
+        "x-res-input-name": "UploadAvatarInput",
+        "x-res-content-type": "multipart",
+        "x-res-response-content-type": "application/json",
+        "x-res-error-content-type": "application/json",
+        "x-res-error-type": "ResDataError",
+        "x-res-error-wrapped": true
       }
     },
     "/files/document": {
@@ -1660,7 +1821,12 @@
         "x-res-module": "FileDemo",
         "x-res-return-type": "ResData\u003cUploadResult\u003e",
         "x-res-return-type-dsl": "ResData\u003cUploadResult\u003e",
-        "x-res-input-name": "UploadDocumentInput"
+        "x-res-input-name": "UploadDocumentInput",
+        "x-res-content-type": "multipart",
+        "x-res-response-content-type": "application/json",
+        "x-res-error-content-type": "application/json",
+        "x-res-error-type": "ResDataError",
+        "x-res-error-wrapped": true
       }
     },
     "/files/download/{id}": {
@@ -1707,7 +1873,12 @@
         "x-res-group": "/files",
         "x-res-module": "FileDemo",
         "x-res-return-type": "File",
-        "x-res-return-type-dsl": "File"
+        "x-res-return-type-dsl": "File",
+        "x-res-content-type": "json",
+        "x-res-response-content-type": "application/pdf",
+        "x-res-error-content-type": "application/json",
+        "x-res-error-type": "ResDataError",
+        "x-res-error-wrapped": true
       }
     },
     "/files/dynamic/{id}": {
@@ -1754,7 +1925,12 @@
         "x-res-group": "/files",
         "x-res-module": "FileDemo",
         "x-res-return-type": "File",
-        "x-res-return-type-dsl": "File"
+        "x-res-return-type-dsl": "File",
+        "x-res-content-type": "json",
+        "x-res-response-content-type": "application/octet-stream",
+        "x-res-error-content-type": "application/json",
+        "x-res-error-type": "ResDataError",
+        "x-res-error-wrapped": true
       }
     },
     "/files/export/csv": {
@@ -1801,7 +1977,12 @@
         "x-res-group": "/files",
         "x-res-module": "FileDemo",
         "x-res-return-type": "File",
-        "x-res-return-type-dsl": "File"
+        "x-res-return-type-dsl": "File",
+        "x-res-content-type": "json",
+        "x-res-response-content-type": "text/csv",
+        "x-res-error-content-type": "application/json",
+        "x-res-error-type": "ResDataError",
+        "x-res-error-wrapped": true
       }
     },
     "/posts/": {
@@ -1849,7 +2030,12 @@
         "x-res-module": "UnionDemo",
         "x-res-return-type": "ResData\u003cContentPostItem\u003e",
         "x-res-return-type-dsl": "ResData\u003cContentPostItem\u003e",
-        "x-res-input-name": "CreatePostInput"
+        "x-res-input-name": "CreatePostInput",
+        "x-res-content-type": "json",
+        "x-res-response-content-type": "application/json",
+        "x-res-error-content-type": "application/json",
+        "x-res-error-type": "ResDataError",
+        "x-res-error-wrapped": true
       }
     },
     "/posts/batch": {
@@ -1897,7 +2083,12 @@
         "x-res-module": "UnionDemo",
         "x-res-return-type": "ResData\u003cBatchCreatePostResult\u003e",
         "x-res-return-type-dsl": "ResData\u003cBatchCreatePostResult\u003e",
-        "x-res-input-name": "BatchCreatePostInput"
+        "x-res-input-name": "BatchCreatePostInput",
+        "x-res-content-type": "json",
+        "x-res-response-content-type": "application/json",
+        "x-res-error-content-type": "application/json",
+        "x-res-error-type": "ResDataError",
+        "x-res-error-wrapped": true
       }
     },
     "/posts/{id}": {
@@ -1944,7 +2135,12 @@
         "x-res-group": "/posts",
         "x-res-module": "UnionDemo",
         "x-res-return-type": "ResData\u003cContentPostItem\u003e",
-        "x-res-return-type-dsl": "ResData\u003cContentPostItem\u003e"
+        "x-res-return-type-dsl": "ResData\u003cContentPostItem\u003e",
+        "x-res-content-type": "json",
+        "x-res-response-content-type": "application/json",
+        "x-res-error-content-type": "application/json",
+        "x-res-error-type": "ResDataError",
+        "x-res-error-wrapped": true
       }
     },
     "/products/batch-update": {
@@ -1992,7 +2188,12 @@
         "x-res-module": "StatusDemo",
         "x-res-return-type": "ResData\u003cString\u003e",
         "x-res-return-type-dsl": "ResData\u003cString\u003e",
-        "x-res-input-name": "BatchUpdateArgs"
+        "x-res-input-name": "BatchUpdateArgs",
+        "x-res-content-type": "json",
+        "x-res-response-content-type": "application/json",
+        "x-res-error-content-type": "application/json",
+        "x-res-error-type": "ResDataError",
+        "x-res-error-wrapped": true
       }
     },
     "/products/create": {
@@ -2040,7 +2241,12 @@
         "x-res-module": "StatusDemo",
         "x-res-return-type": "ResData\u003cProduct\u003e",
         "x-res-return-type-dsl": "ResData\u003cProduct\u003e",
-        "x-res-input-name": "CreateProductInput"
+        "x-res-input-name": "CreateProductInput",
+        "x-res-content-type": "json",
+        "x-res-response-content-type": "application/json",
+        "x-res-error-content-type": "application/json",
+        "x-res-error-type": "ResDataError",
+        "x-res-error-wrapped": true
       }
     },
     "/products/list": {
@@ -2086,7 +2292,10 @@
         "x-res-module": "StatusDemo",
         "x-res-return-type": "PageDataListProduct",
         "x-res-return-type-dsl": "PageDataListProduct",
-        "x-res-input-name": "ListProductsArgs"
+        "x-res-input-name": "ListProductsArgs",
+        "x-res-content-type": "json",
+        "x-res-response-content-type": "application/json",
+        "x-res-error-content-type": "application/json"
       }
     },
     "/products/{id}": {
@@ -2123,7 +2332,10 @@
         "x-res-group": "/products",
         "x-res-module": "StatusDemo",
         "x-res-return-type": "String",
-        "x-res-return-type-dsl": "String"
+        "x-res-return-type-dsl": "String",
+        "x-res-content-type": "json",
+        "x-res-response-content-type": "application/json",
+        "x-res-error-content-type": "application/json"
       },
       "get": {
         "tags": [
@@ -2168,7 +2380,12 @@
         "x-res-group": "/products",
         "x-res-module": "StatusDemo",
         "x-res-return-type": "ResData\u003cProduct\u003e",
-        "x-res-return-type-dsl": "ResData\u003cProduct\u003e"
+        "x-res-return-type-dsl": "ResData\u003cProduct\u003e",
+        "x-res-content-type": "json",
+        "x-res-response-content-type": "application/json",
+        "x-res-error-content-type": "application/json",
+        "x-res-error-type": "ResDataError",
+        "x-res-error-wrapped": true
       }
     },
     "/raw/product/{id}": {
@@ -2205,7 +2422,10 @@
         "x-res-group": "/raw",
         "x-res-module": "StatusDemo",
         "x-res-return-type": "Product",
-        "x-res-return-type-dsl": "Product"
+        "x-res-return-type-dsl": "Product",
+        "x-res-content-type": "json",
+        "x-res-response-content-type": "application/json",
+        "x-res-error-content-type": "application/json"
       }
     },
     "/raw/products": {
@@ -2252,7 +2472,12 @@
         "x-res-group": "/raw",
         "x-res-module": "StatusDemo",
         "x-res-return-type": "ResData\u003c[Product]\u003e",
-        "x-res-return-type-dsl": "ResData\u003c[Product]\u003e"
+        "x-res-return-type-dsl": "ResData\u003c[Product]\u003e",
+        "x-res-content-type": "json",
+        "x-res-response-content-type": "application/json",
+        "x-res-error-content-type": "application/json",
+        "x-res-error-type": "ResDataError",
+        "x-res-error-wrapped": true
       }
     },
     "/tasks/cancel": {
@@ -2300,7 +2525,12 @@
         "x-res-module": "TaskDemo",
         "x-res-return-type": "ResData\u003cBoolean\u003e",
         "x-res-return-type-dsl": "ResData\u003cBoolean\u003e",
-        "x-res-input-name": "CancelTaskArgs"
+        "x-res-input-name": "CancelTaskArgs",
+        "x-res-content-type": "json",
+        "x-res-response-content-type": "application/json",
+        "x-res-error-content-type": "application/json",
+        "x-res-error-type": "ResDataError",
+        "x-res-error-wrapped": true
       }
     },
     "/tasks/delete": {
@@ -2348,7 +2578,12 @@
         "x-res-module": "TaskDemo",
         "x-res-return-type": "ResData\u003cBoolean\u003e",
         "x-res-return-type-dsl": "ResData\u003cBoolean\u003e",
-        "x-res-input-name": "DeleteTaskArgs"
+        "x-res-input-name": "DeleteTaskArgs",
+        "x-res-content-type": "json",
+        "x-res-response-content-type": "application/json",
+        "x-res-error-content-type": "application/json",
+        "x-res-error-type": "ResDataError",
+        "x-res-error-wrapped": true
       }
     },
     "/tasks/item": {
@@ -2395,7 +2630,12 @@
         "x-res-group": "/tasks",
         "x-res-module": "TaskDemo",
         "x-res-return-type": "ResData\u003cBoolean\u003e",
-        "x-res-return-type-dsl": "ResData\u003cBoolean\u003e"
+        "x-res-return-type-dsl": "ResData\u003cBoolean\u003e",
+        "x-res-content-type": "json",
+        "x-res-response-content-type": "application/json",
+        "x-res-error-content-type": "application/json",
+        "x-res-error-type": "ResDataError",
+        "x-res-error-wrapped": true
       }
     },
     "/tasks/name": {
@@ -2443,7 +2683,12 @@
         "x-res-module": "TaskDemo",
         "x-res-return-type": "ResData\u003cBoolean\u003e",
         "x-res-return-type-dsl": "ResData\u003cBoolean\u003e",
-        "x-res-input-name": "UpdateNameArgs"
+        "x-res-input-name": "UpdateNameArgs",
+        "x-res-content-type": "json",
+        "x-res-response-content-type": "application/json",
+        "x-res-error-content-type": "application/json",
+        "x-res-error-type": "ResDataError",
+        "x-res-error-wrapped": true
       }
     },
     "/tasks/reset/{id}": {
@@ -2490,7 +2735,12 @@
         "x-res-group": "/tasks",
         "x-res-module": "TaskDemo",
         "x-res-return-type": "ResData\u003cBoolean\u003e",
-        "x-res-return-type-dsl": "ResData\u003cBoolean\u003e"
+        "x-res-return-type-dsl": "ResData\u003cBoolean\u003e",
+        "x-res-content-type": "json",
+        "x-res-response-content-type": "application/json",
+        "x-res-error-content-type": "application/json",
+        "x-res-error-type": "ResDataError",
+        "x-res-error-wrapped": true
       }
     },
     "/tasks/status": {
@@ -2538,7 +2788,12 @@
         "x-res-module": "TaskDemo",
         "x-res-return-type": "ResData\u003cBoolean\u003e",
         "x-res-return-type-dsl": "ResData\u003cBoolean\u003e",
-        "x-res-input-name": "PatchStatusArgs"
+        "x-res-input-name": "PatchStatusArgs",
+        "x-res-content-type": "json",
+        "x-res-response-content-type": "application/json",
+        "x-res-error-content-type": "application/json",
+        "x-res-error-type": "ResDataError",
+        "x-res-error-wrapped": true
       }
     },
     "/tasks/trigger": {
@@ -2585,7 +2840,12 @@
         "x-res-group": "/tasks",
         "x-res-module": "TaskDemo",
         "x-res-return-type": "ResData\u003cBoolean\u003e",
-        "x-res-return-type-dsl": "ResData\u003cBoolean\u003e"
+        "x-res-return-type-dsl": "ResData\u003cBoolean\u003e",
+        "x-res-content-type": "json",
+        "x-res-response-content-type": "application/json",
+        "x-res-error-content-type": "application/json",
+        "x-res-error-type": "ResDataError",
+        "x-res-error-wrapped": true
       }
     }
   },

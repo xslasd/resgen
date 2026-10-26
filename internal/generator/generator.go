@@ -2130,7 +2130,7 @@ func Generate(schema *parser.Schema, targetDir string, conf *config.Config) erro
 					hasFile := false
 					for _, arg := range method.Args {
 						// arg.GoType 是 Go 物理类型（如 "*multipart.FileHeader"），覆盖顶层和 input struct 场景
-						if strings.Contains(arg.GoType, "multipart.FileHeader") {
+						if strings.Contains(arg.GoType, "multipart.FileHeader") || strings.HasPrefix(arg.Type, "File") {
 							hasFile = true
 						}
 						if arg.RefModel != nil && hasFileInModel(arg.RefModel, ctx.ModelMap) {
