@@ -985,6 +985,9 @@
             }
 
             const t = cleanType.toLowerCase();
+            if (t === 'file') {
+                return "@path/to/sample.file";
+            }
             if (t === 'int' || t === 'integer' || t === 'int64' || t === 'number' || t === 'float') {
                 if (lowerName.includes('age')) return 25;
                 if (lowerName.includes('amount') || lowerName.includes('price')) return 100;

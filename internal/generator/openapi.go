@@ -326,20 +326,25 @@ func ConvertToOpenAPI3(ctx *DataContext) *OpenAPIDocument {
 							},
 						},
 					}
-				} else if ep.InputName != "" && modelMap[ep.InputName] != nil {
-					inputMod := modelMap[ep.InputName]
+				} else if ep.InputName != "" {
 					mLower := strings.ToLower(ep.Method)
 					if strings.Contains(mLower, "post") ||
 						strings.Contains(mLower, "put") ||
 						strings.Contains(mLower, "patch") ||
 						strings.Contains(mLower, "delete") {
+						var bodySchema *OpenAPISchema
+						if inputMod := modelMap[ep.InputName]; inputMod != nil {
+							bodySchema = &OpenAPISchema{
+								Ref: "#/components/schemas/" + inputMod.Name,
+							}
+						} else {
+							bodySchema = buildTypeSchema(ep.InputName, ctx.Scalars, modelMap)
+						}
 						op.RequestBody = &OpenAPIRequestBody{
 							Required: true,
 							Content: map[string]OpenAPIMediaType{
 								reqMime: {
-									Schema: &OpenAPISchema{
-										Ref: "#/components/schemas/" + inputMod.Name,
-									},
+									Schema: bodySchema,
 								},
 							},
 						}
